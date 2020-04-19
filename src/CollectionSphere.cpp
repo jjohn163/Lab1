@@ -2,13 +2,13 @@
 
 using namespace glm;
 
-CollectionSphere::CollectionSphere(vec3 position, vec3 direction, vec3 speed, float radius, bool isMoving=true)
+CollectionSphere::CollectionSphere(vec3 pos, vec3 dir, float spd, float rad, bool mov)
 {
-	position = position;
-	direction = direction;
-	speed = speed;
-	radius = radius;
-	isMoving = isMoving;
+	position = pos;
+	direction = dir;
+	speed = spd;
+	radius = rad;
+	moving = mov;
 }
 
 vec3 CollectionSphere::getPosition() {
@@ -17,7 +17,7 @@ vec3 CollectionSphere::getPosition() {
 vec3 CollectionSphere::getDirection() {
 	return this->direction;
 }
-vec3 CollectionSphere::getSpeed() {
+float CollectionSphere::getSpeed() {
 	return this->speed;
 }
 float CollectionSphere::getRadius() {
@@ -32,11 +32,11 @@ void CollectionSphere::setPosition(vec3 newPos) {
 void CollectionSphere::setDirection(vec3 newDir) {
 	this->direction = newDir;
 }
-void CollectionSphere::setSpeed(vec3 newSpeed) {
+void CollectionSphere::setSpeed(float newSpeed) {
 	this->speed = newSpeed;
 }
 void CollectionSphere::toggleMoving() {
-	this->moving = !this->moving;
+	this->moving = false;
 }
 
 CollectionSphere::~CollectionSphere()

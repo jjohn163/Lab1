@@ -43,3 +43,6 @@ float TimeManager::FrameRate()
 	}
 	return 1.0/((sumFrames/frameTimes.size())/1000.0);
 }
+long long TimeManager::GetTime() {
+	return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}

@@ -2,6 +2,9 @@
 #include <iostream>
 #include <glad/glad.h>
 #include <cmath>
+#include <stdlib.h>
+#include <chrono>
+
 
 #include "stb_image.h"
 #include "GLSL.h"
@@ -11,6 +14,7 @@
 #include "WindowManager.h"
 #include "Texture.h"
 #include "TimeManager.h"
+#include "CollectionSphere.h"
 
 
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -22,6 +26,7 @@
 
 using namespace std;
 using namespace glm;
+
 
 class Application : public EventCallbacks
 {
@@ -57,16 +62,21 @@ public:
 	bool movingBackward = false;
 	bool movingLeft = false;
 	bool movingRight = false;
-
-	vector<vec3> spherePositions;
-
+	long long lastSpawn = 0;
+	
+	
 	float phi = 0;
 	float pheta = 1.5708;
 	vec3 lookAtPoint = vec3(0, 0, 1);
 	vec3 eye = vec3(0, 0, 0);
 	vec3 up = vec3(0, 1, 0);
-
+	const int SPAWN_DELAY = 3000;
 	float PLAYER_SPEED = 10.0;
+	float SPHERE_SPEED = 5.0;
+	const int WIDTH = 30.0;
+	const int HEIGHT = 30.0;
+	int collected = 0;
+
 	float deltaTime = 0;
 	float PI = 3.14159;
 	float rotate = 0;
@@ -75,7 +85,7 @@ public:
 
 	float SPHERE_RADIUS = 1.0;
 	float EYE_RADIUS = 2.0;
-
+	vector<shared_ptr<CollectionSphere>> collectionSpheres;
 
 	vector<std::string> faces{
 		"iceflow_lf.tga",
@@ -173,10 +183,10 @@ public:
 			movingRight = false;
 		}
 		if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
-			light.x -= 0.5;
+			eye.y -= 0.5;
 		}
 		if (key == GLFW_KEY_E && action == GLFW_PRESS) {
-			light.x += 0.5;
+			eye.y += 0.5;
 		}
 		if (key == GLFW_KEY_Z && action == GLFW_PRESS) {
 			glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
@@ -185,51 +195,142 @@ public:
 			glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 		}
 	}
+
+void mouseCallback(GLFWwindow *window, int button, int action, int mods)
+{
+	double posX, posY;
+
+	if (action == GLFW_PRESS)
+	{
+		glfwGetCursorPos(window, &posX, &posY);
+		cout << "Pos X " << posX << " Pos Y " << posY << endl;
+	}
+}
+
+void resizeCallback(GLFWwindow *window, int width, int height)
+{
+	glViewport(0, 0, width, height);
+}
+
+void scrollCallback(GLFWwindow* window, double deltaX, double deltaY) {
+	return;
+}
+
+unsigned int createSky(string dir, vector<string> faces) {
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+	int width, height, nrChannels;
+	stbi_set_flip_vertically_on_load(false);
+	for (GLuint i = 0; i < faces.size(); i++) {
+		unsigned char *data =
+			stbi_load((dir + faces[i]).c_str(), &width, &height, &nrChannels, 0);
+		if (data) {
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+				0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		}
+		else {
+			cout << "failed to load: " << (dir + faces[i]).c_str() << endl;
+		}
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	cout << " creating cube map any errors : " << glGetError() << endl;
+	return textureID;
+}
+
+bool didCollide(vec3 pos, float radius) {
+	//check if collides with other collector spheres
+	for (int i = 0; i < collectionSpheres.size(); i++) {
+		if (glm::distance(collectionSpheres[i]->getPosition(), pos)
+			< (collectionSpheres[i]->getRadius() + radius)) {
+			return true;
+		}
+	}
+	//check if collides with the player
+	if (glm::distance(eye, pos)
+		< (EYE_RADIUS + radius)) {
+		return true;
+	}
+	return false;
+}
+
+void printScore() {
 	
-	void mouseCallback(GLFWwindow *window, int button, int action, int mods)
-	{
-		double posX, posY;
+	cout << "Collected: " << collected << endl;
+	cout << "Alive: " << collectionSpheres.size() - collected << endl;
+}
+void manageCollisions() {
+	for (int i = 0; i < collectionSpheres.size(); i++) {
 
-		if (action == GLFW_PRESS)
-		{
-			 glfwGetCursorPos(window, &posX, &posY);
-			 cout << "Pos X " << posX <<  " Pos Y " << posY << endl;
+		//collisions with boundary
+		vec3 currentPos = collectionSpheres[i]->getPosition();
+		float radius = collectionSpheres[i]->getRadius();
+		vec3 direction = collectionSpheres[i]->getDirection();
+		if ((currentPos.x + radius > WIDTH) || (currentPos.x - radius < -WIDTH)) {
+			direction.x = -direction.x;
 		}
-	}
+		if ((currentPos.z + radius > HEIGHT) || (currentPos.z - radius < -HEIGHT)) {
+			direction.z = -direction.z;
+		}
+		collectionSpheres[i]->setDirection(direction);
 
-	void resizeCallback(GLFWwindow *window, int width, int height)
-	{
-		glViewport(0, 0, width, height);
-	}
-
-	void scrollCallback(GLFWwindow* window, double deltaX, double deltaY) {
-		return;
-	}
-
-	unsigned int createSky(string dir, vector<string> faces) {
-		unsigned int textureID;
-		glGenTextures(1, &textureID);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
-		int width, height, nrChannels;
-		stbi_set_flip_vertically_on_load(false);
-		for (GLuint i = 0; i < faces.size(); i++) {
-			unsigned char *data =
-				stbi_load((dir + faces[i]).c_str(), &width, &height, &nrChannels, 0);
-			if (data) {
-				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-					0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-			}
-			else {
-				cout << "failed to load: " << (dir + faces[i]).c_str() << endl;
+		//collisions with other spheres
+		for (int j = i + 1; j < collectionSpheres.size(); j++) {
+			if (glm::distance(collectionSpheres[i]->getPosition(), collectionSpheres[j]->getPosition())
+				< (collectionSpheres[i]->getRadius() + collectionSpheres[j]->getRadius())) {
+				//assuming perfect collision 
+				if (collectionSpheres[i]->isMoving() && collectionSpheres[j]->isMoving()) {
+					vec3 temp = collectionSpheres[i]->getDirection();
+					collectionSpheres[i]->setDirection(collectionSpheres[j]->getDirection());
+					collectionSpheres[j]->setDirection(temp);
+				}
+				else {
+					collectionSpheres[i]->setDirection(vec3(collectionSpheres[i]->getDirection().z, 0, collectionSpheres[i]->getDirection().x));
+					collectionSpheres[j]->setDirection(vec3(collectionSpheres[j]->getDirection().z, 0, collectionSpheres[j]->getDirection().x));
+				}
 			}
 		}
-		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-		cout << " creating cube map any errors : " << glGetError() << endl;
-		return textureID;
+
+		//collisions with player
+		if (glm::distance(eye, collectionSpheres[i]->getPosition()) < (EYE_RADIUS + collectionSpheres[i]->getRadius())
+			&& collectionSpheres[i]->isMoving()) {
+			collectionSpheres[i]->toggleMoving();
+			collected++;
+			printScore();
+		}
+	}
+}
+
+void spawnEnemies() {
+	long long currentTime = TimeManager::Instance()->GetTime();
+	if (((currentTime - lastSpawn) > SPAWN_DELAY) && (collectionSpheres.size() < 50)) {
+		int xpos;
+		int zpos;
+		int radius = static_cast<int>(SPHERE_RADIUS);
+		do {
+			xpos = (rand() % (WIDTH - radius) * 2) - (WIDTH - radius);
+			zpos = (rand() % (HEIGHT - radius) * 2) - (HEIGHT - radius);
+		} while (didCollide(vec3(xpos, 0, zpos), SPHERE_RADIUS));
+
+		vec3 direction = normalize(vec3(rand(), 0, rand()));
+		shared_ptr<CollectionSphere> temp = make_shared<CollectionSphere>(vec3(xpos, 0, zpos), direction, SPHERE_SPEED, SPHERE_RADIUS, true);
+		collectionSpheres.push_back(temp);
+		lastSpawn = currentTime;
+		printScore();
+	}	
+}
+
+	void updateEnemies() {
+		for (shared_ptr<CollectionSphere> sphere : collectionSpheres) {
+			if (sphere->isMoving()) {
+				vec3 newPos = sphere->getPosition() + (sphere->getDirection() * sphere->getSpeed() * deltaTime);
+				sphere->setPosition(newPos);
+			}
+		}
 	}
 
 	// Code to load in the three textures
@@ -280,6 +381,7 @@ public:
 		
 		window = windowManager->getHandle();
 
+		srand(time(NULL));
 	}
 
 
@@ -318,19 +420,9 @@ public:
 			meshsphere->measure();
 			meshsphere->init();
 		}
+		//collectionSpheres.reserve(50);
+		spawnEnemies();
 
-		spherePositions.push_back(vec3(8, 0, 0));
-		spherePositions.push_back(vec3(-8, 0, 0));
-		spherePositions.push_back(vec3(0, 0, 8));
-		spherePositions.push_back(vec3(0, 0, -8));
-		spherePositions.push_back(vec3(-7, 0, -4));
-		spherePositions.push_back(vec3(-4, 0, -7));
-		spherePositions.push_back(vec3(7, 0, -4));
-		spherePositions.push_back(vec3(4, 0, -7));
-		spherePositions.push_back(vec3(-7, 0, 4));
-		spherePositions.push_back(vec3(-4, 0, 7));
-		spherePositions.push_back(vec3(7, 0, 4));
-		spherePositions.push_back(vec3(4, 0, 7));
 
 	}
 
@@ -386,10 +478,15 @@ public:
 	}
 
 	void drawEnemies(shared_ptr<MatrixStack> Model) {
-		SetMaterial(3);
-		for (vec3 pos : spherePositions) {
+		for (shared_ptr<CollectionSphere> sphere : collectionSpheres) {
+			if (sphere->isMoving()) {
+				SetMaterial(3);
+			}
+			else {
+				SetMaterial(6);
+			}
 			Model->pushMatrix();
-			Model->translate(pos);
+			Model->translate(sphere->getPosition());
 			setModel(progMat, Model);
 			meshsphere->draw(progMat);
 			Model->popMatrix();
@@ -407,20 +504,15 @@ public:
 		Model->popMatrix();
 	}
 
-	bool didCollide() {
-		for (vec3 pos1 : spherePositions) {
-			for (vec3 pos2 : spherePositions) {
-				if (glm::distance(pos1, pos2) < SPHERE_RADIUS * 2) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
+
 
 	void render() {
 		TimeManager::Instance()->Update();
 		deltaTime = TimeManager::Instance()->DeltaTime();
+		manageCollisions();
+		updateEnemies();
+		spawnEnemies();
+
 		//cout << TimeManager::Instance()->FrameRate() << endl;
 		// Get current frame buffer size.
 		int width, height;

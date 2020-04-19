@@ -5,14 +5,14 @@ using namespace glm;
 class CollectionSphere
 {
 public:
-	CollectionSphere(vec3 position, vec3 direction, vec3 speed, float radius, bool moving);
+	CollectionSphere::CollectionSphere(vec3 position, vec3 direction, float speed, float radius, bool moving);
 	vec3 getPosition();
 	vec3 getDirection();
-	vec3 getSpeed();
+	float getSpeed();
 	float getRadius();
 	bool isMoving();
 	void setPosition(vec3 newPos);
-	void setSpeed(vec3 newSpeed);
+	void setSpeed(float newSpeed);
 	void setDirection(vec3 newDir);
 	void toggleMoving();
 	~CollectionSphere();
@@ -20,7 +20,7 @@ public:
 private:
 	vec3 position;
 	vec3 direction;
-	vec3 speed;
+	float speed;
 	float radius;
 	bool moving;
 };

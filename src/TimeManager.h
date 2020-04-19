@@ -15,6 +15,7 @@ public:
 	void Update();
 	float DeltaTime();
 	float FrameRate();
+	long long GetTime();
 
 private:
 	TimeManager::TimeManager() {};
