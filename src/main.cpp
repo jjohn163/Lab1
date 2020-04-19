@@ -58,7 +58,7 @@ public:
 	bool movingLeft = false;
 	bool movingRight = false;
 
-	vector<vec3> treePositions;
+	vector<vec3> spherePositions;
 
 	float phi = 0;
 	float pheta = 1.5708;
@@ -72,6 +72,10 @@ public:
 	float rotate = 0;
 	vec3 light = vec3(-2, 2, 2);
 	unsigned int skyTextureId;
+
+	float SPHERE_RADIUS = 1.0;
+	float EYE_RADIUS = 2.0;
+
 
 	vector<std::string> faces{
 		"iceflow_lf.tga",
@@ -315,18 +319,18 @@ public:
 			meshsphere->init();
 		}
 
-		treePositions.push_back(vec3(8, 0, 0));
-		treePositions.push_back(vec3(-8, 0, 0));
-		treePositions.push_back(vec3(0, 0, 8));
-		treePositions.push_back(vec3(0, 0, -8));
-		treePositions.push_back(vec3(-7, 0, -4));
-		treePositions.push_back(vec3(-4, 0, -7));
-		treePositions.push_back(vec3(7, 0, -4));
-		treePositions.push_back(vec3(4, 0, -7));
-		treePositions.push_back(vec3(-7, 0, 4));
-		treePositions.push_back(vec3(-4, 0, 7));
-		treePositions.push_back(vec3(7, 0, 4));
-		treePositions.push_back(vec3(4, 0, 7));
+		spherePositions.push_back(vec3(8, 0, 0));
+		spherePositions.push_back(vec3(-8, 0, 0));
+		spherePositions.push_back(vec3(0, 0, 8));
+		spherePositions.push_back(vec3(0, 0, -8));
+		spherePositions.push_back(vec3(-7, 0, -4));
+		spherePositions.push_back(vec3(-4, 0, -7));
+		spherePositions.push_back(vec3(7, 0, -4));
+		spherePositions.push_back(vec3(4, 0, -7));
+		spherePositions.push_back(vec3(-7, 0, 4));
+		spherePositions.push_back(vec3(-4, 0, 7));
+		spherePositions.push_back(vec3(7, 0, 4));
+		spherePositions.push_back(vec3(4, 0, 7));
 
 	}
 
@@ -383,7 +387,7 @@ public:
 
 	void drawEnemies(shared_ptr<MatrixStack> Model) {
 		SetMaterial(3);
-		for (vec3 pos : treePositions) {
+		for (vec3 pos : spherePositions) {
 			Model->pushMatrix();
 			Model->translate(pos);
 			setModel(progMat, Model);
@@ -402,6 +406,18 @@ public:
 			meshfloor->draw(progMat);
 		Model->popMatrix();
 	}
+
+	bool didCollide() {
+		for (vec3 pos1 : spherePositions) {
+			for (vec3 pos2 : spherePositions) {
+				if (glm::distance(pos1, pos2) < SPHERE_RADIUS * 2) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	void render() {
 		TimeManager::Instance()->Update();
 		deltaTime = TimeManager::Instance()->DeltaTime();
