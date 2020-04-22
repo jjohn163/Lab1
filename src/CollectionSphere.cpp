@@ -1,6 +1,9 @@
 #include "CollectionSphere.h"
+#include "TimeManager.h"
+#include <iostream>
 
 using namespace glm;
+using namespace std;
 
 CollectionSphere::CollectionSphere(vec3 pos, vec3 dir, float spd, float rad, bool mov)
 {
@@ -9,6 +12,98 @@ CollectionSphere::CollectionSphere(vec3 pos, vec3 dir, float spd, float rad, boo
 	speed = spd;
 	radius = rad;
 	moving = mov;
+}
+
+bool didCollide(vector<shared_ptr<CollectionSphere>> &collectionSpheres, vec3 pos, float radius, float eye_radius, vec3 eye) {
+	//check if collides with other collector spheres
+	for (int i = 0; i < collectionSpheres.size(); i++) {
+		if (glm::distance(collectionSpheres[i]->getPosition(), pos)
+			< (collectionSpheres[i]->getRadius() + radius)) {
+			return true;
+		}
+	}
+	//check if collides with the player
+	if (glm::distance(eye, pos)
+		< (eye_radius + radius)) {
+		return true;
+	}
+	return false;
+}
+
+void CollectionSphere::printScore(vector<shared_ptr<CollectionSphere>> &collectionSpheres) {
+	cout << "Collected: " << collected << endl;
+	cout << "Alive: " << collectionSpheres.size() - collected << endl;
+}
+
+void CollectionSphere::spawnEnemies(vector<shared_ptr<CollectionSphere>> &collectionSpheres, float eye_radius, vec3 eye) {
+	long long currentTime = TimeManager::Instance()->GetTime();
+	if (((currentTime - lastSpawn) > SPAWN_DELAY) && (collectionSpheres.size() < 50)) {
+		int xpos;
+		int zpos;
+		int radius = static_cast<int>(SPHERE_RADIUS);
+		do {
+			xpos = (rand() % (WIDTH - radius) * 2) - (WIDTH - radius);
+			zpos = (rand() % (HEIGHT - radius) * 2) - (HEIGHT - radius);
+		} while (didCollide(collectionSpheres, vec3(xpos, 0, zpos), SPHERE_RADIUS, eye_radius, eye));
+
+		vec3 direction = normalize(vec3(rand(), 0, rand()));
+		shared_ptr<CollectionSphere> temp = make_shared<CollectionSphere>(vec3(xpos, 0, zpos), direction, SPHERE_SPEED, SPHERE_RADIUS, true);
+		collectionSpheres.push_back(temp);
+		lastSpawn = currentTime;
+		printScore(collectionSpheres);
+	}
+}
+
+void CollectionSphere::manageCollisions(vector<shared_ptr<CollectionSphere>> &collectionSpheres, float eye_radius, vec3 eye) {
+	for (int i = 0; i < collectionSpheres.size(); i++) {
+
+		//collisions with boundary
+		vec3 currentPos = collectionSpheres[i]->getPosition();
+		float radius = collectionSpheres[i]->getRadius();
+		vec3 direction = collectionSpheres[i]->getDirection();
+		if ((currentPos.x + radius > WIDTH) || (currentPos.x - radius < -WIDTH)) {
+			direction.x = -direction.x;
+		}
+		if ((currentPos.z + radius > HEIGHT) || (currentPos.z - radius < -HEIGHT)) {
+			direction.z = -direction.z;
+		}
+		collectionSpheres[i]->setDirection(direction);
+
+		//collisions with other spheres
+		for (int j = i + 1; j < collectionSpheres.size(); j++) {
+			if (glm::distance(collectionSpheres[i]->getPosition(), collectionSpheres[j]->getPosition())
+				< (collectionSpheres[i]->getRadius() + collectionSpheres[j]->getRadius())) {
+				//assuming perfect collision 
+				if (collectionSpheres[i]->isMoving() && collectionSpheres[j]->isMoving()) {
+					vec3 temp = collectionSpheres[i]->getDirection();
+					collectionSpheres[i]->setDirection(collectionSpheres[j]->getDirection());
+					collectionSpheres[j]->setDirection(temp);
+				}
+				else {
+					collectionSpheres[i]->setDirection(vec3(collectionSpheres[i]->getDirection().z, 0, collectionSpheres[i]->getDirection().x));
+					collectionSpheres[j]->setDirection(vec3(collectionSpheres[j]->getDirection().z, 0, collectionSpheres[j]->getDirection().x));
+				}
+			}
+		}
+
+		//collisions with player
+		if (glm::distance(eye, collectionSpheres[i]->getPosition()) < (eye_radius + collectionSpheres[i]->getRadius())
+			&& collectionSpheres[i]->isMoving()) {
+			collectionSpheres[i]->toggleMoving();
+			collected++;
+			printScore(collectionSpheres);
+		}
+	}
+}
+
+void CollectionSphere::updateEnemies(vector<shared_ptr<CollectionSphere>> &collectionSpheres) {
+	float deltaTime = TimeManager::Instance()->DeltaTime();
+	for (shared_ptr<CollectionSphere> sphere : collectionSpheres) {
+		if (sphere->isMoving()) {
+			vec3 newPos = sphere->getPosition() + (sphere->getDirection() * sphere->getSpeed() * deltaTime);
+			sphere->setPosition(newPos);
+		}
+	}
 }
 
 vec3 CollectionSphere::getPosition() {
