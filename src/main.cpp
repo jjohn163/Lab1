@@ -504,6 +504,77 @@ void spawnEnemies() {
 		Model->popMatrix();
 	}
 
+	void drawKiwis(shared_ptr<MatrixStack> M) {
+		//Sphere body
+		for (shared_ptr<CollectionSphere> sphere : collectionSpheres) {
+			M->pushMatrix();
+				M->translate(sphere->getPosition());
+				M->scale(vec3(1.16, 1.16, 1.16));
+				setModel(progMat, M);
+				meshsphere->draw(progMat);
+                
+			M->popMatrix();
+            
+			//Oval part of body
+			M->pushMatrix();
+				M->translate(sphere->getPosition());
+				M->translate(vec3(.8, 0, 0));
+				M->rotate(-.17, vec3(0, 0, 1.0));
+				M->rotate(-.2, vec3(0, 1.0, 0));
+				M->scale(vec3(1.5, 1.16, 1.14));
+				setModel(progMat, M);
+				meshsphere->draw(progMat);
+			M->popMatrix();
+            
+			//Neck
+			M->pushMatrix();
+				M->translate(sphere->getPosition());
+				M->translate(vec3(1.8, .3, 0));
+				M->rotate(.4, vec3(0, 0, 1.0));
+				M->scale(vec3(1, .75, .75));
+				setModel(progMat, M);
+				meshsphere->draw(progMat);
+            
+				//Head
+				M->pushMatrix();
+					M->translate(vec3(.7, .6, 0));
+					M->rotate(sin(sTheta), vec3(0, 0, 1.0));
+					M->scale(vec3(.65, .55, .55));
+					setModel(progMat, M);
+					meshsphere->draw(progMat);
+            
+					//Beak
+					M->pushMatrix();
+						SetMaterial(6);
+						M->translate(vec3(1.1, 0, 0));
+						M->scale(vec3(1, .05, .05));
+						M->rotate(-PI/2, vec3(0, 0, 1.0));
+						setModel(progMat, M);
+						meshsphere->draw(progMat);
+					M->popMatrix();
+            
+					//Eye1
+					SetMaterial(5);
+					M->pushMatrix();
+						M->translate(vec3(.3, .652, .62));
+						M->scale(vec3(.1, .1, .1));
+						setModel(progMat, M);
+						meshsphere->draw(progMat);
+					M->popMatrix();
+            
+					//Eye2
+					M->pushMatrix();
+						M->translate(vec3(.3, .652, -.62));
+						M->scale(vec3(.1, .1, .1));
+						setModel(progMat, M);
+						meshsphere->draw(progMat);
+					M->popMatrix();
+            
+				M->popMatrix();
+			M->popMatrix();
+		}
+	}
+
 
 
 	void render() {
@@ -550,7 +621,7 @@ void spawnEnemies() {
 			Model->loadIdentity();
 				Model->rotate(rotate, vec3(0, 1, 0));
 				drawFloor(Model);
-				drawEnemies(Model);
+				drawKiwis(Model);
 			Model->popMatrix();
 		progMat->unbind();
 
