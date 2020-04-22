@@ -42,7 +42,7 @@ public:
 	// Shape to be used (from  file) - modify to support multiple
 	shared_ptr<Shape> meshfloor;
 	shared_ptr<Shape> meshsphere;
-
+	shared_ptr<Shape> goose;
 
 	// Contains vertex information for OpenGL
 	GLuint VertexArrayID;
@@ -301,6 +301,8 @@ unsigned int createSky(string dir, vector<string> faces) {
 		vector<tinyobj::material_t> objMaterialsFloor;
 		vector<tinyobj::shape_t> TOshapesSphere;
 		vector<tinyobj::material_t> objMaterialsSphere;
+		vector<tinyobj::shape_t> TOshapesGoose;
+		vector<tinyobj::material_t> objMaterialsGoose;
 
 
 		bool rc = tinyobj::LoadObj(TOshapesFloor, objMaterialsFloor, errStr, (resourceDirectory + "/cube.obj").c_str());
@@ -324,9 +326,19 @@ unsigned int createSky(string dir, vector<string> faces) {
 			meshsphere->measure();
 			meshsphere->init();
 		}
-		//collectionSpheres.reserve(50);
-		CollectionSphere::spawnEnemies(collectionSpheres, EYE_RADIUS, eye);
 
+		rc = tinyobj::LoadObj(TOshapesGoose, objMaterialsGoose, errStr, (resourceDirectory + "/goose.obj").c_str());
+		if (!rc) {
+			cerr << errStr << endl;
+		}
+		else {
+			goose = make_shared<Shape>();
+			goose->createShape(TOshapesGoose[0]);
+			goose->measure();
+			goose->init();
+		}
+
+		CollectionSphere::spawnEnemies(collectionSpheres, EYE_RADIUS, eye);
 
 	}
 
@@ -395,7 +407,24 @@ unsigned int createSky(string dir, vector<string> faces) {
 			meshsphere->draw(progMat);
 			Model->popMatrix();
 		}
+	}
 
+	void drawGeese(shared_ptr<MatrixStack> Model) {
+		for (shared_ptr<CollectionSphere> sphere : collectionSpheres) {
+			if (sphere->isMoving()) {
+				SetMaterial(3);
+			}
+			else {
+				SetMaterial(6);
+			}
+			Model->pushMatrix();
+			Model->translate(sphere->getPosition());
+			Model->scale(vec3(3, 3, 3));
+			Model->rotate(atan2(sphere->getDirection().y, sphere->getDirection().x)-PI/4, vec3(0, 1, 0));
+			setModel(progMat, Model);
+			goose->draw(progMat);
+			Model->popMatrix();
+		}
 	}
 
 	void drawFloor(shared_ptr<MatrixStack> Model) {
@@ -526,7 +555,7 @@ unsigned int createSky(string dir, vector<string> faces) {
 			Model->loadIdentity();
 				Model->rotate(rotate, vec3(0, 1, 0));
 				drawFloor(Model);
-				drawKiwis(Model);
+				drawGeese(Model);
 			Model->popMatrix();
 		progMat->unbind();
 
