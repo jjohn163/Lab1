@@ -74,15 +74,12 @@ void CollectionSphere::manageCollisions(vector<shared_ptr<CollectionSphere>> &co
 			if (glm::distance(collectionSpheres[i]->getPosition(), collectionSpheres[j]->getPosition())
 				< (collectionSpheres[i]->getRadius() + collectionSpheres[j]->getRadius())) {
 				//assuming perfect collision 
-				if (collectionSpheres[i]->isMoving() && collectionSpheres[j]->isMoving()) {
-					vec3 temp = collectionSpheres[i]->getDirection();
-					collectionSpheres[i]->setDirection(collectionSpheres[j]->getDirection());
-					collectionSpheres[j]->setDirection(temp);
-				}
-				else {
-					collectionSpheres[i]->setDirection(vec3(collectionSpheres[i]->getDirection().z, 0, collectionSpheres[i]->getDirection().x));
-					collectionSpheres[j]->setDirection(vec3(collectionSpheres[j]->getDirection().z, 0, collectionSpheres[j]->getDirection().x));
-				}
+
+				vec3 direction = normalize(vec3(collectionSpheres[j]->getPosition().x - collectionSpheres[i]->getPosition().x,
+					0,
+					collectionSpheres[j]->getPosition().z - collectionSpheres[i]->getPosition().z));
+				collectionSpheres[i]->setDirection(-direction);
+				collectionSpheres[j]->setDirection(direction);
 			}
 		}
 
