@@ -78,8 +78,12 @@ void CollectionSphere::manageCollisions(vector<shared_ptr<CollectionSphere>> &co
 				vec3 direction = normalize(vec3(collectionSpheres[j]->getPosition().x - collectionSpheres[i]->getPosition().x,
 					0,
 					collectionSpheres[j]->getPosition().z - collectionSpheres[i]->getPosition().z));
-				collectionSpheres[i]->setDirection(-direction);
-				collectionSpheres[j]->setDirection(direction);
+				if (collectionSpheres[i]->isMoving()) {
+					collectionSpheres[i]->setDirection(-direction);
+				}
+				if (collectionSpheres[j]->isMoving()) {
+					collectionSpheres[j]->setDirection(direction);
+				}
 			}
 		}
 
