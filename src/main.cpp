@@ -188,6 +188,9 @@ public:
 		if (key == GLFW_KEY_E && action == GLFW_PRESS) {
 			eye.y += 0.5;
 		}
+		if (key == GLFW_KEY_F && action == GLFW_PRESS) {
+			cout << "Framerate: " << TimeManager::Instance()->FrameRate() << endl;
+		}
 		if (key == GLFW_KEY_Z && action == GLFW_PRESS) {
 			glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 		}
@@ -314,17 +317,6 @@ unsigned int createSky(string dir, vector<string> faces) {
 			meshfloor->createShape(TOshapesFloor[0]);
 			meshfloor->measure();
 			meshfloor->init();
-		}
-
-		rc = tinyobj::LoadObj(TOshapesSphere, objMaterialsSphere, errStr, (resourceDirectory + "/sphere.obj").c_str());
-		if (!rc) {
-			cerr << errStr << endl;
-		}
-		else {
-			meshsphere = make_shared<Shape>();
-			meshsphere->createShape(TOshapesSphere[0]);
-			meshsphere->measure();
-			meshsphere->init();
 		}
 
 		rc = tinyobj::LoadObj(TOshapesGoose, objMaterialsGoose, errStr, (resourceDirectory + "/goose.obj").c_str());
