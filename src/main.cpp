@@ -70,6 +70,7 @@ public:
 	vec3 lookAtPoint = vec3(0, 0, 1);
 	vec3 eye = vec3(0, 0, 0);
 	vec3 up = vec3(0, 1, 0);
+	vec3 targetPoint = vec3(0, 0, 0);
 	const int SPAWN_DELAY = 3000;
 	float PLAYER_SPEED = 10.0;
 	float SPHERE_SPEED = 5.0;
@@ -98,58 +99,57 @@ public:
 
 
 	void updateLookAtPoint() {
-		if (phi > 1.4) {
-			phi = 1.5;
+		if (phi > 1.5) {
+			phi = 1.6;
 		}
-		else if (phi < -1.4) {
-			phi = -1.5;
+		else if (phi < -1.5) {
+			phi = -1.6;
 		}
-		lookAtPoint.x = cos(phi) * cos(pheta) + eye.x;
-		lookAtPoint.y = sin(phi) + eye.y;
-		lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + eye.z;
+		lookAtPoint.x = cos(phi) * cos(pheta) + targetPoint.x;
+		lookAtPoint.y = sin(phi) + targetPoint.y;
+		lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + targetPoint.z;
 	}
 
 	void updateCamera() {
 		double newX, newY;
 		glfwGetCursorPos(window, &newX, &newY);
 		if (cursorX >= 0 && cursorY >= 0) {
-			phi += (cursorY - newY) / 100.0;
-			pheta -= (cursorX - newX) / 100.0;
+			phi += (cursorY - newY) / 1000.0;
+			pheta -= (cursorX - newX) / 1000.0;
 			updateLookAtPoint();
 		}
 		cursorX = newX;
 		cursorY = newY;
 
 		if (movingForward) {
-			vec3 direction = lookAtPoint - eye;
+			vec3 direction = lookAtPoint - targetPoint;
 			vec3 w = normalize(direction);
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
-			eye += delta;
-			lookAtPoint += delta;
+			targetPoint += delta;
 		}
 		if (movingBackward) {
-			vec3 direction = lookAtPoint - eye;
+			vec3 direction = lookAtPoint - targetPoint;
 			vec3 w = normalize(direction);
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
-			eye -= delta;
-			lookAtPoint -= delta;
+			targetPoint -= delta;			
 		}
 		if (movingLeft) {
-			vec3 direction = lookAtPoint - eye;
+			vec3 direction = lookAtPoint - targetPoint;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
-			eye += PLAYER_SPEED * deltaTime * u;
-			lookAtPoint += PLAYER_SPEED * deltaTime * u;
+			targetPoint += PLAYER_SPEED * deltaTime * u;
 		}
 		if (movingRight) {
-			vec3 direction = lookAtPoint - eye;
+			vec3 direction = lookAtPoint - targetPoint;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
-			eye -= PLAYER_SPEED * deltaTime * u;
-			lookAtPoint -= PLAYER_SPEED * deltaTime * u;
+			targetPoint -= PLAYER_SPEED * deltaTime * u;
 		}
+
+		eye += (lookAtPoint - eye) * deltaTime;				
+
 	}
 
 	void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
@@ -419,6 +419,17 @@ unsigned int createSky(string dir, vector<string> faces) {
 		}
 	}
 
+	void drawGeeseBlue(shared_ptr<MatrixStack> Model) {
+			SetMaterial(4);
+			Model->pushMatrix();
+			Model->translate(targetPoint);
+			//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
+			Model->scale(vec3(4, 4, 4));
+			setModel(progMat, Model);
+			goose->draw(progMat);
+			Model->popMatrix();
+	}
+
 	void drawFloor(shared_ptr<MatrixStack> Model) {
 		Model->pushMatrix();
 			Model->translate(vec3(0, -2, 0));
@@ -475,6 +486,7 @@ unsigned int createSky(string dir, vector<string> faces) {
 				Model->rotate(rotate, vec3(0, 1, 0));
 				drawFloor(Model);
 				drawGeese(Model);
+				drawGeeseBlue(Model);
 			Model->popMatrix();
 		progMat->unbind();
 
