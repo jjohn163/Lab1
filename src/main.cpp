@@ -565,8 +565,8 @@ unsigned int createSky(string dir, vector<string> faces) {
 
 	void render() {
 		TimeManager::Instance()->Update();
-		//deltaTime = TimeManager::Instance()->DeltaTime();
-		deltaTime = .02;
+		deltaTime = TimeManager::Instance()->DeltaTime();
+		//deltaTime = .02;
 		//cout << TimeManager::Instance()->FrameRate() << endl;
 
 
