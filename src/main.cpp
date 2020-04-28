@@ -72,9 +72,9 @@ public:
 	float phi = 0;
 	float pheta = 1.5708;
 	vec3 lookAtPoint = vec3(0, 0, 1);
-	vec3 eye = vec3(0, 0, 0);
+	vec3 eye = vec3(0, 10, -5);
 	vec3 up = vec3(0, 1, 0);
-	vec3 targetPoint = vec3(0, 0, 0);
+	vec3 lastPosition = vec3(0, 0, 0);
 	const int SPAWN_DELAY = 3000;
 	float PLAYER_SPEED = 10.0;
 	float SPHERE_SPEED = 5.0;
@@ -104,61 +104,71 @@ public:
 	};
 
 
-	void updateLookAtPoint() {
+	void updateLookAtPoint(shared_ptr<Entity> entity) {
 		if (phi > 1.5) {
 			phi = 1.6;
 		}
 		else if (phi < -1.5) {
 			phi = -1.6;
 		}
-		lookAtPoint.x = cos(phi) * cos(pheta) + eye.x;
-		lookAtPoint.y = sin(phi) + eye.y;
-		lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + eye.z;
+		lookAtPoint.x = cos(phi) * cos(pheta) + entity->position.x;
+		lookAtPoint.y = sin(phi) + entity->position.y;
+		lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + entity->position.z;
+		//lookAtPoint.x = cos(phi) * cos(pheta) + eye.x;
+		//lookAtPoint.y = sin(phi) + eye.y;
+		//lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + eye.z;
 	}
 
-	void updateCamera() {
+	void updateCamera(shared_ptr<Entity> entity) {
+		vec3 difference = entity->position - lastPosition;
+		eye += difference;
+		lastPosition = entity->position;
 		double newX, newY;
 		glfwGetCursorPos(window, &newX, &newY);
 		if (cursorX >= 0 && cursorY >= 0) {
-			phi += (cursorY - newY) / 1000.0;
-			pheta -= (cursorX - newX) / 1000.0;
-			updateLookAtPoint();
+			phi += (cursorY - newY) / 100.0;
+			pheta -= (cursorX - newX) / 100.0;
+			updateLookAtPoint(entity);
 		}
 		cursorX = newX;
 		cursorY = newY;
 
 		if (movingForward) {
 			//vec3 direction = lookAtPoint - targetPoint;
-			vec3 direction = lookAtPoint - eye;
+			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
-			targetPoint += delta;
+			entity->position += delta;
+			//eye += delta;
 		}
 		if (movingBackward) {
 			//vec3 direction = lookAtPoint - targetPoint;
-			vec3 direction = lookAtPoint - eye;
+			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
-			targetPoint -= delta;			
+			entity->position -= delta;
+			//eye -= delta;
 		}
 		if (movingLeft) {
 			//vec3 direction = lookAtPoint - targetPoint;
-			vec3 direction = lookAtPoint - eye;
+			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
-			targetPoint += PLAYER_SPEED * deltaTime * u;
+			entity->position += PLAYER_SPEED * deltaTime * u;
+			//eye += PLAYER_SPEED * deltaTime * u;
 		}
 		if (movingRight) {
-			//vec3 direction = lookAtPoint - targetPoint;
-			vec3 direction = lookAtPoint - eye;
+			//vec3 direction = lookAtPoint - targetPoint;w
+			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
-			targetPoint -= PLAYER_SPEED * deltaTime * u;
+			entity->position -= PLAYER_SPEED * deltaTime * u;
+			//eye -= PLAYER_SPEED * deltaTime * u;
 		}
 
-		//eye += (lookAtPoint - eye) * deltaTime;				
+		eye += ((lookAtPoint+vec3(0,15,0)) - eye) * deltaTime;
 
 	}
 
@@ -450,16 +460,16 @@ unsigned int createSky(string dir, vector<string> faces) {
 		Model->popMatrix();
 	}
 
-	void drawGeeseBlue(shared_ptr<MatrixStack> Model) {
-			SetMaterial(4);
-			Model->pushMatrix();
-			Model->translate(targetPoint);
-			//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
-			Model->scale(vec3(4, 4, 4));
-			setModel(progMat, Model);
-			goose->draw(progMat);
-			Model->popMatrix();
-	}
+	//void drawGeeseBlue(shared_ptr<MatrixStack> Model) {
+	//		SetMaterial(4);
+	//		Model->pushMatrix();
+	//		Model->translate(targetPoint);
+	//		//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
+	//		Model->scale(vec3(4, 4, 4));
+	//		setModel(progMat, Model);
+	//		goose->draw(progMat);
+	//		Model->popMatrix();
+	//}
 
 	void drawFloor(shared_ptr<MatrixStack> Model) {
 		Model->pushMatrix();
@@ -488,7 +498,7 @@ unsigned int createSky(string dir, vector<string> faces) {
 		
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		
-		updateCamera();
+		updateCamera(bird);
 		
 		glViewport(0, 0, width, height);
 

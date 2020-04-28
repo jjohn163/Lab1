@@ -1,6 +1,11 @@
 #include "SphereCollider.h"
 #include "PlaneCollider.h"
 
+#include <iostream>
+
+using namespace std;
+
+const float IMPACT_FRICTION = 2.0f;
 
 SphereCollider::SphereCollider(glm::vec3 pos, float rad)
 	:Collider(pos)
@@ -13,7 +18,7 @@ std::pair<bool, glm::vec3> SphereCollider::isColliding(Collider* other, glm::vec
 			vec3 normal = normalize(vec3(sphere->position.x - position.x, sphere->position.y - position.y, sphere->position.z - position.z));
 			float dp = dot(velocity, normal);
 			vec3 direction = dp * normal;
-			return { true, velocity + (2.0f * direction) };
+			return { true, velocity + (IMPACT_FRICTION * direction) };
 		}
 	}
 	else if (PlaneCollider* plane = dynamic_cast<PlaneCollider*>(other)) {
@@ -21,7 +26,7 @@ std::pair<bool, glm::vec3> SphereCollider::isColliding(Collider* other, glm::vec
 		if (fabs(dist) <= radius) {
 			float dp = dot(velocity, plane->getNormal());
 			vec3 direction = dp * plane->getNormal();
-			return { true, velocity - 1.5f * direction };
+			return { true, velocity - (IMPACT_FRICTION * direction) };
 		}
 	}
 	return { false, vec3(0,0,0) };

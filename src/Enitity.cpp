@@ -1,6 +1,6 @@
 #include "Enitity.h"
 
-const float GRAVITY = -3.0f;
+const float GRAVITY = -17.0f;
 
 Entity::Entity(glm::vec3 pos, glm::vec3 scl, glm::vec3 rot, bool mov)
 {
