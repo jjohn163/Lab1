@@ -126,10 +126,11 @@ public:
 		double newX, newY;
 		glfwGetCursorPos(window, &newX, &newY);
 		if (cursorX >= 0 && cursorY >= 0) {
-			phi += (cursorY - newY) / 100.0;
-			pheta -= (cursorX - newX) / 100.0;
-			updateLookAtPoint(entity);
+			//phi += (cursorY - newY) / 100.0;
+			//pheta -= (cursorX - newX) / 100.0;
+			//updateLookAtPoint(entity);
 		}
+		updateLookAtPoint(entity);
 		cursorX = newX;
 		cursorY = newY;
 
@@ -139,7 +140,7 @@ public:
 			vec3 w = normalize(direction);
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
-			entity->position += delta;
+			entity->velocity += delta;
 			//eye += delta;
 		}
 		if (movingBackward) {
@@ -148,7 +149,7 @@ public:
 			vec3 w = normalize(direction);
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
-			entity->position -= delta;
+			entity->velocity -= delta;
 			//eye -= delta;
 		}
 		if (movingLeft) {
@@ -156,7 +157,7 @@ public:
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
-			entity->position += PLAYER_SPEED * deltaTime * u;
+			entity->velocity += PLAYER_SPEED * deltaTime * u;
 			//eye += PLAYER_SPEED * deltaTime * u;
 		}
 		if (movingRight) {
@@ -164,11 +165,11 @@ public:
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
-			entity->position -= PLAYER_SPEED * deltaTime * u;
+			entity->velocity -= PLAYER_SPEED * deltaTime * u;
 			//eye -= PLAYER_SPEED * deltaTime * u;
 		}
 
-		eye += ((lookAtPoint+vec3(0,15,0)) - eye) * deltaTime;
+		eye += ((lookAtPoint+vec3(0,25,-1)) - eye) * deltaTime;
 
 	}
 
@@ -535,29 +536,29 @@ unsigned int createSky(string dir, vector<string> faces) {
 		progMat->unbind();
 
 		//to draw the sky box bind the right shader
-		cubeProg->bind();
-		Model->loadIdentity();
-		//Model->translate(vec3(0, 20, 0));
-		Model->scale(vec3(80, 80, 80));
-		
-		
-		//set the projection matrix - can use the same one
-		glUniformMatrix4fv(cubeProg->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-		//set the depth function to always draw the box!
-		glDepthFunc(GL_LEQUAL);
-		//set up view matrix to include your view transforms 
-		//(your code likely will be different depending
-		glUniformMatrix4fv(cubeProg->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-		//set and send model transforms - likely want a bigger cube
-		glUniformMatrix4fv(cubeProg->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
-		//bind the cube map texture
-		glBindTexture(GL_TEXTURE_CUBE_MAP, skyTextureId);
-		//draw the actual cube
-		meshfloor->draw(cubeProg);
-		//set the depth test back to normal!
-		glDepthFunc(GL_LESS);
-		//unbind the shader for the skybox
-		cubeProg->unbind();
+		//cubeProg->bind();
+		//Model->loadIdentity();
+		////Model->translate(vec3(0, 20, 0));
+		//Model->scale(vec3(80, 80, 80));
+		//
+		//
+		////set the projection matrix - can use the same one
+		//glUniformMatrix4fv(cubeProg->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+		////set the depth function to always draw the box!
+		//glDepthFunc(GL_LEQUAL);
+		////set up view matrix to include your view transforms 
+		////(your code likely will be different depending
+		//glUniformMatrix4fv(cubeProg->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+		////set and send model transforms - likely want a bigger cube
+		//glUniformMatrix4fv(cubeProg->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
+		////bind the cube map texture
+		//glBindTexture(GL_TEXTURE_CUBE_MAP, skyTextureId);
+		////draw the actual cube
+		//meshfloor->draw(cubeProg);
+		////set the depth test back to normal!
+		//glDepthFunc(GL_LESS);
+		////unbind the shader for the skybox
+		//cubeProg->unbind();
 		
 		//animation update example
 		sTheta = sin(glfwGetTime());
