@@ -111,29 +111,27 @@ public:
 		else if (phi < -1.5) {
 			phi = -1.6;
 		}
+
 		lookAtPoint.x = cos(phi) * cos(pheta) + entity->position.x;
 		lookAtPoint.y = sin(phi) + entity->position.y;
 		lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + entity->position.z;
-		//lookAtPoint.x = cos(phi) * cos(pheta) + eye.x;
-		//lookAtPoint.y = sin(phi) + eye.y;
-		//lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + eye.z;
 	}
 
 	void updateCamera(shared_ptr<Entity> entity) {
-		vec3 difference = entity->position - lastPosition;
-		eye += difference;
-		lastPosition = entity->position;
-		double newX, newY;
-		glfwGetCursorPos(window, &newX, &newY);
-		if (cursorX >= 0 && cursorY >= 0) {
-			//phi += (cursorY - newY) / 100.0;
-			//pheta -= (cursorX - newX) / 100.0;
-			//updateLookAtPoint(entity);
-		}
-		updateLookAtPoint(entity);
-		cursorX = newX;
-		cursorY = newY;
+		//vec3 difference = entity->position - lastPosition;
+		//eye += difference;
+		//lastPosition = entity->position;
+		//double newX, newY;
+		//glfwGetCursorPos(window, &newX, &newY);
+		//if (cursorX >= 0 && cursorY >= 0) {
+		//	//phi += (cursorY - newY) / 100.0;
+		//	//pheta -= (cursorX - newX) / 100.0;
+		//	//updateLookAtPoint(entity);
+		//}		
+		//cursorX = newX;
+		//cursorY = newY;
 
+		updateLookAtPoint(entity);
 		if (movingForward) {
 			//vec3 direction = lookAtPoint - targetPoint;
 			vec3 direction = lookAtPoint - entity->position;
@@ -169,8 +167,11 @@ public:
 			//eye -= PLAYER_SPEED * deltaTime * u;
 		}
 
-		eye += ((lookAtPoint+vec3(0,25,-1)) - eye) * deltaTime;
-
+		vec3 pt = lookAtPoint;
+		//cout <<"entity: " <<  entity->position.x << ", " << entity->position.y << ", " << entity->position.z << "   eye: " << eye.x << ", " << eye.y << ", " << eye.z << endl;
+		eye.y += (pt.y + 25 - eye.y) * deltaTime * 10;
+		eye.x += ((pt.x) - eye.x) * deltaTime * 10;
+		eye.z += ((pt.z) - eye.z) * deltaTime * 10;
 	}
 
 	void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
@@ -512,7 +513,7 @@ unsigned int createSky(string dir, vector<string> faces) {
 		// Create the matrix stacks - please leave these alone for now
 		auto Projection = make_shared<MatrixStack>();
 		//auto View = make_shared<MatrixStack>();
-		mat4 View = glm::lookAt(eye, lookAtPoint, up);
+		mat4 View = glm::lookAt(eye, lookAtPoint, vec3(0,0,1));
 		auto Model = make_shared<MatrixStack>();
 
 		// Apply perspective projection.
