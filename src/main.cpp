@@ -15,6 +15,10 @@
 #include "Texture.h"
 #include "TimeManager.h"
 #include "CollectionSphere.h"
+#include "Enitity.h"
+#include "Collider.h"
+#include "PlaneCollider.h"
+#include "SphereCollider.h"
 
 
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -68,9 +72,9 @@ public:
 	float phi = 0;
 	float pheta = 1.5708;
 	vec3 lookAtPoint = vec3(0, 0, 1);
-	vec3 eye = vec3(0, 0, 0);
+	vec3 eye = vec3(0, 10, -5);
 	vec3 up = vec3(0, 1, 0);
-	vec3 targetPoint = vec3(0, 0, 0);
+	vec3 lastPosition = vec3(0, 0, 0);
 	const int SPAWN_DELAY = 3000;
 	float PLAYER_SPEED = 10.0;
 	float SPHERE_SPEED = 5.0;
@@ -87,6 +91,8 @@ public:
 	float SPHERE_RADIUS = 1.0;
 	float EYE_RADIUS = 2.0;
 	vector<shared_ptr<CollectionSphere>> collectionSpheres;
+	shared_ptr<Entity> bird;
+	vector<shared_ptr<Entity>> entities;
 
 	vector<std::string> faces{
 		"iceflow_lf.tga",
@@ -98,57 +104,60 @@ public:
 	};
 
 
-	void updateLookAtPoint() {
+	void updateLookAtPoint(shared_ptr<Entity> entity) {
 		if (phi > 1.5) {
 			phi = 1.6;
 		}
 		else if (phi < -1.5) {
 			phi = -1.6;
 		}
-		lookAtPoint.x = cos(phi) * cos(pheta) + targetPoint.x;
-		lookAtPoint.y = sin(phi) + targetPoint.y;
-		lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + targetPoint.z;
+		lookAtPoint.x = cos(phi) * cos(pheta) + entity->position.x;
+		lookAtPoint.y = sin(phi) + entity->position.y;
+		lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + entity->position.z;
 	}
 
-	void updateCamera() {
+	void updateCamera(shared_ptr<Entity> entity) {
+		vec3 difference = entity->position - lastPosition;
+		eye += difference;
+		lastPosition = entity->position;
 		double newX, newY;
 		glfwGetCursorPos(window, &newX, &newY);
 		if (cursorX >= 0 && cursorY >= 0) {
-			phi += (cursorY - newY) / 1000.0;
-			pheta -= (cursorX - newX) / 1000.0;
-			updateLookAtPoint();
+			phi += (cursorY - newY) / 100.0;
+			pheta -= (cursorX - newX) / 100.0;
+			updateLookAtPoint(entity);
 		}
 		cursorX = newX;
 		cursorY = newY;
 
 		if (movingForward) {
-			vec3 direction = lookAtPoint - targetPoint;
+			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
-			targetPoint += delta;
+			entity->position += delta;
 		}
 		if (movingBackward) {
-			vec3 direction = lookAtPoint - targetPoint;
+			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
-			targetPoint -= delta;			
+			entity->position -= delta;
 		}
 		if (movingLeft) {
-			vec3 direction = lookAtPoint - targetPoint;
+			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
-			targetPoint += PLAYER_SPEED * deltaTime * u;
+			entity->position += PLAYER_SPEED * deltaTime * u;
 		}
 		if (movingRight) {
-			vec3 direction = lookAtPoint - targetPoint;
+			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
-			targetPoint -= PLAYER_SPEED * deltaTime * u;
+			entity->position -= PLAYER_SPEED * deltaTime * u;
 		}
 
-		eye += (lookAtPoint - eye) * deltaTime;				
+		eye += ((lookAtPoint+vec3(0,15,0)) - eye) * deltaTime;
 
 	}
 
@@ -196,6 +205,16 @@ public:
 		}
 		if (key == GLFW_KEY_Z && action == GLFW_RELEASE) {
 			glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+		}
+	}
+	void manageCollisions() {
+		for (shared_ptr<Entity> entity : entities) {
+			for (shared_ptr<Collider> collider : entity->colliders) {
+				std::pair<bool, vec3> result = bird->colliders[0]->isColliding(collider.get(), bird->velocity);
+				if (result.first) {
+					bird->velocity = result.second;
+				}
+			}
 		}
 	}
 
@@ -255,6 +274,16 @@ unsigned int createSky(string dir, vector<string> faces) {
 	{
 		GLSL::checkVersion();
 		
+		bird = make_shared<Entity>(vec3(0, 30, 15), vec3(1.0), vec3(0), true);
+		bird->colliders.push_back(make_shared<SphereCollider>(vec3(0, 30, 15), SPHERE_RADIUS));
+
+		shared_ptr<Entity> rock = make_shared<Entity>(vec3(0.5, 0, 15), vec3(1.0), vec3(0), false);
+		rock->colliders.push_back(make_shared<SphereCollider>(vec3(0.5, 0, 15), SPHERE_RADIUS));
+		entities.push_back(rock);
+
+		shared_ptr<Entity> ground = make_shared<Entity>(vec3(0, 0, 0), vec3(1.0), vec3(0), false);
+		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, 0, 1), vec3(-1, 0, 0), vec3(1, 0, 0)));
+		entities.push_back(ground);
 
 		// Set background color.
 		glClearColor(.12f, .34f, .56f, 1.0f);
@@ -317,6 +346,17 @@ unsigned int createSky(string dir, vector<string> faces) {
 			meshfloor->createShape(TOshapesFloor[0]);
 			meshfloor->measure();
 			meshfloor->init();
+		}
+
+		rc = tinyobj::LoadObj(TOshapesSphere, objMaterialsSphere, errStr, (resourceDirectory + "/sphere.obj").c_str());
+		if (!rc) {
+			cerr << errStr << endl;
+		}
+		else {
+			meshsphere = make_shared<Shape>();
+			meshsphere->createShape(TOshapesSphere[0]);
+			meshsphere->measure();
+			meshsphere->init();
 		}
 
 		rc = tinyobj::LoadObj(TOshapesGoose, objMaterialsGoose, errStr, (resourceDirectory + "/goose.obj").c_str());
@@ -402,33 +442,27 @@ unsigned int createSky(string dir, vector<string> faces) {
 	}
 
 	void drawGeese(shared_ptr<MatrixStack> Model) {
-		for (shared_ptr<CollectionSphere> sphere : collectionSpheres) {
-			if (sphere->isMoving()) {
-				SetMaterial(3);
-			}
-			else {
-				SetMaterial(6);
-			}
-			Model->pushMatrix();
-			Model->translate(sphere->getPosition());
-			Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
-			Model->scale(vec3(4, 4, 4));
-			setModel(progMat, Model);
-			goose->draw(progMat);
-			Model->popMatrix();
-		}
-	}
-
-	void drawGeeseBlue(shared_ptr<MatrixStack> Model) {
-			SetMaterial(4);
-			Model->pushMatrix();
-			Model->translate(targetPoint);
+		
+		SetMaterial(3);
+		Model->pushMatrix();
+			Model->translate(bird->position);
 			//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
 			Model->scale(vec3(4, 4, 4));
 			setModel(progMat, Model);
-			goose->draw(progMat);
-			Model->popMatrix();
+			meshsphere->draw(progMat);
+		Model->popMatrix();
 	}
+
+	//void drawGeeseBlue(shared_ptr<MatrixStack> Model) {
+	//		SetMaterial(4);
+	//		Model->pushMatrix();
+	//		Model->translate(targetPoint);
+	//		//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
+	//		Model->scale(vec3(4, 4, 4));
+	//		setModel(progMat, Model);
+	//		goose->draw(progMat);
+	//		Model->popMatrix();
+	//}
 
 	void drawFloor(shared_ptr<MatrixStack> Model) {
 		Model->pushMatrix();
@@ -442,19 +476,22 @@ unsigned int createSky(string dir, vector<string> faces) {
 
 	void render() {
 		TimeManager::Instance()->Update();
-		deltaTime = TimeManager::Instance()->DeltaTime();
+		//deltaTime = TimeManager::Instance()->DeltaTime();
+		deltaTime = .02;
 		//cout << TimeManager::Instance()->FrameRate() << endl;
 
-		CollectionSphere::manageCollisions(collectionSpheres, EYE_RADIUS, eye);
-		CollectionSphere::updateEnemies(collectionSpheres);
-		CollectionSphere::spawnEnemies(collectionSpheres, EYE_RADIUS, eye);
+		//CollectionSphere::manageCollisions(collectionSpheres, EYE_RADIUS, eye);
+		//CollectionSphere::updateEnemies(collectionSpheres);
+		//CollectionSphere::spawnEnemies(collectionSpheres, EYE_RADIUS, eye);
+		manageCollisions();
+		bird->updatePosition(deltaTime);
 
 		// Get current frame buffer size.
 		int width, height;
 		
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		
-		updateCamera();
+		updateCamera(bird);
 		
 		glViewport(0, 0, width, height);
 
@@ -486,7 +523,7 @@ unsigned int createSky(string dir, vector<string> faces) {
 				Model->rotate(rotate, vec3(0, 1, 0));
 				drawFloor(Model);
 				drawGeese(Model);
-				drawGeeseBlue(Model);
+				//drawGeeseBlue(Model);
 			Model->popMatrix();
 		progMat->unbind();
 
@@ -537,7 +574,7 @@ int main(int argc, char *argv[])
 	// and GL context, etc.
 
 	WindowManager *windowManager = new WindowManager();
-	windowManager->init(640, 480);
+	windowManager->init(1280, 960);
 	windowManager->setEventCallbacks(application);
 	application->windowManager = windowManager;
 	
