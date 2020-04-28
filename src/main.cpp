@@ -212,6 +212,16 @@ public:
 			glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 		}
 	}
+
+	const float GRAVITY = -17.0f;
+	const float AIR_RESISTANCE_FACTOR = 0.985;
+
+	void managePhysics(shared_ptr<Entity> entity) {
+		entity->velocity.y += GRAVITY * deltaTime;
+		entity->velocity.x *= AIR_RESISTANCE_FACTOR;
+		entity->velocity.z *= AIR_RESISTANCE_FACTOR;
+	}
+
 	void manageCollisions() {
 		for (shared_ptr<Entity> entity : entities) {
 			for (shared_ptr<Collider> collider : entity->colliders) {
@@ -287,7 +297,7 @@ unsigned int createSky(string dir, vector<string> faces) {
 		entities.push_back(rock);
 
 		shared_ptr<Entity> ground = make_shared<Entity>(vec3(0, 0, 0), vec3(1.0), vec3(0), false);
-		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, 0, 1), vec3(-1, 0, 0), vec3(1, 0, 0)));
+		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, 0, 1), vec3(1, 0, 0), vec3(-1, 0, 0)));
 		entities.push_back(ground);
 
 		// Set background color.
@@ -485,9 +495,9 @@ unsigned int createSky(string dir, vector<string> faces) {
 		deltaTime = .02;
 		//cout << TimeManager::Instance()->FrameRate() << endl;
 
-		//CollectionSphere::manageCollisions(collectionSpheres, EYE_RADIUS, eye);
-		//CollectionSphere::updateEnemies(collectionSpheres);
-		//CollectionSphere::spawnEnemies(collectionSpheres, EYE_RADIUS, eye);
+
+		managePhysics(bird);
+		updateCamera(bird);
 		manageCollisions();
 		bird->updatePosition(deltaTime);
 
@@ -496,7 +506,6 @@ unsigned int createSky(string dir, vector<string> faces) {
 		
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		
-		updateCamera(bird);
 		
 		glViewport(0, 0, width, height);
 
