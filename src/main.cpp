@@ -47,6 +47,9 @@ public:
 	shared_ptr<Shape> meshfloor;
 	shared_ptr<Shape> meshsphere;
 	shared_ptr<Shape> goose;
+	shared_ptr<Shape> meshwall;
+	shared_ptr<Shape> meshrock1;
+
 
 	// Contains vertex information for OpenGL
 	GLuint VertexArrayID;
@@ -92,6 +95,7 @@ public:
 	float EYE_RADIUS = 2.0;
 	vector<shared_ptr<CollectionSphere>> collectionSpheres;
 	shared_ptr<Entity> bird;
+	shared_ptr<Entity> wall;
 	vector<shared_ptr<Entity>> entities;
 
 	vector<std::string> faces{
@@ -102,6 +106,19 @@ public:
 		"iceflow_ft.tga",
 		"iceflow_bk.tga"
 	};
+
+	vector<vec3> rockPositions = { 
+		vec3(0, 0, 15),
+		vec3(0, 10, 15),
+		vec3(0, 20, 15),
+		vec3(-11, 5, 15),
+		vec3(-11, 15, 15),
+		vec3(-11, 25, 15),
+		vec3(11, 5, 15),
+		vec3(11, 15, 15),
+		vec3(11, 25, 15)
+	};
+
 
 
 	void updateLookAtPoint(shared_ptr<Entity> entity) {
@@ -289,12 +306,18 @@ unsigned int createSky(string dir, vector<string> faces) {
 	{
 		GLSL::checkVersion();
 		
-		bird = make_shared<Entity>(vec3(0, 30, 15), vec3(1.0), vec3(0), true);
+		bird = make_shared<Entity>(vec3(0, 30, 16), vec3(1.0), vec3(0), true);
 		bird->colliders.push_back(make_shared<SphereCollider>(vec3(0, 30, 15), SPHERE_RADIUS));
+		
+		wall = make_shared<Entity>(vec3(0, 0, 15), vec3(60, 60, .05), vec3(1, 0, 0), false);
+		wall->colliders.push_back(make_shared<PlaneCollider>(vec3(-30, 0, 14), vec3(0, 60, 22), vec3(30, 0, 14)));
+		entities.push_back(wall);
 
-		shared_ptr<Entity> rock = make_shared<Entity>(vec3(0.5, 0, 15), vec3(1.0), vec3(0), false);
-		rock->colliders.push_back(make_shared<SphereCollider>(vec3(0.5, 0, 15), SPHERE_RADIUS));
-		entities.push_back(rock);
+		for (int i = 0; i < rockPositions.size(); i++) {
+			shared_ptr<Entity> rock = make_shared<Entity>(rockPositions[i], vec3(1.0), vec3(0), false);
+			rock->colliders.push_back(make_shared<SphereCollider>(rockPositions[i], 4));
+			entities.push_back(rock);
+		}
 
 		shared_ptr<Entity> ground = make_shared<Entity>(vec3(0, 0, 0), vec3(1.0), vec3(0), false);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, 0, 1), vec3(1, 0, 0), vec3(-1, 0, 0)));
@@ -350,6 +373,10 @@ unsigned int createSky(string dir, vector<string> faces) {
 		vector<tinyobj::material_t> objMaterialsSphere;
 		vector<tinyobj::shape_t> TOshapesGoose;
 		vector<tinyobj::material_t> objMaterialsGoose;
+		vector<tinyobj::shape_t> TOshapesRock;
+		vector<tinyobj::material_t> objMaterialsRock;
+		vector<tinyobj::shape_t> TOshapesWall;
+		vector<tinyobj::material_t> objMaterialsWall;
 
 
 		bool rc = tinyobj::LoadObj(TOshapesFloor, objMaterialsFloor, errStr, (resourceDirectory + "/cube.obj").c_str());
@@ -383,6 +410,28 @@ unsigned int createSky(string dir, vector<string> faces) {
 			goose->createShape(TOshapesGoose[0]);
 			goose->measure();
 			goose->init();
+		}
+
+		rc = tinyobj::LoadObj(TOshapesRock, objMaterialsRock, errStr, (resourceDirectory + "/rocks/rock1.obj").c_str());
+		if (!rc) {
+			cerr << errStr << endl;
+		}
+		else {
+			meshrock1 = make_shared<Shape>();
+			meshrock1->createShape(TOshapesRock[0]);
+			meshrock1->measure();
+			meshrock1->init();
+		}
+
+		rc = tinyobj::LoadObj(TOshapesWall, objMaterialsWall, errStr, (resourceDirectory + "/rocks/cliff_2.obj").c_str());
+		if (!rc) {
+			cerr << errStr << endl;
+		}
+		else {
+			meshwall = make_shared<Shape>();
+			meshwall->createShape(TOshapesWall[0]);
+			meshwall->measure();
+			meshwall->init();
 		}
 
 		CollectionSphere::spawnEnemies(collectionSpheres, EYE_RADIUS, eye);
@@ -456,6 +505,18 @@ unsigned int createSky(string dir, vector<string> faces) {
 		}
 	}
 
+	void drawWall(shared_ptr<MatrixStack> Model) {
+		
+		SetMaterial(6);
+		Model->pushMatrix();
+		Model->translate(wall->position);
+		Model->rotate(PI*.1, wall->rotation);
+		Model->scale(wall->scale);
+		setModel(progMat, Model);
+		meshfloor->draw(progMat);
+		Model->popMatrix();
+	}
+
 	void drawGeese(shared_ptr<MatrixStack> Model) {
 		
 		SetMaterial(3);
@@ -466,6 +527,19 @@ unsigned int createSky(string dir, vector<string> faces) {
 			setModel(progMat, Model);
 			meshsphere->draw(progMat);
 		Model->popMatrix();
+	}
+
+	void drawRocks(shared_ptr<MatrixStack> Model) {
+		for (int i = 0; i < rockPositions.size(); i++) {
+			SetMaterial(5);
+			Model->pushMatrix();
+			Model->translate(rockPositions[i]);
+			//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
+			Model->scale(vec3(3, 3, 3));
+			setModel(progMat, Model);
+			meshsphere->draw(progMat);
+			Model->popMatrix();
+		}
 	}
 
 	//void drawGeeseBlue(shared_ptr<MatrixStack> Model) {
@@ -537,6 +611,8 @@ unsigned int createSky(string dir, vector<string> faces) {
 				Model->rotate(rotate, vec3(0, 1, 0));
 				drawFloor(Model);
 				drawGeese(Model);
+				drawWall(Model);
+				drawRocks(Model);
 				//drawGeeseBlue(Model);
 			Model->popMatrix();
 		progMat->unbind();
