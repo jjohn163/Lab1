@@ -114,9 +114,6 @@ public:
 		lookAtPoint.x = cos(phi) * cos(pheta) + entity->position.x;
 		lookAtPoint.y = sin(phi) + entity->position.y;
 		lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + entity->position.z;
-		//lookAtPoint.x = cos(phi) * cos(pheta) + eye.x;
-		//lookAtPoint.y = sin(phi) + eye.y;
-		//lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + eye.z;
 	}
 
 	void updateCamera(shared_ptr<Entity> entity) {
@@ -134,38 +131,30 @@ public:
 		cursorY = newY;
 
 		if (movingForward) {
-			//vec3 direction = lookAtPoint - targetPoint;
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
 			entity->position += delta;
-			//eye += delta;
 		}
 		if (movingBackward) {
-			//vec3 direction = lookAtPoint - targetPoint;
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
 			entity->position -= delta;
-			//eye -= delta;
 		}
 		if (movingLeft) {
-			//vec3 direction = lookAtPoint - targetPoint;
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
 			entity->position += PLAYER_SPEED * deltaTime * u;
-			//eye += PLAYER_SPEED * deltaTime * u;
 		}
 		if (movingRight) {
-			//vec3 direction = lookAtPoint - targetPoint;w
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
 			entity->position -= PLAYER_SPEED * deltaTime * u;
-			//eye -= PLAYER_SPEED * deltaTime * u;
 		}
 
 		eye += ((lookAtPoint+vec3(0,15,0)) - eye) * deltaTime;
@@ -285,9 +274,13 @@ unsigned int createSky(string dir, vector<string> faces) {
 	{
 		GLSL::checkVersion();
 		
-		bird = make_shared<Entity>(vec3(0, 50, 15), vec3(1.0), vec3(0), true);
-		bird->colliders.push_back(make_shared<SphereCollider>(vec3(0, 50, 15), SPHERE_RADIUS));
-		bird->velocity.x += 1.f;
+		bird = make_shared<Entity>(vec3(0, 30, 15), vec3(1.0), vec3(0), true);
+		bird->colliders.push_back(make_shared<SphereCollider>(vec3(0, 30, 15), SPHERE_RADIUS));
+
+		shared_ptr<Entity> rock = make_shared<Entity>(vec3(0.5, 0, 15), vec3(1.0), vec3(0), false);
+		rock->colliders.push_back(make_shared<SphereCollider>(vec3(0.5, 0, 15), SPHERE_RADIUS));
+		entities.push_back(rock);
+
 		shared_ptr<Entity> ground = make_shared<Entity>(vec3(0, 0, 0), vec3(1.0), vec3(0), false);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, 0, 1), vec3(-1, 0, 0), vec3(1, 0, 0)));
 		entities.push_back(ground);
