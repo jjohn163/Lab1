@@ -70,6 +70,7 @@ public:
 	bool movingBackward = false;
 	bool movingLeft = false;
 	bool movingRight = false;
+	bool movingUp = false;
 	long long lastSpawn = 0;
 
 
@@ -85,6 +86,10 @@ public:
 	const int WIDTH = 30.0;
 	const int HEIGHT = 30.0;
 	int collected = 0;
+	int NUM_ROCKS = 20;
+
+	//the scale at which the rock generation grid is at
+	float GRID_SCALE = 5;
 
 	float deltaTime = 0;
 	float PI = 3.14159;
@@ -98,6 +103,7 @@ public:
 	shared_ptr<Entity> bird;
 	shared_ptr<Entity> wall;
 	vector<shared_ptr<Entity>> entities;
+	vector<vec3> rockPositions{};
 
 	vector<std::string> faces{
 		"iceflow_lf.tga",
@@ -163,6 +169,12 @@ public:
 			vec3 u = normalize(cross(up, w));
 			entity->velocity -= PLAYER_SPEED * deltaTime * u;
 		}
+		if (movingUp) {
+			/*vec3 direction = lookAtPoint - entity->position;
+			vec3 w = normalize(direction);
+			vec3 u = normalize(cross(up, w));*/
+			entity->velocity += deltaTime * (up * vec3(40));
+		}
 
 		vec3 pt = lookAtPoint;
 		//cout <<"entity: " <<  entity->position.x << ", " << entity->position.y << ", " << entity->position.z << "   eye: " << eye.x << ", " << eye.y << ", " << eye.z << endl;
@@ -182,6 +194,12 @@ public:
 		}
 		if (key == GLFW_KEY_W && action == GLFW_RELEASE) {
 			movingForward = false;
+		}
+		if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+			movingUp = true;
+		}
+		if (key == GLFW_KEY_SPACE && action == GLFW_RELEASE) {
+			movingUp = false;
 		}
 		if (key == GLFW_KEY_S && action == GLFW_PRESS) {
 			movingBackward = true;
@@ -290,20 +308,24 @@ public:
 		skyTextureId = createSky(cracksDirectory, faces);
 	}
 
-	vector<vec3> rockPositions = {
-		vec3(0, 0, 15),
-		vec3(0, 10, 15),
-		vec3(0, 20, 15),
-		vec3(-11, 5, 15),
-		vec3(-11, 15, 15),
-		vec3(-11, 25, 15),
-		vec3(11, 5, 15),
-		vec3(11, 15, 15),
-		vec3(11, 25, 15)
-	};
+	vec3 rockEquation(int z) {
+		double y = pow((0.16 * z), 4);
+		return vec3(0, y, GRID_SCALE*z);
+	}
 
-	vec3 rockEquation(int x) {
-		return vec3(x, x ^ 2, 0);
+	void addRock(vec3 position) {
+		shared_ptr<Entity> rock = make_shared<Entity>(position, vec3(1.0), vec3(0), false);
+		rock->colliders.push_back(make_shared<SphereCollider>(position, 4*WORLD_SCALE));
+		entities.push_back(rock);
+		rockPositions.push_back(position);
+	}
+
+	float ROCK_OFFSET_MAX = 4.0;
+
+	//Gets random number between 0 and ROCK_OFFSET_MAX
+	float randOffset() {
+		float numer =(rand() % 100);
+		return numer / (100.0/ROCK_OFFSET_MAX) - ROCK_OFFSET_MAX/2;
 	}
 
 	void init(const std::string& resourceDirectory)
@@ -311,19 +333,24 @@ public:
 
 		GLSL::checkVersion();
 
-		bird = make_shared<Entity>(vec3(0, 30, 16), vec3(1.0), vec3(0), true);
-		bird->colliders.push_back(make_shared<SphereCollider>(vec3(0, 30, 15), SPHERE_RADIUS));
+		float birdZ = rockEquation(-NUM_ROCKS).y + GRID_SCALE;
+		bird = make_shared<Entity>(vec3(0, birdZ, 0), vec3(1.0), vec3(0), true);
+		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, SPHERE_RADIUS));
 
-		wall = make_shared<Entity>(vec3(0, 0, 15), vec3(60, 60, .05), vec3(1, 0, 0), false);
+		/*wall = make_shared<Entity>(vec3(0, 0, 15), vec3(60, 60, .05), vec3(1, 0, 0), false);
 		wall->colliders.push_back(make_shared<PlaneCollider>(vec3(-30, 0, 14), vec3(0, 60, 22), vec3(30, 0, 14)));
-		entities.push_back(wall);
+		entities.push_back(wall);*/
 
+		for (int i = -NUM_ROCKS; i <= 0; i++) {
+			vec3 position1 = rockEquation(i) + vec3(0, randOffset(), NUM_ROCKS*GRID_SCALE);
+			addRock(position1);
 
-		for (int i = 0; i < rockPositions.size(); i++) {
+			vec3 position2 = position1 + vec3(GRID_SCALE, randOffset(), 0);
+			addRock(position2);
+			
+			vec3 position3 = position1 + vec3(-GRID_SCALE, randOffset(), 0);
+			addRock(position3);
 
-			shared_ptr<Entity> rock = make_shared<Entity>(rockPositions[i], vec3(1.0), vec3(0), false);
-			rock->colliders.push_back(make_shared<SphereCollider>(rockPositions[i], 4));
-			entities.push_back(rock);
 		}
 
 		shared_ptr<Entity> ground = make_shared<Entity>(vec3(0, 0, 0), vec3(1.0), vec3(0), false);
@@ -523,25 +550,28 @@ public:
 		Model->popMatrix();
 	}
 
-	void drawGeese(shared_ptr<MatrixStack> Model) {
+	void drawBird(shared_ptr<MatrixStack> Model) {
 		
 		SetMaterial(3);
 		Model->pushMatrix();
 			Model->translate(bird->position);
 			//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
-			Model->scale(vec3(.4, .4, .4));
+			Model->scale(vec3(.4, .4, .4)*vec3(WORLD_SCALE));
 			setModel(progMat, Model);
 			meshChick->draw(progMat);
 		Model->popMatrix();
 	}
+
+	float WORLD_SCALE = 1;
 
 	void drawRocks(shared_ptr<MatrixStack> Model) {
 		for (int i = 0; i < rockPositions.size(); i++) {
 			SetMaterial(7);
 			Model->pushMatrix();
 			Model->translate(rockPositions[i]);
-			//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
-			Model->scale(vec3(.4, .4, .4));
+			//Model->scale(vec3(1.25, .5, 1.25)); pillar scaling
+			Model->scale(vec3(.22, .2, .35)*vec3(WORLD_SCALE));
+			//Model->rotate(PI/2, vec3(1, 0, 0));
 			setModel(progMat, Model);
 			meshPillar->draw(progMat);
 			Model->popMatrix();
@@ -616,8 +646,8 @@ public:
 			Model->loadIdentity();
 				Model->rotate(rotate, vec3(0, 1, 0));
 				drawFloor(Model);
-				drawGeese(Model);
-				drawWall(Model);
+				drawBird(Model);
+				//drawWall(Model);
 				drawRocks(Model);
 				//drawGeeseBlue(Model);
 			Model->popMatrix();
