@@ -601,8 +601,8 @@ public:
 
 	void render() {
 		TimeManager::Instance()->Update();
-		//deltaTime = TimeManager::Instance()->DeltaTime();
-		deltaTime = .02;
+		deltaTime = TimeManager::Instance()->DeltaTime();
+		//deltaTime = .02;
 		//cout << TimeManager::Instance()->FrameRate() << endl;
 
 
