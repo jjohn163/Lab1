@@ -46,9 +46,10 @@ public:
 	// Shape to be used (from  file) - modify to support multiple
 	shared_ptr<Shape> meshfloor;
 	shared_ptr<Shape> meshsphere;
-	shared_ptr<Shape> goose;
 	shared_ptr<Shape> meshwall;
 	shared_ptr<Shape> meshrock1;
+	shared_ptr<Shape> meshChick;
+	shared_ptr<Shape> meshPillar;
 
 
 	// Contains vertex information for OpenGL
@@ -70,8 +71,8 @@ public:
 	bool movingLeft = false;
 	bool movingRight = false;
 	long long lastSpawn = 0;
-	
-	
+
+
 	float phi = 0;
 	float pheta = 1.5708;
 	vec3 lookAtPoint = vec3(0, 0, 1);
@@ -88,7 +89,7 @@ public:
 	float deltaTime = 0;
 	float PI = 3.14159;
 	float rotate = 0;
-	vec3 light = vec3(-2, 2, 2);
+	vec3 light = vec3(-60, 60, 2);
 	unsigned int skyTextureId;
 
 	float SPHERE_RADIUS = 1.0;
@@ -106,19 +107,6 @@ public:
 		"iceflow_ft.tga",
 		"iceflow_bk.tga"
 	};
-
-	vector<vec3> rockPositions = { 
-		vec3(0, 0, 15),
-		vec3(0, 10, 15),
-		vec3(0, 20, 15),
-		vec3(-11, 5, 15),
-		vec3(-11, 15, 15),
-		vec3(-11, 25, 15),
-		vec3(11, 5, 15),
-		vec3(11, 15, 15),
-		vec3(11, 25, 15)
-	};
-
 
 
 	void updateLookAtPoint(shared_ptr<Entity> entity) {
@@ -223,10 +211,10 @@ public:
 			cout << "Framerate: " << TimeManager::Instance()->FrameRate() << endl;
 		}
 		if (key == GLFW_KEY_Z && action == GLFW_PRESS) {
-			glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		}
 		if (key == GLFW_KEY_Z && action == GLFW_RELEASE) {
-			glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
 	}
 
@@ -250,51 +238,51 @@ public:
 		}
 	}
 
-void mouseCallback(GLFWwindow *window, int button, int action, int mods)
-{
-	double posX, posY;
-
-	if (action == GLFW_PRESS)
+	void mouseCallback(GLFWwindow *window, int button, int action, int mods)
 	{
-		glfwGetCursorPos(window, &posX, &posY);
-		cout << "Pos X " << posX << " Pos Y " << posY << endl;
-	}
-}
+		double posX, posY;
 
-void resizeCallback(GLFWwindow *window, int width, int height)
-{
-	glViewport(0, 0, width, height);
-}
-
-void scrollCallback(GLFWwindow* window, double deltaX, double deltaY) {
-	return;
-}
-
-unsigned int createSky(string dir, vector<string> faces) {
-	unsigned int textureID;
-	glGenTextures(1, &textureID);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
-	int width, height, nrChannels;
-	stbi_set_flip_vertically_on_load(false);
-	for (GLuint i = 0; i < faces.size(); i++) {
-		unsigned char *data =
-			stbi_load((dir + faces[i]).c_str(), &width, &height, &nrChannels, 0);
-		if (data) {
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-				0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-		}
-		else {
-			cout << "failed to load: " << (dir + faces[i]).c_str() << endl;
+		if (action == GLFW_PRESS)
+		{
+			glfwGetCursorPos(window, &posX, &posY);
+			cout << "Pos X " << posX << " Pos Y " << posY << endl;
 		}
 	}
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	cout << " creating cube map any errors : " << glGetError() << endl;
-	return textureID;
-}
+
+	void resizeCallback(GLFWwindow *window, int width, int height)
+	{
+		glViewport(0, 0, width, height);
+	}
+
+	void scrollCallback(GLFWwindow* window, double deltaX, double deltaY) {
+		return;
+	}
+
+	unsigned int createSky(string dir, vector<string> faces) {
+		unsigned int textureID;
+		glGenTextures(1, &textureID);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+		int width, height, nrChannels;
+		stbi_set_flip_vertically_on_load(false);
+		for (GLuint i = 0; i < faces.size(); i++) {
+			unsigned char *data =
+				stbi_load((dir + faces[i]).c_str(), &width, &height, &nrChannels, 0);
+			if (data) {
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+					0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+			}
+			else {
+				cout << "failed to load: " << (dir + faces[i]).c_str() << endl;
+			}
+		}
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+		cout << " creating cube map any errors : " << glGetError() << endl;
+		return textureID;
+	}
 
 	// Code to load in the three textures
 	void initTex(const std::string& resourceDirectory) {
@@ -302,18 +290,37 @@ unsigned int createSky(string dir, vector<string> faces) {
 		skyTextureId = createSky(cracksDirectory, faces);
 	}
 
+	vector<vec3> rockPositions = {
+		vec3(0, 0, 15),
+		vec3(0, 10, 15),
+		vec3(0, 20, 15),
+		vec3(-11, 5, 15),
+		vec3(-11, 15, 15),
+		vec3(-11, 25, 15),
+		vec3(11, 5, 15),
+		vec3(11, 15, 15),
+		vec3(11, 25, 15)
+	};
+
+	vec3 rockEquation(int x) {
+		return vec3(x, x ^ 2, 0);
+	}
+
 	void init(const std::string& resourceDirectory)
 	{
+
 		GLSL::checkVersion();
-		
+
 		bird = make_shared<Entity>(vec3(0, 30, 16), vec3(1.0), vec3(0), true);
 		bird->colliders.push_back(make_shared<SphereCollider>(vec3(0, 30, 15), SPHERE_RADIUS));
-		
+
 		wall = make_shared<Entity>(vec3(0, 0, 15), vec3(60, 60, .05), vec3(1, 0, 0), false);
 		wall->colliders.push_back(make_shared<PlaneCollider>(vec3(-30, 0, 14), vec3(0, 60, 22), vec3(30, 0, 14)));
 		entities.push_back(wall);
 
+
 		for (int i = 0; i < rockPositions.size(); i++) {
+
 			shared_ptr<Entity> rock = make_shared<Entity>(rockPositions[i], vec3(1.0), vec3(0), false);
 			rock->colliders.push_back(make_shared<SphereCollider>(rockPositions[i], 4));
 			entities.push_back(rock);
@@ -341,7 +348,7 @@ unsigned int createSky(string dir, vector<string> faces) {
 		cubeProg->addAttribute("vertPos");
 		cubeProg->addAttribute("vertNor");
 		//prog->addAttribute("vertTex");
-		
+
 		progMat = make_shared<Program>();
 		progMat->setVerbose(true);
 		progMat->setShaderNames(resourceDirectory + "/my_vert.glsl", resourceDirectory + "/my_frag.glsl");
@@ -357,7 +364,7 @@ unsigned int createSky(string dir, vector<string> faces) {
 		progMat->addAttribute("vertPos");
 		progMat->addAttribute("vertNor");
 		progMat->addAttribute("vertTex");
-		
+
 		window = windowManager->getHandle();
 
 		srand(time(NULL));
@@ -366,7 +373,7 @@ unsigned int createSky(string dir, vector<string> faces) {
 
 	void initGeom(const std::string& resourceDirectory)
 	{
- 		string errStr;
+		string errStr;
 		vector<tinyobj::shape_t> TOshapesFloor;
 		vector<tinyobj::material_t> objMaterialsFloor;
 		vector<tinyobj::shape_t> TOshapesSphere;
@@ -377,6 +384,10 @@ unsigned int createSky(string dir, vector<string> faces) {
 		vector<tinyobj::material_t> objMaterialsRock;
 		vector<tinyobj::shape_t> TOshapesWall;
 		vector<tinyobj::material_t> objMaterialsWall;
+		vector<tinyobj::shape_t> TOshapesPillar;
+		vector<tinyobj::material_t> objMaterialsPillar;
+		vector<tinyobj::shape_t> TOshapesChick;
+		vector<tinyobj::material_t> objMaterialsChick;
 
 
 		bool rc = tinyobj::LoadObj(TOshapesFloor, objMaterialsFloor, errStr, (resourceDirectory + "/cube.obj").c_str());
@@ -401,37 +412,26 @@ unsigned int createSky(string dir, vector<string> faces) {
 			meshsphere->init();
 		}
 
-		rc = tinyobj::LoadObj(TOshapesGoose, objMaterialsGoose, errStr, (resourceDirectory + "/goose.obj").c_str());
+		rc = tinyobj::LoadObj(TOshapesPillar, objMaterialsPillar, errStr, (resourceDirectory + "/squareRock.obj").c_str());
 		if (!rc) {
 			cerr << errStr << endl;
 		}
 		else {
-			goose = make_shared<Shape>();
-			goose->createShape(TOshapesGoose[0]);
-			goose->measure();
-			goose->init();
+			meshPillar = make_shared<Shape>();
+			meshPillar->createShape(TOshapesPillar[0]);
+			meshPillar->measure();
+			meshPillar->init();
 		}
 
-		rc = tinyobj::LoadObj(TOshapesRock, objMaterialsRock, errStr, (resourceDirectory + "/rocks/rock1.obj").c_str());
+		rc = tinyobj::LoadObj(TOshapesChick, objMaterialsChick, errStr, (resourceDirectory + "/Chick.obj").c_str());
 		if (!rc) {
 			cerr << errStr << endl;
 		}
 		else {
-			meshrock1 = make_shared<Shape>();
-			meshrock1->createShape(TOshapesRock[0]);
-			meshrock1->measure();
-			meshrock1->init();
-		}
-
-		rc = tinyobj::LoadObj(TOshapesWall, objMaterialsWall, errStr, (resourceDirectory + "/rocks/cliff_2.obj").c_str());
-		if (!rc) {
-			cerr << errStr << endl;
-		}
-		else {
-			meshwall = make_shared<Shape>();
-			meshwall->createShape(TOshapesWall[0]);
-			meshwall->measure();
-			meshwall->init();
+			meshChick = make_shared<Shape>();
+			meshChick->createShape(TOshapesChick[0]);
+			meshChick->measure();
+			meshChick->init();
 		}
 
 		CollectionSphere::spawnEnemies(collectionSpheres, EYE_RADIUS, eye);
@@ -440,7 +440,7 @@ unsigned int createSky(string dir, vector<string> faces) {
 
 	void setModel(std::shared_ptr<Program> prog, std::shared_ptr<MatrixStack>M) {
 		glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M->topMatrix()));
-   }
+	}
 
 	void SetMaterial(int i) {
 		switch (i) {
@@ -486,6 +486,12 @@ unsigned int createSky(string dir, vector<string> faces) {
 			glUniform3f(progMat->getUniform("MatSpec"), 0.3, 0.3, 0.4);
 			glUniform1f(progMat->getUniform("shine"), 20.);
 			break;
+		case 7: //dirt
+			glUniform3f(progMat->getUniform("MatAmb"), .5, .16, .0);
+			glUniform3f(progMat->getUniform("MatDif"), .8, .2, 0);
+			glUniform3f(progMat->getUniform("MatSpec"), 0.3, 0.3, 0.4);
+			glUniform1f(progMat->getUniform("shine"), 20.);
+			break;
 		}
 	}
 
@@ -500,7 +506,7 @@ unsigned int createSky(string dir, vector<string> faces) {
 			Model->pushMatrix();
 			Model->translate(sphere->getPosition());
 			setModel(progMat, Model);
-			meshsphere->draw(progMat);
+			meshPillar->draw(progMat);
 			Model->popMatrix();
 		}
 	}
@@ -523,21 +529,21 @@ unsigned int createSky(string dir, vector<string> faces) {
 		Model->pushMatrix();
 			Model->translate(bird->position);
 			//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
-			Model->scale(vec3(4, 4, 4));
+			Model->scale(vec3(.4, .4, .4));
 			setModel(progMat, Model);
-			meshsphere->draw(progMat);
+			meshChick->draw(progMat);
 		Model->popMatrix();
 	}
 
 	void drawRocks(shared_ptr<MatrixStack> Model) {
 		for (int i = 0; i < rockPositions.size(); i++) {
-			SetMaterial(5);
+			SetMaterial(7);
 			Model->pushMatrix();
 			Model->translate(rockPositions[i]);
 			//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
-			Model->scale(vec3(3, 3, 3));
+			Model->scale(vec3(.4, .4, .4));
 			setModel(progMat, Model);
-			meshsphere->draw(progMat);
+			meshPillar->draw(progMat);
 			Model->popMatrix();
 		}
 	}
