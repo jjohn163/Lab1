@@ -19,6 +19,7 @@
 #include "Collider.h"
 #include "PlaneCollider.h"
 #include "SphereCollider.h"
+#include "OBBCollider.h"
 
 
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -314,8 +315,11 @@ public:
 	}
 
 	void addRock(vec3 position) {
+		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
+		float e[3] = { 2, 2, 2 };
 		shared_ptr<Entity> rock = make_shared<Entity>(position, vec3(1.0), vec3(0), false);
-		rock->colliders.push_back(make_shared<SphereCollider>(position, 4*WORLD_SCALE));
+		//rock->colliders.push_back(make_shared<SphereCollider>(position, 4 * WORLD_SCALE));
+		rock->colliders.push_back(make_shared<OBBCollider>(position, u, e));
 		entities.push_back(rock);
 		rockPositions.push_back(position);
 	}

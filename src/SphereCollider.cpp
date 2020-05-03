@@ -1,5 +1,6 @@
 #include "SphereCollider.h"
 #include "PlaneCollider.h"
+#include "OBBCollider.h"
 
 #include <iostream>
 
@@ -29,6 +30,22 @@ std::pair<bool, glm::vec3> SphereCollider::isColliding(Collider* other, glm::vec
 			float moving_towards = dot(velocity, n);
 			if (moving_towards < 0) {
 				return { true, speed * (dir - 2.0f * dot(dir, n) * n) };
+			}
+		}
+	}
+	else if (OBBCollider* obb = dynamic_cast<OBBCollider*>(other)) {
+		//obb.closestPtPointOBB()
+		
+		// Find point p on OBB closest to sphere center
+		vec3 closest = obb->closestPtPointOBB(position);
+		// Sphere and OBB intersect if the (squared) distance from sphere
+		// center to point p is less than the (squared) sphere radius
+		vec3 v = -(closest - position);
+
+		if (dot(v, v) <= radius * radius) {
+			float moving_towards = dot(velocity, v);
+			if (moving_towards < 0) {
+				return { true, speed * (dir - 2.0f * dot(dir, v) * v) };
 			}
 		}
 	}
