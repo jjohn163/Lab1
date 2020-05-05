@@ -13,7 +13,7 @@ uniform vec4 color;
 
 void main()
 {
-    float scale = 1.0f;
+    float scale = 10.0f;
     TexCoords = vertPos.zw;
     ParticleColor = color;
 	vec4 pos = M * vec4(vec3(vertPos.xy * scale, 0.0) + offset, 1.0);

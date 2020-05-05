@@ -433,10 +433,6 @@ public:
 		window = windowManager->getHandle();
 
 		srand(time(NULL));
-
-		particleSystem = new ParticleSystem( resourceDirectory + "/particle.png", resourceDirectory + "/particle_vert.glsl", resourceDirectory + "/particle_frag.glsl");
-		particleSystem->init();
-		particleSystem->setParent(bird);
 	}
 
 
@@ -662,7 +658,7 @@ public:
 		//cout << TimeManager::Instance()->FrameRate() << endl;
 
 
-		managePhysics(bird);
+		//managePhysics(bird);
 		updateCamera(bird);
 		manageCollisions();
 		bird->updatePosition(deltaTime);
@@ -707,9 +703,6 @@ public:
 				drawRocks(Model);
 			Model->popMatrix();
 		progMat->unbind();
-
-		particleSystem->setViewProjection(Projection->topMatrix(), View, eye);
-		particleSystem->update(deltaTime);
 
 		//to draw the sky box bind the right shader
 		//cubeProg->bind();

@@ -13,30 +13,69 @@
 #include "Program.h"
 #include "GLSL.h"
 
+
 #define P_TEX_WIDTH  8    // Particle texture dimensions
 #define P_TEX_HEIGHT 8
 
 class ParticleSystem {
 public:
-
 	struct Particle {
-		glm::vec3 position, velocity;
-		glm::vec4 color;
-		float life;
+		vec3 position;
+		vec3 velocity;
+		float gravityEffect;
+		float lifeLength;
+		float scale;
 
-		Particle() : position(0.0f), velocity(0.0f), color(1.0f), life(0.0f) { }
+		float elapsedTime = 0;
+
+		Particle(vec3 position, vec3 velocity, float gravityEffect, float lifeLength, float scale) {
+			this->position = position;
+			this->velocity = velocity;
+			this->gravityEffect = gravityEffect;
+			this->lifeLength = lifeLength;
+			this->scale = scale;
+		}
+
+		bool update(float deltaTime) {
+
+			float GRAVITY = 17.0f;
+			velocity.y += GRAVITY * gravityEffect * deltaTime;	// update velocity
+			vec3 delta_pos = velocity * deltaTime;	// update pos
+			position += delta_pos;
+			elapsedTime += deltaTime;	// update elapsed time
+
+			return elapsedTime < lifeLength;
+		}
 	};
 
 	// Constructor
-	ParticleSystem(string tex_file_path, string vs_file_path, string fs_file_path) { 
+	ParticleSystem(string tex_file_path, string vs_file_path, string fs_file_path) {
 		this->tex_file_path = tex_file_path;
 		this->vs_file_path = vs_file_path;
 		this->fs_file_path = fs_file_path;
-		max_particle_count = 500;
-	}
+		
+		// Set up mesh and attribute properties
+		unsigned int VBO;
+		float particle_quad[] = {
+			-0.5f, 0.5f, -0.5f, -0.5f, 
+			0.5f, 0.5f, 0.5f, -0.5f, 
+			0.0f, 0.0f, 0.0f, 0.0f,
 
-	// Initialization 
-	void init();
+			-0.5f, 0.5f, -0.5f, -0.5f,
+			0.5f, 0.5f, 0.5f, -0.5f,
+			1.0f, 0.0f, 1.0f, 0.0f
+		};
+		CHECKED_GL_CALL(glGenVertexArrays(1, &this->VAO));
+		CHECKED_GL_CALL(glGenBuffers(1, &VBO));
+		CHECKED_GL_CALL(glBindVertexArray(this->VAO));
+		// fill mesh buffer
+		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, VBO));
+		CHECKED_GL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(particle_quad), particle_quad, GL_STATIC_DRAW));
+		// set mesh attributes
+		CHECKED_GL_CALL(glEnableVertexAttribArray(0));
+		CHECKED_GL_CALL(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0));
+		CHECKED_GL_CALL(glBindVertexArray(0));
+	}
 
 	// Render
 	void update(float delta_time);
@@ -50,33 +89,21 @@ public:
 		prog->unbind();
 	};
 
-	// Get/Set
-	void setParent(std::shared_ptr<Entity> parent) { this->parent = parent; }
-	std::shared_ptr<Entity> getParent() { return parent; }
-
 
 private:
-	
-	int max_particle_count;	
-	std::vector<Particle> particles;
+	const float VERTS [8] = { -0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f, -0.5f };
 
-	// Particle system may be attached to a parent <Entity>
-	std::shared_ptr<Entity> parent;
 
 	// Render State
 	std::shared_ptr<Program> prog;	// Program
 	string vs_file_path;
 	string fs_file_path;
-	
+
 	unsigned int VAO;				// Mesh
 
 	GLuint particle_tex_id;			// Texture
 	string tex_file_path;
 	unsigned char *data;
-
-
-	unsigned int firstUnusedParticle();								// Returns the first dead particle
-	void respawnParticle(Particle &particle, glm::vec3 offset);		// Respawn the dead particles 
 };
 
 #endif // PARTICLESYSTEM_H
