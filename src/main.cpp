@@ -19,6 +19,7 @@
 #include "Collider.h"
 #include "PlaneCollider.h"
 #include "SphereCollider.h"
+#include "ParticleSystem.h"
 
 
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -51,6 +52,7 @@ public:
 	shared_ptr<Shape> meshChick;
 	shared_ptr<Shape> meshPillar;
 
+	ParticleSystem * particleSystem;
 
 	// Contains vertex information for OpenGL
 	GLuint VertexArrayID;
@@ -395,6 +397,10 @@ public:
 		window = windowManager->getHandle();
 
 		srand(time(NULL));
+
+		particleSystem = new ParticleSystem( resourceDirectory + "/particle.png", resourceDirectory + "/particle_vert.glsl", resourceDirectory + "/particle_frag.glsl");
+		particleSystem->init();
+		particleSystem->setParent(bird);
 	}
 
 
@@ -578,17 +584,6 @@ public:
 		}
 	}
 
-	//void drawGeeseBlue(shared_ptr<MatrixStack> Model) {
-	//		SetMaterial(4);
-	//		Model->pushMatrix();
-	//		Model->translate(targetPoint);
-	//		//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
-	//		Model->scale(vec3(4, 4, 4));
-	//		setModel(progMat, Model);
-	//		goose->draw(progMat);
-	//		Model->popMatrix();
-	//}
-
 	void drawFloor(shared_ptr<MatrixStack> Model) {
 		Model->pushMatrix();
 			Model->translate(vec3(0, -2, 0));
@@ -647,11 +642,12 @@ public:
 				Model->rotate(rotate, vec3(0, 1, 0));
 				drawFloor(Model);
 				drawBird(Model);
-				//drawWall(Model);
 				drawRocks(Model);
-				//drawGeeseBlue(Model);
 			Model->popMatrix();
 		progMat->unbind();
+
+		particleSystem->setViewProjection(Projection->topMatrix(), View, eye);
+		particleSystem->update(deltaTime);
 
 		//to draw the sky box bind the right shader
 		//cubeProg->bind();
