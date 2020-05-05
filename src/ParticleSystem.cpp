@@ -57,7 +57,7 @@ void ParticleSystem::init() {
 	prog->addUniform("offset");
 	prog->addUniform("color");
 	prog->addAttribute("vertPos");
-	cout << vs_file_path << " and " << fs_file_path << endl;
+	//cout << vs_file_path << " and " << fs_file_path << endl;
 }
 
 
@@ -70,7 +70,7 @@ void ParticleSystem::update(float delta_time) {
 	{
 		int unusedParticle = firstUnusedParticle();
 		respawnParticle(particles[unusedParticle], offset);
-		cout << "new particle spawned" << endl;
+		//cout << "new particle spawned" << endl;
 	}
 
 	// Update all particles
@@ -92,7 +92,7 @@ void ParticleSystem::update(float delta_time) {
 	{
 		if (particle.life > 0.0f)
 		{			
-			cout << particle.position.x << ", " << particle.position.y << endl;
+			//cout << particle.position.x << ", " << particle.position.y << endl;
 			CHECKED_GL_CALL(glUniform3fv(prog->getUniform("offset"), 1, &particle.position[0]));
 			CHECKED_GL_CALL(glUniform4fv(prog->getUniform("color"), 1, &particle.color[0]));
 			CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, particle_tex_id));
