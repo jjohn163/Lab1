@@ -325,10 +325,10 @@ public:
 
 
 
-	void addRock(vec3 position) {
+	void addRock(vec3 position, const std::string& resourceDirectory) {
 		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
 		float e[3] = { 2, 2, 2 };
-		shared_ptr<Entity> rock = make_shared<Entity>(position, vec3(1.0), vec3(0), false);
+		shared_ptr<Entity> rock = make_shared<Entity>((resourceDirectory + "/squareRock.obj"), position, vec3(1.0), vec3(0), false, ProgramManager::BRASS);
 		//rock->colliders.push_back(make_shared<SphereCollider>(position, 4 * WORLD_SCALE));
 		rock->colliders.push_back(make_shared<OBBCollider>(position, u, e));
 		entities.push_back(rock);
@@ -356,11 +356,11 @@ public:
 
 		vec3 rockStart = rockEquation(START_VALUE);
 
-		bird = make_shared<Entity>(vec3(rockStart.x, rockStart.y+GRID_SCALE, rockStart.z+GRID_SCALE), vec3(1.0), vec3(0), true);
+		bird = make_shared<Entity>((resourceDirectory + "/Chick.obj"), vec3(rockStart.x, rockStart.y+GRID_SCALE, rockStart.z+GRID_SCALE), vec3(1.0), vec3(0), true, ProgramManager::GREEN_PLASTIC);
 		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
 
 		vec3 wallCenter = rockEquation(START_VALUE)-vec3(0, GRID_SCALE, 0);
-		wall = make_shared<Entity>(wallCenter, vec3(.2), vec3(1, 0, 0), false);
+		wall = make_shared<Entity>((resourceDirectory + "/cliff_3.obj"), wallCenter, vec3(.2), vec3(1, 0, 0), false, ProgramManager::RED);
 		wall->colliders.push_back(make_shared<PlaneCollider>(
 			vec3(-1, wallCenter.y + COLLISION_PLANE_OFFSET, wallCenter.z), 
 			vec3(1, wallCenter.y + COLLISION_PLANE_OFFSET, wallCenter.z), 
@@ -368,30 +368,30 @@ public:
 		entities.push_back(wall);
 
 		//Starting rock
-		addRock(rockEquation(START_VALUE));
+		addRock(rockEquation(START_VALUE), resourceDirectory);
 
 		for (int i = START_VALUE+GRID_SCALE; i <= 0; i+=GRID_SCALE) {
 			//rock center
 			vec3 position1 = rockEquation(i) + vec3(0, randOffset(), 0);
 			if (rand() % 2 == 1) {
-				addRock(position1);
+				addRock(position1, resourceDirectory);
 			}
 
 			//rock right
 			if (rand() % 2 == 1) {
 				vec3 position2 = position1 + vec3(GRID_SCALE*2, randOffset(), 0);
-				addRock(position2);
+				addRock(position2, resourceDirectory);
 			}
 			
 			//rock left
 			if (rand() % 2 == 1) {
 				vec3 position3 = position1 + vec3(-GRID_SCALE*2, randOffset(), 0);
-				addRock(position3);
+				addRock(position3, resourceDirectory);
 			}
 
 		}
 
-		shared_ptr<Entity> ground = make_shared<Entity>(vec3(0, 0, 0), vec3(1.0), vec3(0), false);
+		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/cube.obj"), vec3(0, 0, 0), vec3(1.0), vec3(0), false, ProgramManager::LIGHT_BLUE);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, 0, 1), vec3(1, 0, 0), vec3(-1, 0, 0)));
 		entities.push_back(ground);
 
