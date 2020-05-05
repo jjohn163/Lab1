@@ -45,6 +45,7 @@ std::pair<bool, glm::vec3> SphereCollider::isColliding(Collider* other, glm::vec
 		if (dot(v, v) <= radius * radius) {
 			float moving_towards = dot(velocity, v);
 			if (moving_towards < 0) {
+				v = normalize(v);
 				return { true, speed * (dir - 2.0f * dot(dir, v) * v) };
 			}
 		}
