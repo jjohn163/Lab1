@@ -22,25 +22,23 @@ ProgramManager::~ProgramManager()
 const string ProgramManager::resourceDirectory = "../resources";
 
 // Our shader program
-const std::shared_ptr<Program> ProgramManager::progMat = ProgramManager::initProgram();
-
-std::shared_ptr<Program> ProgramManager::initProgram() {
-	std::shared_ptr<Program> progMat = make_shared<Program>();
-	progMat->setVerbose(true);
-	progMat->setShaderNames(resourceDirectory + "/my_vert.glsl", resourceDirectory + "/my_frag.glsl");
-	progMat->init();
-	progMat->addUniform("P");
-	progMat->addUniform("V");
-	progMat->addUniform("M");
-	progMat->addUniform("MatDif");
-	progMat->addUniform("MatAmb");
-	progMat->addUniform("MatSpec");
-	progMat->addUniform("shine");
-	progMat->addUniform("LightPos");
-	progMat->addAttribute("vertPos");
-	progMat->addAttribute("vertNor");
-	progMat->addAttribute("vertTex");
-	return progMat;
+const std::shared_ptr<Program> ProgramManager::progMat = make_shared<Program>();
+ 
+void ProgramManager::init() {
+	ProgramManager::progMat->setVerbose(true);
+	ProgramManager::progMat->setShaderNames(resourceDirectory + "/my_vert.glsl", resourceDirectory + "/my_frag.glsl");
+	ProgramManager::progMat->init();
+	ProgramManager::progMat->addUniform("P");
+	ProgramManager::progMat->addUniform("V");
+	ProgramManager::progMat->addUniform("M");
+	ProgramManager::progMat->addUniform("MatDif");
+	ProgramManager::progMat->addUniform("MatAmb");
+	ProgramManager::progMat->addUniform("MatSpec");
+	ProgramManager::progMat->addUniform("shine");
+	ProgramManager::progMat->addUniform("LightPos");
+	ProgramManager::progMat->addAttribute("vertPos");
+	ProgramManager::progMat->addAttribute("vertNor");
+	ProgramManager::progMat->addAttribute("vertTex");
 }
 
 void ProgramManager::setModel(std::shared_ptr<MatrixStack>M) {

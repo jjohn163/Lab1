@@ -14,11 +14,11 @@ public:
 	static const std::shared_ptr<Program> progMat;
 	static const std::string resourceDirectory;
 	static enum Material { BLUE_PLASTIC, FLAT_GREY, BRASS, GREEN_PLASTIC, LIGHT_BLUE, PURPLE, RED, DIRT };
+	static void init();
 	static void setMaterial(Material i);
 	static void setModel(std::shared_ptr<MatrixStack> Model);
 
 	ProgramManager();
 	~ProgramManager();
 private: 
-	static std::shared_ptr<Program> initProgram();
 };
