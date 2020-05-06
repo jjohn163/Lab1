@@ -39,7 +39,7 @@ struct Particle {
 
 	bool update(float deltaTime) {
 
-		float GRAVITY = 17.0f;
+		float GRAVITY = 0;// 17.0f;
 		velocity.y += GRAVITY * gravityEffect * deltaTime;	// update velocity
 		vec3 delta_pos = velocity * deltaTime;	// update pos
 		position += delta_pos;
