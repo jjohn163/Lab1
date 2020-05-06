@@ -20,6 +20,7 @@
 
 
 struct Particle {
+	string name;
 	vec3 position;
 	float rotation;
 	vec3 velocity;
@@ -29,7 +30,8 @@ struct Particle {
 
 	float elapsedTime = 0;
 
-	Particle(vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale) {
+	Particle(string name, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale) {
+		this->name = name;
 		this->position = position;
 		this->velocity = velocity;
 		this->gravityEffect = gravityEffect;
@@ -54,8 +56,10 @@ class ParticleSystem {
 public:
 
 	// Constructor
-	ParticleSystem(string tex_file_path, string vs_file_path, string fs_file_path);
+	ParticleSystem(string resourceDir, string vs_file_path, string fs_file_path);
 
+	// Add new particle to particle system
+	Particle* addNewParticle(string particle_name, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale);
 	// Per frame
 	void updateParticles(float delta_frame);
 	void render(float delta_time, mat4 V, vec3 camera);
@@ -63,20 +67,24 @@ public:
 
 	static vector<Particle>& getParticles() { return particles; }
 
-	Particle * newParticle(vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale);
+	//Particle * newParticle(string tex_file_path, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale);
 
 private:
+
+	string get_particle_resource(string particle_name);
+
 	static vector<Particle> particles;
 
 	// Render State
 	std::shared_ptr<Program> prog;	// Program
+	string resource_dir;
 	string vs_file_path;
 	string fs_file_path;
 
 	unsigned int VAO;				// Mesh
 
-	GLuint particle_tex_id;			// Texture
-	string tex_file_path;
+	std::map<string, GLuint> particle_dictionary;
+	GLuint number_of_particles = 0;
 	unsigned char *data;
 };
 
