@@ -481,9 +481,9 @@ public:
 
 
 		managePhysics(bird);
-		updateCamera(bird);
 		manageCollisions();
 		bird->updatePosition(deltaTime);
+		updateCamera(bird);
 
 		// Get current frame buffer size.
 		int width, height;
