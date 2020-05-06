@@ -235,6 +235,18 @@ public:
 		if (key == GLFW_KEY_Z && action == GLFW_RELEASE) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
+		if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
+			featherParticle();
+		}
+	}
+
+	void featherParticle() {
+		float random = (rand() % 4) - 2;
+		vec3 rand_pos = bird->position;
+		rand_pos.x += random;
+		rand_pos.z += random - 10.0f;	// center particle to bird
+
+		particleSystem->newParticle(rand_pos, random, bird->velocity, 1, 3.0f, 10.0f);
 	}
 
 	const float GRAVITY = -17.0f;
@@ -252,6 +264,7 @@ public:
 				std::pair<bool, vec3> result = bird->colliders[0]->isColliding(collider.get(), bird->velocity);
 				if (result.first) {
 					bird->velocity = result.second;
+					featherParticle();
 				}
 			}
 		}
@@ -467,9 +480,7 @@ public:
 
 		srand(time(NULL));
 
-		particleSystem = new ParticleSystem( resourceDirectory + "/particle.png", resourceDirectory + "/particle_vert.glsl", resourceDirectory + "/particle_frag.glsl");
-		particleSystem->init();
-		particleSystem->setParent(bird);
+		particleSystem = new ParticleSystem(resourceDirectory + "/feathers.png", resourceDirectory + "/particle_vert.glsl", resourceDirectory + "/particle_frag.glsl");
 	}
 
 
@@ -525,8 +536,9 @@ public:
 			Model->popMatrix();
 		ProgramManager::progMat->unbind();
 
-		particleSystem->setViewProjection(Projection->topMatrix(), View, eye);
-		particleSystem->update(deltaTime);
+		particleSystem->setProjection(Projection->topMatrix());
+		particleSystem->updateParticles(deltaTime);
+		particleSystem->render(deltaTime, View, eye);
 
 		//to draw the sky box bind the right shader
 		//cubeProg->bind();
