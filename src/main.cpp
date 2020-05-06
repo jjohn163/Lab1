@@ -20,6 +20,7 @@
 #include "PlaneCollider.h"
 #include "SphereCollider.h"
 #include "ParticleSystem.h"
+#include "ProgramManager.h"
 #include "OBBCollider.h"
 
 
@@ -42,9 +43,7 @@ public:
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
 
-	// Our shader program
-	std::shared_ptr<Program> progMat;
-	std::shared_ptr<Program> cubeProg;
+	//std::shared_ptr<Program> cubeProg;
 	// Shape to be used (from  file) - modify to support multiple
 	shared_ptr<Shape> meshfloor;
 	shared_ptr<Shape> meshsphere;
@@ -104,7 +103,6 @@ public:
 	float EYE_RADIUS = 2.0;
 	vector<shared_ptr<CollectionSphere>> collectionSpheres;
 	shared_ptr<Entity> bird;
-	shared_ptr<Entity> wall;
 	vector<shared_ptr<Entity>> entities;
 	vector<vec3> rockPositions{};
 
@@ -332,20 +330,18 @@ public:
 	float LINE_Z_OFFSET = START_VALUE;
 	float COLLISION_PLANE_OFFSET = 12;
 	float BIRD_RADIUS = 3.5;
-	float WALL_HEIGHT = 4;
-	float WALL_WIDTH = 39;
-	int NUM_WALLS_WIDE = 5;
 
 
+	void addRock(shared_ptr<Entity> rock) {
+		const vec3 ROCK_SCALE = vec3(.22, .2, .35);
+		const vec3 ROT_AXIS = vec3(1, 0, 0);
+		const float ROT_ANGLE = 0;
 
-	void addRock(vec3 position) {
 		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
 		float e[3] = { 2, 2, 2 };
-		shared_ptr<Entity> rock = make_shared<Entity>(position, vec3(1.0), vec3(0), false);
 		//rock->colliders.push_back(make_shared<SphereCollider>(position, 4 * WORLD_SCALE));
-		rock->colliders.push_back(make_shared<OBBCollider>(position, u, e));
+		rock->colliders.push_back(make_shared<OBBCollider>(rock->position, u, e));
 		entities.push_back(rock);
-		rockPositions.push_back(position);
 	}
 
 	//Gets random number between -ROCK_OFFSET_MAX and ROCK_OFFSET_MAX
@@ -361,50 +357,102 @@ public:
 		return vec3(x, y, z);
 	}
 
-	void init(const std::string& resourceDirectory)
-	{
-		// vec3,    vec3,   vec3,     bool
-		//position, scale, roation, moving
-		GLSL::checkVersion();
+	void initWallEntities(string resourceDirectory) {
 
-		vec3 rockStart = rockEquation(START_VALUE);
+		float WALL_HEIGHT = 4;
+		float WALL_WIDTH = 39;
+		int NUM_WALLS_WIDE = 5;
 
-		bird = make_shared<Entity>(vec3(rockStart.x, rockStart.y+GRID_SCALE, rockStart.z+GRID_SCALE), vec3(1.0), vec3(0), true);
-		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
+		const vec3 WALL_SCALE = vec3(.2);
+		const vec3 ROT_AXIS = vec3(1, 0, 0);
+		const float ROT_ANGLE = (PI * 1.5 - atan(LINE_SLOPE));
+		const string OBJ_DIR = resourceDirectory + "/cliff_3.obj";
 
-		vec3 wallCenter = rockEquation(START_VALUE)-vec3(0, GRID_SCALE, 0);
-		wall = make_shared<Entity>(wallCenter, vec3(.2), vec3(1, 0, 0), false);
+		//Initialize first wall with collider
+
+		vec3 wallStart = rockEquation(START_VALUE) - vec3(0, GRID_SCALE, 0);
+		shared_ptr<Entity> wall = make_shared<Entity>(OBJ_DIR, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE);
+
+		//Creates a plane along the slope of the line, and offsets it vertically based on COLLISIONS_PLANE_OFFSET
 		wall->colliders.push_back(make_shared<PlaneCollider>(
-			vec3(-1, wallCenter.y + COLLISION_PLANE_OFFSET, wallCenter.z), 
-			vec3(1, wallCenter.y + COLLISION_PLANE_OFFSET, wallCenter.z), 
-			vec3(0, wallCenter.y-LINE_SLOPE + COLLISION_PLANE_OFFSET, wallCenter.z-1)));
+			vec3(-1, wallStart.y + COLLISION_PLANE_OFFSET, wallStart.z),
+			vec3(1, wallStart.y + COLLISION_PLANE_OFFSET, wallStart.z),
+			vec3(0, wallStart.y - LINE_SLOPE + COLLISION_PLANE_OFFSET, wallStart.z - 1)));
 		entities.push_back(wall);
+		
+		vec3 wallPos = wallStart;
+
+		for (int curWallsWide = 0; curWallsWide < NUM_WALLS_WIDE; curWallsWide++) {
+			//Move wall right for next wall tile (this is still slightly buggy)
+			wallPos = wallStart - vec3(WALL_WIDTH*((NUM_WALLS_WIDE / 2 - curWallsWide) / 2), 0, 0);
+
+			for (int i = 0; i < NUM_ROCKS * 2; i++) {
+				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE);
+				entities.push_back(wall);
+
+				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT);
+			}
+		}
+	}
+
+	void initRockEntities(string resourceDirectory) {
+		const float SPACE_BETWEEN_ROCKS = GRID_SCALE * 3;
+
+		const string OBJ_DIR = resourceDirectory + "/squareRock.obj";
+		const vec3 ROCK_POS = rockEquation(START_VALUE);
+		const vec3 ROCK_SCALE = vec3(.22, .2, .35);
+		const vec3 ROT_AXIS = vec3(1, 0, 0);
+		const float ROT_ANGLE = 0;
+		const ProgramManager::Material ROCK_MAT = ProgramManager::BRASS;
+
+		shared_ptr<Entity> rock = make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE);
 
 		//Starting rock
-		addRock(rockEquation(START_VALUE));
+		addRock(rock);
 
-		for (int i = START_VALUE+GRID_SCALE; i <= 0; i+=GRID_SCALE) {
+		for (int i = START_VALUE + GRID_SCALE; i <= 0; i += GRID_SCALE) {
 			//rock center
 			vec3 position1 = rockEquation(i) + vec3(0, randOffset(), 0);
 			if (rand() % 2 == 1) {
-				addRock(position1);
+				addRock(make_shared<Entity>(OBJ_DIR, position1, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
 			}
 
 			//rock right
 			if (rand() % 2 == 1) {
-				vec3 position2 = position1 + vec3(GRID_SCALE*2, randOffset(), 0);
-				addRock(position2);
+				vec3 position2 = position1 + vec3(SPACE_BETWEEN_ROCKS , randOffset(), 0);
+				addRock(make_shared<Entity>(OBJ_DIR, position2, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
 			}
-			
+
 			//rock left
 			if (rand() % 2 == 1) {
-				vec3 position3 = position1 + vec3(-GRID_SCALE*2, randOffset(), 0);
-				addRock(position3);
+				vec3 position3 = position1 + vec3(-SPACE_BETWEEN_ROCKS, randOffset(), 0);
+				addRock(make_shared<Entity>(OBJ_DIR, position3, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
 			}
 
 		}
+	}
 
-		shared_ptr<Entity> ground = make_shared<Entity>(vec3(0, 0, 0), vec3(1.0), vec3(0), false);
+	void init(const std::string& resourceDirectory)
+	{
+		GLSL::checkVersion();
+
+		vec3 rockStart = rockEquation(START_VALUE);
+
+		bird = make_shared<Entity>(
+			resourceDirectory + "/Chick.obj",
+			vec3(rockStart.x, rockStart.y+GRID_SCALE, rockStart.z+GRID_SCALE),
+			vec3(.4, .4, .4),
+			vec3(1, 0, 0), 
+			true,
+			ProgramManager::GREEN_PLASTIC);
+		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
+		entities.push_back(bird);
+
+
+		initWallEntities(resourceDirectory);
+		initRockEntities(resourceDirectory);
+
+		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/cube.obj"), vec3(0, 0, 0), vec3(60, .05, 60), vec3(0), false, ProgramManager::LIGHT_BLUE);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, 0, 1), vec3(1, 0, 0), vec3(-1, 0, 0)));
 		entities.push_back(ground);
 
@@ -414,34 +462,19 @@ public:
 		glEnable(GL_DEPTH_TEST);
 		initTex(resourceDirectory);
 		// Initialize the GLSL program.
-
-		cubeProg = make_shared<Program>();
-		cubeProg->setVerbose(true);
-		cubeProg->setShaderNames(resourceDirectory + "/cube_vert.glsl", resourceDirectory + "/cube_frag.glsl");
-		cubeProg->init();
-		cubeProg->addUniform("P");
-		cubeProg->addUniform("V");
-		cubeProg->addUniform("M");
-		cubeProg->addUniform("skybox");
-		cubeProg->addAttribute("vertPos");
-		cubeProg->addAttribute("vertNor");
+		ProgramManager::init();
+		//cubeProg = make_shared<Program>();
+		//cubeProg->setVerbose(true);
+		//cubeProg->setShaderNames(resourceDirectory + "/cube_vert.glsl", resourceDirectory + "/cube_frag.glsl");
+		//cubeProg->init();
+		//cubeProg->addUniform("P");
+		//cubeProg->addUniform("V");
+		//cubeProg->addUniform("M");
+		//cubeProg->addUniform("skybox");
+		//cubeProg->addAttribute("vertPos");
+		//cubeProg->addAttribute("vertNor");
 		//prog->addAttribute("vertTex");
 
-		progMat = make_shared<Program>();
-		progMat->setVerbose(true);
-		progMat->setShaderNames(resourceDirectory + "/my_vert.glsl", resourceDirectory + "/my_frag.glsl");
-		progMat->init();
-		progMat->addUniform("P");
-		progMat->addUniform("V");
-		progMat->addUniform("M");
-		progMat->addUniform("MatDif");
-		progMat->addUniform("MatAmb");
-		progMat->addUniform("MatSpec");
-		progMat->addUniform("shine");
-		progMat->addUniform("LightPos");
-		progMat->addAttribute("vertPos");
-		progMat->addAttribute("vertNor");
-		progMat->addAttribute("vertTex");
 
 		window = windowManager->getHandle();
 
@@ -450,221 +483,6 @@ public:
 		particleSystem = new ParticleSystem(resourceDirectory + "/feathers.png", resourceDirectory + "/particle_vert.glsl", resourceDirectory + "/particle_frag.glsl");
 	}
 
-
-	void initGeom(const std::string& resourceDirectory)
-	{
-		string errStr;
-		vector<tinyobj::shape_t> TOshapesFloor;
-		vector<tinyobj::material_t> objMaterialsFloor;
-		vector<tinyobj::shape_t> TOshapesSphere;
-		vector<tinyobj::material_t> objMaterialsSphere;
-		vector<tinyobj::shape_t> TOshapesGoose;
-		vector<tinyobj::material_t> objMaterialsGoose;
-		vector<tinyobj::shape_t> TOshapesRock;
-		vector<tinyobj::material_t> objMaterialsRock;
-		vector<tinyobj::shape_t> TOshapesWall;
-		vector<tinyobj::material_t> objMaterialsWall;
-		vector<tinyobj::shape_t> TOshapesPillar;
-		vector<tinyobj::material_t> objMaterialsPillar;
-		vector<tinyobj::shape_t> TOshapesChick;
-		vector<tinyobj::material_t> objMaterialsChick;
-
-
-		bool rc = tinyobj::LoadObj(TOshapesFloor, objMaterialsFloor, errStr, (resourceDirectory + "/cube.obj").c_str());
-		if (!rc) {
-			cerr << errStr << endl;
-		}
-		else {
-			meshfloor = make_shared<Shape>();
-			meshfloor->createShape(TOshapesFloor[0]);
-			meshfloor->measure();
-			meshfloor->init();
-		}
-
-		rc = tinyobj::LoadObj(TOshapesSphere, objMaterialsSphere, errStr, (resourceDirectory + "/sphere.obj").c_str());
-		if (!rc) {
-			cerr << errStr << endl;
-		}
-		else {
-			meshsphere = make_shared<Shape>();
-			meshsphere->createShape(TOshapesSphere[0]);
-			meshsphere->measure();
-			meshsphere->init();
-		}
-
-		rc = tinyobj::LoadObj(TOshapesWall, objMaterialsWall, errStr, (resourceDirectory + "/cliff_3.obj").c_str());
-		if (!rc) {
-			cerr << errStr << endl;
-		}
-		else {
-			meshwall = make_shared<Shape>();
-			meshwall->createShape(TOshapesWall[0]);
-			meshwall->measure();
-			meshwall->init();
-		}
-
-		rc = tinyobj::LoadObj(TOshapesPillar, objMaterialsPillar, errStr, (resourceDirectory + "/squareRock.obj").c_str());
-		if (!rc) {
-			cerr << errStr << endl;
-		}
-		else {
-			meshPillar = make_shared<Shape>();
-			meshPillar->createShape(TOshapesPillar[0]);
-			meshPillar->measure();
-			meshPillar->init();
-		}
-
-		rc = tinyobj::LoadObj(TOshapesChick, objMaterialsChick, errStr, (resourceDirectory + "/Chick.obj").c_str());
-		if (!rc) {
-			cerr << errStr << endl;
-		}
-		else {
-			meshChick = make_shared<Shape>();
-			meshChick->createShape(TOshapesChick[0]);
-			meshChick->measure();
-			meshChick->init();
-		}
-
-		CollectionSphere::spawnEnemies(collectionSpheres, EYE_RADIUS, eye);
-
-	}
-
-	void setModel(std::shared_ptr<Program> prog, std::shared_ptr<MatrixStack>M) {
-		glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M->topMatrix()));
-	}
-
-	void SetMaterial(int i) {
-		switch (i) {
-		case 0: //shiny blue plastic
-			glUniform3f(progMat->getUniform("MatAmb"), 0.02, 0.04, 0.2);
-			glUniform3f(progMat->getUniform("MatDif"), 0.0, 0.16, 0.9);
-			glUniform3f(progMat->getUniform("MatSpec"), 0.14, 0.2, 0.8);
-			glUniform1f(progMat->getUniform("shine"), 120.0);
-			break;
-		case 1: // flat grey
-			glUniform3f(progMat->getUniform("MatAmb"), 0.13, 0.13, 0.14);
-			glUniform3f(progMat->getUniform("MatDif"), 0.3, 0.3, 0.4);
-			glUniform3f(progMat->getUniform("MatSpec"), 0.3, 0.3, 0.4);
-			glUniform1f(progMat->getUniform("shine"), 4.0);
-			break;
-		case 2: //brass
-			glUniform3f(progMat->getUniform("MatAmb"), 0.3294, 0.2235, 0.02745);
-			glUniform3f(progMat->getUniform("MatDif"), 0.7804, 0.5686, 0.11373);
-			glUniform3f(progMat->getUniform("MatSpec"), 0.9922, 0.941176, 0.80784);
-			glUniform1f(progMat->getUniform("shine"), 27.9);
-			break;
-		case 3: //green plastic
-			glUniform3f(progMat->getUniform("MatAmb"), 0.3294, 0.2235, 0.02745);
-			glUniform3f(progMat->getUniform("MatDif"), 0.2, 0.8, 0.2);
-			glUniform3f(progMat->getUniform("MatSpec"), 0.3, 0.3, 0.4);
-			glUniform1f(progMat->getUniform("shine"), 80.0);
-			break;
-		case 4: //light blue
-			glUniform3f(progMat->getUniform("MatAmb"), 0.8, 0.8, 0.99);
-			glUniform3f(progMat->getUniform("MatDif"), 0.0, 0.1, 0.9);
-			glUniform3f(progMat->getUniform("MatSpec"), 0.3, 0.3, 0.4);
-			glUniform1f(progMat->getUniform("shine"), 20.);
-			break;
-		case 5: //purple
-			glUniform3f(progMat->getUniform("MatAmb"), 0.2, 0, 0.2);
-			glUniform3f(progMat->getUniform("MatDif"), 0.5, 0.0, 0.5);
-			glUniform3f(progMat->getUniform("MatSpec"), 0.3, 0.3, 0.4);
-			glUniform1f(progMat->getUniform("shine"), 20.);
-			break;
-		case 6: //red
-			glUniform3f(progMat->getUniform("MatAmb"), .2, 0, 0);
-			glUniform3f(progMat->getUniform("MatDif"), 1, 0, 0);
-			glUniform3f(progMat->getUniform("MatSpec"), 0.3, 0.3, 0.4);
-			glUniform1f(progMat->getUniform("shine"), 20.);
-			break;
-		case 7: //dirt
-			glUniform3f(progMat->getUniform("MatAmb"), .5, .16, .0);
-			glUniform3f(progMat->getUniform("MatDif"), .8, .2, 0);
-			glUniform3f(progMat->getUniform("MatSpec"), 0.3, 0.3, 0.4);
-			glUniform1f(progMat->getUniform("shine"), 20.);
-			break;
-		}
-	}
-
-	void drawEnemies(shared_ptr<MatrixStack> Model) {
-		for (shared_ptr<CollectionSphere> sphere : collectionSpheres) {
-			if (sphere->isMoving()) {
-				SetMaterial(3);
-			}
-			else {
-				SetMaterial(6);
-			}
-			Model->pushMatrix();
-			Model->translate(sphere->getPosition());
-			setModel(progMat, Model);
-			meshPillar->draw(progMat);
-			Model->popMatrix();
-		}
-	}
-
-	void drawWall(shared_ptr<MatrixStack> Model) {
-		vec3 wallPos = wall->position;
-
-		SetMaterial(6);
-
-		//Start with furthest left wall tile
-		//wallPos = wall->position - vec3(WALL_WIDTH*(NUM_WALLS_WIDE/2), 0, 0);
-
-		for (int curWallsWide = 0; curWallsWide < NUM_WALLS_WIDE; curWallsWide++) {
-			//Move wall right for next wall tile (this is still slightly buggy)
-			wallPos = wall->position - vec3(WALL_WIDTH*((NUM_WALLS_WIDE/2-curWallsWide) / 2), 0, 0);
-
-			for (int i = 0; i < NUM_ROCKS*2; i++) {
-				Model->pushMatrix();
-				Model->translate(wallPos);
-				Model->rotate(PI + PI / 2 - atan(LINE_SLOPE), wall->rotation);
-				Model->scale(wall->scale);
-				setModel(progMat, Model);
-				meshwall->draw(progMat);
-				Model->popMatrix();
-
-				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT);
-			}
-		}
-	}
-
-	void drawBird(shared_ptr<MatrixStack> Model) {
-		
-		SetMaterial(3);
-		Model->pushMatrix();
-			Model->translate(bird->position);
-			//Model->rotate(atan2(sphere->getDirection().x, sphere->getDirection().z), vec3(0, 1, 0));
-			Model->scale(vec3(.4, .4, .4)*vec3(WORLD_SCALE));
-			setModel(progMat, Model);
-			meshChick->draw(progMat);
-		Model->popMatrix();
-	}
-
-	float WORLD_SCALE = 1;
-
-	void drawRocks(shared_ptr<MatrixStack> Model) {
-		for (int i = 0; i < rockPositions.size(); i++) {
-			SetMaterial(2);
-			Model->pushMatrix();
-			Model->translate(rockPositions[i]);
-			//Model->scale(vec3(1.25, .5, 1.25)); pillar scaling
-			Model->scale(vec3(.22, .2, .35)*vec3(WORLD_SCALE));
-			//Model->rotate(PI/2, vec3(1, 0, 0));
-			setModel(progMat, Model);
-			meshPillar->draw(progMat);
-			Model->popMatrix();
-		}
-	}
-
-	void drawFloor(shared_ptr<MatrixStack> Model) {
-		Model->pushMatrix();
-			Model->translate(vec3(0, -2, 0));
-			Model->scale(vec3(60, .05, 60));
-			setModel(progMat, Model);
-			SetMaterial(4);
-			meshfloor->draw(progMat);
-		Model->popMatrix();
-	}
 
 	void render() {
 		TimeManager::Instance()->Update();
@@ -705,19 +523,18 @@ public:
 		// Draw a stack of cubes with indiviudal transforms
 		
 		
-		progMat->bind();
-			glUniformMatrix4fv(progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-			glUniformMatrix4fv(progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-			glUniform3f(progMat->getUniform("LightPos"), light.x, light.y, light.z);
+		ProgramManager::progMat->bind();
+			glUniformMatrix4fv(ProgramManager::progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+			glUniformMatrix4fv(ProgramManager::progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+			glUniform3f(ProgramManager::progMat->getUniform("LightPos"), light.x, light.y, light.z);
 			Model->pushMatrix();
 			Model->loadIdentity();
 				Model->rotate(rotate, vec3(0, 1, 0));
-				drawFloor(Model);
-				drawBird(Model);
-				drawWall(Model);
-				drawRocks(Model);
+				for (shared_ptr<Entity> entity : entities) {
+					entity->draw(Model);
+				}
 			Model->popMatrix();
-		progMat->unbind();
+		ProgramManager::progMat->unbind();
 
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
@@ -761,7 +578,7 @@ public:
 int main(int argc, char *argv[])
 {
 	// Where the resources are loaded from
-	std::string resourceDir = "../resources";
+	std::string resourceDir = ProgramManager::resourceDirectory;
 	
 
 	Application *application = new Application();
@@ -779,7 +596,6 @@ int main(int argc, char *argv[])
 	// may need to initialize or set up different data and state
 
 	application->init(resourceDir);
-	application->initGeom(resourceDir);
 
 	// Loop until the user closes the window.
 	while (! glfwWindowShouldClose(windowManager->getHandle()))

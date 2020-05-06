@@ -59,10 +59,12 @@ ParticleSystem::ParticleSystem(string tex_file_path, string vs_file_path, string
 	prog->addUniform("offset");
 	prog->addUniform("color");
 	prog->addAttribute("vertPos");
+
 }
 
 void ParticleSystem::updateParticles(float delta_frame) {
 	vector<Particle>::iterator p_iter = particles.begin();
+
 
 	while (p_iter != particles.end()) {		
 		bool still_alive = (*p_iter).update(delta_frame);
@@ -81,6 +83,7 @@ void ParticleSystem::render(float delta_frame, mat4 V, vec3 camera) {
 
 	// setup
 	prog->bind();
+
 	glBindVertexArray(VAO);
 	glEnableVertexAttribArray(0);
 	glEnable(GL_BLEND);
@@ -112,7 +115,7 @@ void ParticleSystem::render(float delta_frame, mat4 V, vec3 camera) {
 		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(V)));
 		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M)));
 		CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
-	
+
 	}
 
 	// cleanup
