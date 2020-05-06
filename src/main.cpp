@@ -237,6 +237,18 @@ public:
 		if (key == GLFW_KEY_Z && action == GLFW_RELEASE) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
+		if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
+			featherParticle();
+		}
+	}
+
+	void featherParticle() {
+		float random = (rand() % 4) - 2;
+		vec3 rand_pos = bird->position;
+		rand_pos.x += random;
+		rand_pos.z += random - 10.0f;	// center particle to bird
+
+		particleSystem->newParticle(rand_pos, random, bird->velocity, 1, 3.0f, 10.0f);
 	}
 
 	const float GRAVITY = -17.0f;
@@ -254,6 +266,7 @@ public:
 				std::pair<bool, vec3> result = bird->colliders[0]->isColliding(collider.get(), bird->velocity);
 				if (result.first) {
 					bird->velocity = result.second;
+					featherParticle();
 				}
 			}
 		}
@@ -433,6 +446,8 @@ public:
 		window = windowManager->getHandle();
 
 		srand(time(NULL));
+
+		particleSystem = new ParticleSystem(resourceDirectory + "/feathers.png", resourceDirectory + "/particle_vert.glsl", resourceDirectory + "/particle_frag.glsl");
 	}
 
 
@@ -658,10 +673,10 @@ public:
 		//cout << TimeManager::Instance()->FrameRate() << endl;
 
 
-		//managePhysics(bird);
-		updateCamera(bird);
+		managePhysics(bird);
 		manageCollisions();
 		bird->updatePosition(deltaTime);
+		updateCamera(bird);
 
 		// Get current frame buffer size.
 		int width, height;
@@ -703,6 +718,10 @@ public:
 				drawRocks(Model);
 			Model->popMatrix();
 		progMat->unbind();
+
+		particleSystem->setProjection(Projection->topMatrix());
+		particleSystem->updateParticles(deltaTime);
+		particleSystem->render(deltaTime, View, eye);
 
 		//to draw the sky box bind the right shader
 		//cubeProg->bind();
