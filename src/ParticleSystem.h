@@ -25,13 +25,13 @@ public:
 	ParticleSystem(string resourceDir, string vs_file_path, string fs_file_path);
 
 	// Add new particle to particle system
-	Particle* addNewParticle(string particle_name, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale);
+	Particle* addNewParticle(string particle_name, string particle_type, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale);
 	// Per frame
 	void updateParticles(float delta_frame);
 	void render(float delta_time, mat4 V, vec3 camera);
 	void setProjection(mat4 P);
 
-	static vector<Particle>& getParticles() { return particles; }
+	static vector<Particle*>& getParticles() { return particles; }
 
 	//Particle * newParticle(string tex_file_path, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale);
 
@@ -39,7 +39,7 @@ private:
 
 	string get_particle_resource(string particle_name);
 
-	static vector<Particle> particles;
+	static vector<Particle*> particles;
 
 	// Render State
 	std::shared_ptr<Program> prog;	// Program

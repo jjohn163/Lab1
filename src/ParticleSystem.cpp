@@ -1,7 +1,8 @@
 #include "ParticleSystem.h"
+#include "FeatherParticle.h"
 #include <stdlib.h>
 
-vector<Particle> ParticleSystem::particles;
+vector<Particle*> ParticleSystem::particles;
 
 ParticleSystem::ParticleSystem(string resource_dir, string vs_file_path, string fs_file_path) {
 	this->resource_dir = resource_dir;
@@ -44,7 +45,7 @@ ParticleSystem::ParticleSystem(string resource_dir, string vs_file_path, string 
 
 }
 
-Particle* ParticleSystem::addNewParticle(string particle_name, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale) {
+Particle* ParticleSystem::addNewParticle(string particle_name, string particle_type, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale) {
 	
 	// If the particle has not yet been initialized (created texture for it, etc, like below)
 	// then do this initialization now
@@ -59,8 +60,6 @@ Particle* ParticleSystem::addNewParticle(string particle_name, vec3 position, fl
 		string tex_file_path = get_particle_resource(particle_name);
 		strcpy(filepath, tex_file_path.c_str());
 		unsigned char* data = stbi_load(filepath, &width, &height, &channels, 4);
-		cout << current_id << endl;
-		cout << tex_file_path << endl;
 		CHECKED_GL_CALL(glActiveTexture(GL_TEXTURE0));
 		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, current_id));
 		CHECKED_GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT));
@@ -72,19 +71,23 @@ Particle* ParticleSystem::addNewParticle(string particle_name, vec3 position, fl
 		CHECKED_GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
 	}
 
-	Particle p = Particle(particle_name, position, rotation, velocity, gravityEffect, lifeLength, scale);
-
-	particles.push_back(p);
-
-	return &p;
+	if (particle_type == "Feather") {
+		Particle* p = new FeatherParticle(particle_name, position, rotation, velocity, gravityEffect, lifeLength, scale);
+		particles.push_back(p);
+		return p;
+	}
+	else {
+		Particle* p = new Particle(particle_name, position, rotation, velocity, gravityEffect, lifeLength, scale);
+		particles.push_back(p);
+		return p;
+	}
 }
 
 void ParticleSystem::updateParticles(float delta_frame) {
-	vector<Particle>::iterator p_iter = particles.begin();
-
+	vector<Particle*>::iterator p_iter = particles.begin();
 
 	while (p_iter != particles.end()) {		
-		bool still_alive = (*p_iter).update(delta_frame);
+		bool still_alive = (*p_iter)->update(delta_frame);
 		if (!still_alive) {
 			p_iter = particles.erase(p_iter);
 		}
@@ -110,7 +113,7 @@ void ParticleSystem::render(float delta_frame, mat4 V, vec3 camera) {
 	int i = 0;
 	for (i = 0; i < particles.size(); i++) {
 		mat4 M = mat4(1);
-		M = translate(mat4(1), particles.at(i).position);
+		M = translate(mat4(1), particles.at(i)->position);
 
 		// M = T(V) --> models always facing direction of view
 		M[0][0] = V[0][0];
@@ -122,14 +125,17 @@ void ParticleSystem::render(float delta_frame, mat4 V, vec3 camera) {
 		M[2][0] = V[0][2];
 		M[2][1] = V[1][2];
 		M[2][2] = V[2][2];
-		M *= rotate(mat4(1), particles.at(i).rotation, vec3(0, 1, 0));
-		mat4 sM = scale(mat4(1), vec3(particles.at(i).scale, particles.at(i).scale, particles.at(i).scale));
+		M *= rotate(mat4(1), particles.at(i)->rotation, vec3(0, 1, 0));
+		mat4 sM = scale(mat4(1), vec3(particles.at(i)->scale, particles.at(i)->scale, particles.at(i)->scale));
 		M = M * sM;
 		//theta++;
 
+		Particle* particle = particles.at(i);
+		string name = particles.at(i)->name;
+
 		//M = M * translate(mat4(1), -camera);
 
-		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, particle_dictionary[particles.at(i).name]));
+		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, particle_dictionary[name]));
 		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(V)));
 		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M)));
 		CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
@@ -150,20 +156,6 @@ void ParticleSystem::setProjection(mat4 P) {
 	CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, value_ptr(P)));
 	prog->unbind();
 };
-
-//Particle * ParticleSystem::newParticle(string particle_name, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale) {
-//	string tex_file_path = get_particle_resource(particle_name);
-//	//mat4 rotz = rotate(mat4(1), glm::radians(rrotz), vec3(0, 0, 1));
-//	//mat4 rotz = rotate(mat4(1), glm::radians(90.0f), vec3(rx, ry, rz));
-//	//vec4 normalx = vec4(1, 0, 0, 1) * rot;
-//	//cout << "normalx at (" << normalx.x << ", " << normalx.y << ", " << normalx.z << ")" << endl;
-//	//0.5f * vec4(velocity, 1) * rot
-//	Particle p = Particle(tex_file_path, position, rotation, vec4(velocity, 1) * rotx * roty, gravityEffect, lifeLength, scale);
-//
-//	//cout << "New particle at (" << position.x << ", " << position.y << ", " << position.z << ")" << endl;
-//	particles.push_back(p);
-//	return &p;
-//}
 
 // Only png is supported at the moment
 string ParticleSystem::get_particle_resource(string particle_name) {

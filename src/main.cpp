@@ -252,9 +252,7 @@ public:
 	}
 
 	void featherParticle() {
-		//rand_pos.x += random;
-		//rand_pos.z += random - 10.0f;	// center particle to bird
-		int limit = rand() % 10 + 5;
+		int limit = rand() % 10 + 15;
 		for (int i = 0; i < limit; i++) {
 			float rrotx = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;
 			float rroty = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;
@@ -267,11 +265,8 @@ public:
 			vec3 velocity = vec4(bird->velocity, 1) * rotx * roty;
 			float gravity_effect = 1;
 			float life_length = rand() % 3 + 2.0f;
-			float scale = 0.25f;
-			//particleSystem->newParticle(rand_pos, random, bird->velocity, 1, rand() % 3 + 2.0f, 10.0f);
-			//float rrotz = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 90;
-			particleSystem->addNewParticle(feather_name, particle_pos, random_rotation, velocity, gravity_effect, life_length, scale);
-			//particleSystem->newParticle("feather1", rand_pos, random, vec3(0,0,0), 1, rand() % 3  + 2.0f, 0.25f);
+			float scale = 0.125f;
+			particleSystem->addNewParticle(feather_name, "Feather", particle_pos, random_rotation, velocity, gravity_effect, life_length, scale);
 		}
 	}
 
