@@ -101,6 +101,17 @@ public:
 
 	float SPHERE_RADIUS = 1.0;
 	float EYE_RADIUS = 2.0;
+	const string feathers[9] = {
+		"feather1",
+		"feather2",
+		"feather3",
+		"feather4",
+		"feather5",
+		"feather6",
+		"feather7",
+		"feather8",
+		"feather9",
+	};
 	vector<shared_ptr<CollectionSphere>> collectionSpheres;
 	shared_ptr<Entity> bird;
 	vector<shared_ptr<Entity>> entities;
@@ -241,12 +252,22 @@ public:
 	}
 
 	void featherParticle() {
-		float random = (rand() % 4) - 2;
-		vec3 rand_pos = bird->position;
-		rand_pos.x += random;
-		rand_pos.z += random - 10.0f;	// center particle to bird
+		int limit = rand() % 10 + 15;
+		for (int i = 0; i < limit; i++) {
+			float rrotx = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;
+			float rroty = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;
+			mat4 rotx = glm::rotate(mat4(1), glm::radians(rrotx), vec3(1, 0, 0));
+			mat4 roty = glm::rotate(mat4(1), glm::radians(rroty), vec3(0, 1, 0));
 
-		particleSystem->newParticle(rand_pos, random, bird->velocity, 1, 3.0f, 10.0f);
+			string feather_name = feathers[rand() % feathers->size()];
+			vec3 particle_pos = bird->position + vec3(0,2,0);
+			float random_rotation = (rand() % 4) - 2;
+			vec3 velocity = vec4(bird->velocity, 1) * rotx * roty;
+			float gravity_effect = 1;
+			float life_length = rand() % 3 + 2.0f;
+			float scale = 0.125f;
+			particleSystem->addNewParticle(feather_name, "Feather", particle_pos, random_rotation, velocity, gravity_effect, life_length, scale);
+		}
 	}
 
 	const float GRAVITY = -17.0f;
@@ -479,8 +500,7 @@ public:
 		window = windowManager->getHandle();
 
 		srand(time(NULL));
-
-		particleSystem = new ParticleSystem(resourceDirectory + "/feathers.png", resourceDirectory + "/particle_vert.glsl", resourceDirectory + "/particle_frag.glsl");
+		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
 	}
 
 
