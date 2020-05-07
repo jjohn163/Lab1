@@ -12,45 +12,11 @@
 #include <vector>
 #include "Enitity.h"
 #include "Program.h"
+#include "Particle.h"
 #include "GLSL.h"
-
 
 #define P_TEX_WIDTH  8    // Particle texture dimensions
 #define P_TEX_HEIGHT 8
-
-
-struct Particle {
-	string name;
-	vec3 position;
-	float rotation;
-	vec3 velocity;
-	float gravityEffect;
-	float lifeLength;
-	float scale;
-
-	float elapsedTime = 0;
-
-	Particle(string name, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale) {
-		this->name = name;
-		this->position = position;
-		this->velocity = velocity;
-		this->gravityEffect = gravityEffect;
-		this->lifeLength = lifeLength;
-		this->scale = scale;
-	}
-
-	bool update(float deltaTime) {
-
-		float GRAVITY = 0;// 17.0f;
-		velocity.y += GRAVITY * gravityEffect * deltaTime;	// update velocity
-		vec3 delta_pos = velocity * deltaTime;	// update pos
-		position += delta_pos;
-		elapsedTime += deltaTime;	// update elapsed time
-
-		return elapsedTime < lifeLength;
-	}
-};
-
 
 class ParticleSystem {
 public:
