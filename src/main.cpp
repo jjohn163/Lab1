@@ -405,7 +405,7 @@ public:
 			for (int i = 0; i < NUM_ROCKS * GRID_SCALE/WALL_HEIGHT; i++) {
 				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE);
 				entities.push_back(wall);
-				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT);
+				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT); //Move down by slope 
 			}
 		}
 	}
@@ -424,6 +424,8 @@ public:
 		vec3 curPos;
 		int omitRand;
 		vector<int> widths{ 1, 2, 2, 3, 4 };
+		int lastOmitted = widths.size()/2;
+
 
 		//Starting rock
 		addRock(make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
@@ -431,9 +433,12 @@ public:
 		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
 			curPos = lineEquation(i) - vec3(OFFSET_LEFT, 0, 0);
 			random_shuffle(widths.begin(), widths.end());
-			omitRand = rand() % widths.size();
+			do {
+				omitRand = rand() % widths.size();
+			} while (abs(lastOmitted - omitRand) > 1);
 			for (int widthNdx = 0; widthNdx < widths.size(); widthNdx++) {
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
+				lastOmitted = omitRand;
 				if (widthNdx != omitRand) {
 					addRock(make_shared<Entity>(OBJ_DIR, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
 				}
@@ -462,8 +467,8 @@ public:
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
 
-		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/cube.obj"), vec3(0, 0, 0), vec3(10000, .05, 10000), vec3(0), false, ProgramManager::LIGHT_BLUE);
-		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, 0, 1), vec3(1, 0, 0), vec3(-1, 0, 0)));
+		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/cube.obj"), lineEquation(0), vec3(1000, .1, 1000), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE);
+		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
 
 		// Set background color.
