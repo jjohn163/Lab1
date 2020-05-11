@@ -47,16 +47,28 @@ void ProgramManager::init() {
 	ProgramManager::progMat->addAttribute("vertTex");
 
 	tex_sample = new Texture();
-	tex_sample->setFilename(resourceDirectory + "/Chick.jpg");
+	tex_sample->setFilename(resourceDirectory + "/crate.jpg");
 	tex_sample->init();
 	tex_sample->setUnit(0);
 	tex_sample->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
 	tex_chick = new Texture();
-	tex_chick->setFilename(resourceDirectory + "/crate.jpg");
+	tex_chick->setFilename(resourceDirectory + "/chick.jpg");
 	tex_chick->init();
 	tex_chick->setUnit(0);
 	tex_chick->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+	tex_rock = new Texture();
+	tex_rock->setFilename(resourceDirectory + "/squareRock.jpg");
+	tex_rock->init();
+	tex_rock->setUnit(0);
+	tex_rock->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+	tex_wall = new Texture();
+	tex_wall->setFilename(resourceDirectory + "/cliff.jpg");
+	tex_wall->init();
+	tex_wall->setUnit(0);
+	tex_wall->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 }
 
 void ProgramManager::setModel(std::shared_ptr<MatrixStack>M) {
@@ -120,6 +132,12 @@ void ProgramManager::setTexture(CustomTextures i) {
 	switch (i) {
 	case CHICK:
 		tex_chick->bind(ProgramManager::progMat->getUniform("Texture0"));
+		break;
+	case ROCK:
+		tex_rock->bind(ProgramManager::progMat->getUniform("Texture0"));
+		break;
+	case WALL:
+		tex_wall->bind(ProgramManager::progMat->getUniform("Texture0"));
 		break;
 	case DEFAULT:
 		tex_sample->bind(ProgramManager::progMat->getUniform("Texture0"));

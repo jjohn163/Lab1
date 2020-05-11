@@ -387,12 +387,12 @@ public:
 		const vec3 WALL_SCALE = vec3(.2);
 		const vec3 ROT_AXIS = vec3(1, 0, 0);
 		const float ROT_ANGLE = (PI * 1.5 - atan(LINE_SLOPE));
-		const string OBJ_DIR = resourceDirectory + "/cliff_3.obj";
+		const string OBJ_DIR = resourceDirectory + "/rockyCliff_uv_smooth.obj";
 
 		//Initialize first wall with collider
 
 		vec3 wallStart = rockEquation(START_VALUE) - vec3(0, GRID_SCALE, 0);
-		shared_ptr<Entity> wall = make_shared<Entity>(OBJ_DIR, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE);
+		shared_ptr<Entity> wall = make_shared<Entity>(OBJ_DIR, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 
 		//Creates a plane along the slope of the line, and offsets it vertically based on COLLISIONS_PLANE_OFFSET
 		wall->colliders.push_back(make_shared<PlaneCollider>(
@@ -408,7 +408,7 @@ public:
 			wallPos = wallStart - vec3(WALL_WIDTH*((NUM_WALLS_WIDE / 2 - curWallsWide) / 2), 0, 0);
 
 			for (int i = 0; i < NUM_ROCKS * 2; i++) {
-				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE);
+				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 				entities.push_back(wall);
 
 				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT);
@@ -426,7 +426,7 @@ public:
 		const float ROT_ANGLE = 0;
 		const ProgramManager::Material ROCK_MAT = ProgramManager::BRASS;
 
-		shared_ptr<Entity> rock = make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE);
+		shared_ptr<Entity> rock = make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK);
 
 		//Starting rock
 		addRock(rock);
@@ -435,19 +435,19 @@ public:
 			//rock center
 			vec3 position1 = rockEquation(i) + vec3(0, randOffset(), 0);
 			if (rand() % 2 == 1) {
-				addRock(make_shared<Entity>(OBJ_DIR, position1, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
+				addRock(make_shared<Entity>(OBJ_DIR, position1, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 			}
 
 			//rock right
 			if (rand() % 2 == 1) {
 				vec3 position2 = position1 + vec3(SPACE_BETWEEN_ROCKS , randOffset(), 0);
-				addRock(make_shared<Entity>(OBJ_DIR, position2, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
+				addRock(make_shared<Entity>(OBJ_DIR, position2, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 			}
 
 			//rock left
 			if (rand() % 2 == 1) {
 				vec3 position3 = position1 + vec3(-SPACE_BETWEEN_ROCKS, randOffset(), 0);
-				addRock(make_shared<Entity>(OBJ_DIR, position3, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
+				addRock(make_shared<Entity>(OBJ_DIR, position3, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 			}
 
 		}
@@ -465,7 +465,10 @@ public:
 			vec3(.4, .4, .4),
 			vec3(1, 0, 0), 
 			true,
-			ProgramManager::GREEN_PLASTIC);
+			ProgramManager::GREEN_PLASTIC,
+			0, 
+			ProgramManager::CHICK
+			);
 		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
 		entities.push_back(bird);
 
@@ -545,7 +548,6 @@ public:
 		
 		
 		ProgramManager::progMat->bind();
-		ProgramManager::setTexture(ProgramManager::DEFAULT);
 			glUniformMatrix4fv(ProgramManager::progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
 			glUniformMatrix4fv(ProgramManager::progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
 			glUniform3f(ProgramManager::progMat->getUniform("LightPos"), light.x, light.y, light.z);

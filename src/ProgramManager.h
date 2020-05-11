@@ -15,7 +15,7 @@ public:
 	static const std::shared_ptr<Program> progMat;
 	static const std::string resourceDirectory;
 	static enum Material { BLUE_PLASTIC, FLAT_GREY, BRASS, GREEN_PLASTIC, LIGHT_BLUE, PURPLE, RED, DIRT };
-	static enum CustomTextures { CHICK, DEFAULT };
+	static enum CustomTextures { CHICK, ROCK, WALL, DEFAULT };
 	static void init();
 	static void setMaterial(Material i);
 	static void setTexture(CustomTextures i);
