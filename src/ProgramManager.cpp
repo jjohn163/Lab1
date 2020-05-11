@@ -10,6 +10,11 @@
 using namespace std;
 using namespace glm;
 
+Texture * ProgramManager::tex_sample;
+Texture * ProgramManager::tex_chick;
+Texture * ProgramManager::tex_rock;
+Texture * ProgramManager::tex_wall;
+
 ProgramManager::ProgramManager()
 {
 }
@@ -36,9 +41,22 @@ void ProgramManager::init() {
 	ProgramManager::progMat->addUniform("MatSpec");
 	ProgramManager::progMat->addUniform("shine");
 	ProgramManager::progMat->addUniform("LightPos");
+	ProgramManager::progMat->addUniform("Texture0");
 	ProgramManager::progMat->addAttribute("vertPos");
 	ProgramManager::progMat->addAttribute("vertNor");
 	ProgramManager::progMat->addAttribute("vertTex");
+
+	tex_sample = new Texture();
+	tex_sample->setFilename(resourceDirectory + "/Chick.jpg");
+	tex_sample->init();
+	tex_sample->setUnit(0);
+	tex_sample->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+	tex_chick = new Texture();
+	tex_chick->setFilename(resourceDirectory + "/crate.jpg");
+	tex_chick->init();
+	tex_chick->setUnit(0);
+	tex_chick->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 }
 
 void ProgramManager::setModel(std::shared_ptr<MatrixStack>M) {
@@ -98,3 +116,13 @@ void ProgramManager::setMaterial(Material i) {
 	}
 }
 
+void ProgramManager::setTexture(CustomTextures i) {
+	switch (i) {
+	case CHICK:
+		tex_chick->bind(ProgramManager::progMat->getUniform("Texture0"));
+		break;
+	case DEFAULT:
+		tex_sample->bind(ProgramManager::progMat->getUniform("Texture0"));
+		break;
+	}
+}

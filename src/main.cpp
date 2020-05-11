@@ -501,6 +501,7 @@ public:
 
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
+
 	}
 
 
@@ -544,6 +545,7 @@ public:
 		
 		
 		ProgramManager::progMat->bind();
+		ProgramManager::setTexture(ProgramManager::DEFAULT);
 			glUniformMatrix4fv(ProgramManager::progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
 			glUniformMatrix4fv(ProgramManager::progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
 			glUniform3f(ProgramManager::progMat->getUniform("LightPos"), light.x, light.y, light.z);
