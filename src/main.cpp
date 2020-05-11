@@ -386,7 +386,7 @@ public:
 
 		//Initialize first wall with collider
 
-		vec3 wallStart = rockEquation(START_VALUE) - vec3(0, GRID_SCALE, 0);
+		vec3 wallStart = lineEquation(START_HEIGHT) - vec3(0, GRID_SCALE, 0);
 		shared_ptr<Entity> wall = make_shared<Entity>(OBJ_DIR, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 
 		//Creates a plane along the slope of the line, and offsets it vertically based on COLLISIONS_PLANE_OFFSET
