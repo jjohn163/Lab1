@@ -382,12 +382,12 @@ public:
 		const vec3 WALL_SCALE = vec3(.2);
 		const vec3 ROT_AXIS = vec3(1, 0, 0);
 		const float ROT_ANGLE = (PI * 1.5 - atan(LINE_SLOPE));
-		const string OBJ_DIR = resourceDirectory + "/cliff_3.obj";
+		const string OBJ_DIR = resourceDirectory + "/rockyCliff_uv_smooth.obj";
 
 		//Initialize first wall with collider
 
-		vec3 wallStart = lineEquation(START_HEIGHT) - vec3(0, GRID_SCALE, 0);
-		shared_ptr<Entity> wall = make_shared<Entity>(OBJ_DIR, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE);
+		vec3 wallStart = rockEquation(START_VALUE) - vec3(0, GRID_SCALE, 0);
+		shared_ptr<Entity> wall = make_shared<Entity>(OBJ_DIR, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 
 		//Creates a plane along the slope of the line, and offsets it vertically based on COLLISIONS_PLANE_OFFSET
 		wall->colliders.push_back(make_shared<PlaneCollider>(
@@ -402,8 +402,8 @@ public:
 			//Move wall right for next wall tile (this is still slightly buggy)
 			wallPos = wallStart - vec3(WALL_WIDTH*((NUM_WALLS_WIDE / 2 - curWallsWide) / 2), 0, 0);
 
-			for (int i = 0; i < NUM_ROCKS * GRID_SCALE/WALL_HEIGHT; i++) {
-				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE);
+			for (int i = 0; i < NUM_ROCKS * 2; i++) {
+				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 				entities.push_back(wall);
 				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT); //Move down by slope 
 			}
@@ -426,9 +426,8 @@ public:
 		vector<int> widths{ 1, 2, 2, 3, 4 };
 		int lastOmitted = widths.size()/2;
 
-
 		//Starting rock
-		addRock(make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
+		addRock(make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 
 		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
 			curPos = lineEquation(i) - vec3(OFFSET_LEFT, 0, 0);
@@ -440,7 +439,7 @@ public:
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 				lastOmitted = omitRand;
 				if (widthNdx != omitRand) {
-					addRock(make_shared<Entity>(OBJ_DIR, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
+					addRock(make_shared<Entity>(OBJ_DIR, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 				}
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 			}
@@ -459,7 +458,10 @@ public:
 			vec3(.4, .4, .4),
 			vec3(1, 0, 0), 
 			true,
-			ProgramManager::GREEN_PLASTIC);
+			ProgramManager::GREEN_PLASTIC,
+			0, 
+			ProgramManager::CHICK
+			);
 		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
 		entities.push_back(bird);
 
@@ -495,6 +497,7 @@ public:
 
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
+
 	}
 
 
