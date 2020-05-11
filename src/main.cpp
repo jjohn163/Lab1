@@ -22,6 +22,10 @@
 #include "ParticleSystem.h"
 #include "ProgramManager.h"
 #include "OBBCollider.h"
+#include "physx/PxPhysicsAPI.h"
+//#include "physx/extensions/PxExtensionsAPI.h"
+//#include "physx/common/PxTolerancesScale.h"
+
 
 
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -31,6 +35,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+
+
 using namespace std;
 using namespace glm;
 
@@ -39,6 +45,17 @@ class Application : public EventCallbacks
 {
 
 public:
+
+	//PHYSX
+	physx::PxFoundation* mFoundation;
+	physx::PxPhysics* mPhysics;
+	physx::PxScene* mScene;
+	physx::PxDefaultCpuDispatcher* mCpuDispatcher;
+	physx::PxRigidDynamic* actor;
+	physx::PxRigidDynamic* actorarm;
+	physx::PxRigidDynamic* actorarm2;
+	physx::PxRigidStatic* plane;
+	physx::PxMaterial* mMaterial;
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -82,12 +99,7 @@ public:
 	vec3 eye = vec3(0, 10, -5);
 	vec3 up = vec3(0, 1, 0);
 	vec3 lastPosition = vec3(0, 0, 0);
-	const int SPAWN_DELAY = 3000;
 	float PLAYER_SPEED = 10.0;
-	float SPHERE_SPEED = 5.0;
-	const int WIDTH = 30.0;
-	const int HEIGHT = 30.0;
-	int collected = 0;
 	int NUM_ROCKS = 20;
 
 	//the scale at which the rock generation grid is at
@@ -103,6 +115,8 @@ public:
 	float EYE_RADIUS = 2.0;
 	vector<shared_ptr<CollectionSphere>> collectionSpheres;
 	shared_ptr<Entity> bird;
+	shared_ptr<Entity> arm;
+	shared_ptr<Entity> arm2;
 	vector<shared_ptr<Entity>> entities;
 	vector<vec3> rockPositions{};
 
@@ -210,12 +224,14 @@ public:
 		}
 		if (key == GLFW_KEY_A && action == GLFW_PRESS) {
 			movingLeft = true;
+			actor->addForce(physx::PxVec3(100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (key == GLFW_KEY_A && action == GLFW_RELEASE) {
 			movingLeft = false;
 		}
 		if (key == GLFW_KEY_D && action == GLFW_PRESS) {
 			movingRight = true;
+			actor->addForce(physx::PxVec3(-100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (key == GLFW_KEY_D && action == GLFW_RELEASE) {
 			movingRight = false;
@@ -410,6 +426,7 @@ public:
 		//Starting rock
 		addRock(rock);
 
+		addRock(make_shared<Entity>(OBJ_DIR, vec3(0, 1500, -52), ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
 		for (int i = START_VALUE + GRID_SCALE; i <= 0; i += GRID_SCALE) {
 			//rock center
 			vec3 position1 = rockEquation(i) + vec3(0, randOffset(), 0);
@@ -431,22 +448,125 @@ public:
 
 		}
 	}
+	
+	void initPhysX() {
+		static physx::PxDefaultErrorCallback gDefaultErrorCallback;
+		static physx::PxDefaultAllocator gDefaultAllocatorCallback;
+
+		physx::PxFoundation* mFoundation = PxCreateFoundation(PX_PHYSICS_VERSION, gDefaultAllocatorCallback, gDefaultErrorCallback);
+		if (!mFoundation)
+			throw "PxCreateFoundation failed!";
+
+		bool recordMemoryAllocations = true;
+
+		mPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *mFoundation, physx::PxTolerancesScale(), recordMemoryAllocations);
+		if (!mPhysics)
+			throw "PxCreatePhysics failed!";
+
+		physx::PxSceneDesc sceneDesc(mPhysics->getTolerancesScale());
+		sceneDesc.gravity = physx::PxVec3(0.0f, -9.81f, 0.0f);
+
+		mCpuDispatcher = physx::PxDefaultCpuDispatcherCreate(2);
+		if (!mCpuDispatcher)
+			throw "PxDefaultCpuDispatcherCreate failed!";
+		sceneDesc.cpuDispatcher = mCpuDispatcher;
+		sceneDesc.filterShader = physx::PxDefaultSimulationFilterShader;
+
+		mScene = mPhysics->createScene(sceneDesc);
+		if (!mScene)
+			throw "Scene creation failed!";
+
+	}
+
+	physx::PxRigidDynamic* createDynamic(const physx::PxTransform& t, const physx::PxGeometry& geometry, const physx::PxVec3& velocity = physx::PxVec3(0))
+	{
+		physx::PxRigidDynamic* dynamic = PxCreateDynamic(*mPhysics, t, geometry, *mMaterial, 5.0f);
+		dynamic->setLinearVelocity(velocity);
+		mScene->addActor(*dynamic);
+		return dynamic;
+	}
+
+
+	void initPhysXScene() {
+
+		mMaterial = mPhysics->createMaterial(0.5f, 0.5f, 0.1f);    //static friction, dynamic friction, restitution
+		if (!mMaterial)
+			throw "createMaterial failed!";
+		
+		//create the actor for bird entity position
+		actor = createDynamic(physx::PxTransform(physx::PxVec3(0, 1625, -50)), physx::PxSphereGeometry(3), physx::PxVec3(0, 0, 0));
+		actor->setMass(10);
+		actorarm = createDynamic(physx::PxTransform(physx::PxVec3(3, 1625, -50)), physx::PxBoxGeometry(3,1,1), physx::PxVec3(0, 0, 0));
+		physx::PxSphericalJoint* joint = physx::PxSphericalJointCreate(*mPhysics,
+			actor, physx::PxTransform(physx::PxVec3(3, 0, 0)),
+			actorarm, physx::PxTransform(physx::PxVec3(-3,0,0)));
+		actorarm->setMass(1);
+		joint->setLimitCone(physx::PxJointLimitCone(physx::PxPi / 2, physx::PxPi / 2, 0.01f));
+		joint->setSphericalJointFlag(physx::PxSphericalJointFlag::eLIMIT_ENABLED, true);
+
+		mScene->addActor(*actorarm);
+		actorarm2 = createDynamic(physx::PxTransform(physx::PxVec3(-3, 1625, -50)), physx::PxBoxGeometry(3, 1, 1), physx::PxVec3(0, 0, 0));
+		actorarm2->setMass(1);
+		mScene->addActor(*actorarm2);
+
+		physx::PxSphericalJoint* joint2 = physx::PxSphericalJointCreate(*mPhysics,
+			actor, physx::PxTransform(physx::PxVec3(-3, 0, 0)),
+			actorarm2, physx::PxTransform(physx::PxVec3(3, 0, 0)));
+		joint2->setLimitCone(physx::PxJointLimitCone(physx::PxPi / 2, physx::PxPi / 2, 0.01f));
+		joint2->setSphericalJointFlag(physx::PxSphericalJointFlag::eLIMIT_ENABLED, true);
+
+		//mScene->addActor(*joint);
+		
+		//physx::PxPlane p = physx::PxPlane(0, 0.124035, 0.992278, 100.096);
+		//plane = physx::PxCreatePlane(*mPhysics, p, *mMaterial);
+
+		physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(-6, 1500, -56)), physx::PxBoxGeometry(5,5,5), *mMaterial);
+		mScene->addActor(*o);
+		//if (!plane)
+		//	throw "create plane failed!";
+		//mScene->addActor(*plane);
+
+		//physx::PxRigidDynamic* aSphereActor = physx::PxCreateDynamic(&mPhysics, &physx::PxTransform(physx::PxVec3(0,100,0)), &physx::PxSphereGeometry(2.0f), &mMaterial, 1.0f);
+	}
 
 	void init(const std::string& resourceDirectory)
 	{
 		GLSL::checkVersion();
-
+		initPhysX();
+		initPhysXScene();
 		vec3 rockStart = rockEquation(START_VALUE);
 
 		bird = make_shared<Entity>(
-			resourceDirectory + "/Chick.obj",
+			resourceDirectory + "/sphere.obj",
 			vec3(rockStart.x, rockStart.y+GRID_SCALE, rockStart.z+GRID_SCALE),
-			vec3(.4, .4, .4),
+			vec3(3, 3, 3),
 			vec3(1, 0, 0), 
 			true,
 			ProgramManager::GREEN_PLASTIC);
 		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
 		entities.push_back(bird);
+
+		arm = make_shared<Entity>(
+			resourceDirectory + "/cube.obj",
+			vec3(rockStart.x + 5, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE),
+			vec3(6, 2, 2),
+			vec3(1, 0, 0),
+			true,
+			ProgramManager::GREEN_PLASTIC);
+		entities.push_back(arm);
+
+		arm2 = make_shared<Entity>(
+			resourceDirectory + "/cube.obj",
+			vec3(rockStart.x -5, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE),
+			vec3(6, 2, 2),
+			vec3(1, 0, 0),
+			true,
+			ProgramManager::GREEN_PLASTIC);
+		entities.push_back(arm2);
+		cout << bird->position.x << endl;
+		cout << bird->position.y << endl;
+		cout << bird->position.z << endl;
+
 
 
 		initWallEntities(resourceDirectory);
@@ -491,10 +611,37 @@ public:
 		//cout << TimeManager::Instance()->FrameRate() << endl;
 
 
-		managePhysics(bird);
-		manageCollisions();
-		bird->updatePosition(deltaTime);
-		updateCamera(bird);
+		//managePhysics(bird);
+		//manageCollisions();
+		physx::PxVec3 pos = actor->getGlobalPose().p;
+		physx::PxQuat rot = actor->getGlobalPose().q;
+
+		physx::PxVec3 pos2 = actorarm->getGlobalPose().p;
+		physx::PxQuat rot2 = actorarm->getGlobalPose().q;
+
+		physx::PxVec3 pos3 = actorarm2->getGlobalPose().p;
+		physx::PxQuat rot3 = actorarm2->getGlobalPose().q;
+
+		physx::PxVec3 temp = physx::PxVec3(0,0,0);
+		rot.toRadiansAndUnitAxis(bird->rotationDegrees, temp);
+		//bird->rotationDegrees = degrees(bird->rotationDegrees);
+		bird->rotation = vec3(temp.x, temp.y, temp.z);
+
+		rot2.toRadiansAndUnitAxis(arm->rotationDegrees, temp);
+		//arm->rotationDegrees = degrees(arm->rotationDegrees);
+		arm->rotation = vec3(temp.x, temp.y, temp.z);
+
+		rot3.toRadiansAndUnitAxis(arm2->rotationDegrees, temp);
+		//arm2->rotationDegrees = degrees(arm2->rotationDegrees);
+		arm2->rotation = vec3(temp.x, temp.y, temp.z);
+
+		bird->position = vec3(pos.x, pos.y, pos.z);
+		arm->position = vec3(pos2.x, pos2.y, pos2.z);
+		arm2->position = vec3(pos3.x, pos3.y, pos3.z);
+		//bird->updatePosition(deltaTime);
+		mScene->simulate(deltaTime);
+
+		cout << actor->getGlobalPose().p.y << endl;
 
 		// Get current frame buffer size.
 		int width, height;
@@ -529,7 +676,7 @@ public:
 			glUniform3f(ProgramManager::progMat->getUniform("LightPos"), light.x, light.y, light.z);
 			Model->pushMatrix();
 			Model->loadIdentity();
-				Model->rotate(rotate, vec3(0, 1, 0));
+				//Model->rotate(rotate, vec3(0, 1, 0));
 				for (shared_ptr<Entity> entity : entities) {
 					entity->draw(Model);
 				}
@@ -571,6 +718,8 @@ public:
 		// Pop matrix stacks.
 		Projection->popMatrix();
 		//View->popMatrix();
+		mScene->fetchResults();
+		updateCamera(bird);
 
 	}
 };
@@ -608,6 +757,7 @@ int main(int argc, char *argv[])
 		// Poll for and process events.
 		glfwPollEvents();
 	}
+	
 
 	// Quit program.
 	windowManager->shutdown();
