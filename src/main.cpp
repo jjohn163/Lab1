@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <chrono>
 
-
 #include "stb_image.h"
 #include "GLSL.h"
 #include "Program.h"
@@ -91,12 +90,12 @@ public:
 	int NUM_ROCKS = 20;
 
 	//the scale at which the rock generation grid is at
-	float GRID_SCALE = 5;
+	float GRID_SCALE = 15;
 
 	float deltaTime = 0;
 	float PI = 3.14159;
 	float rotate = 0;
-	vec3 light = vec3(2000, 2000, 2000);
+	vec3 light = vec3(0, 10000, 0);
 	unsigned int skyTextureId;
 
 	float SPHERE_RADIUS = 1.0;
@@ -345,22 +344,18 @@ public:
 
 	//Rock generation constants
 	double LINE_SLOPE = -8.0;
-	float LINE_Y_OFFSET = 0;
-	float ROCK_OFFSET_MAX = 4.0;
-	float START_VALUE = -NUM_ROCKS*GRID_SCALE;
-	float LINE_Z_OFFSET = START_VALUE;
-	float COLLISION_PLANE_OFFSET = 12;
-	float BIRD_RADIUS = 3.5;
+	float LINE_Y_OFFSET = 0.0f;
+	float ROCK_OFFSET_MAX = 4.0f;
+	float START_HEIGHT = -NUM_ROCKS*GRID_SCALE;
+	float LINE_Z_OFFSET = START_HEIGHT;
+	float COLLISION_PLANE_OFFSET = 12.0f;
+	float BIRD_RADIUS = 3.5f;
+	float MAP_WIDTH = 60.0f;
 
 
 	void addRock(shared_ptr<Entity> rock) {
-		const vec3 ROCK_SCALE = vec3(.22, .2, .35);
-		const vec3 ROT_AXIS = vec3(1, 0, 0);
-		const float ROT_ANGLE = 0;
-
 		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
-		float e[3] = { 2, 2, 2 };
-		//rock->colliders.push_back(make_shared<SphereCollider>(position, 4 * WORLD_SCALE));
+		float e[3] = { rock->scale.x*GRID_SCALE*.75, rock->scale.y*GRID_SCALE, rock->scale.z*GRID_SCALE*.65 };
 		rock->colliders.push_back(make_shared<OBBCollider>(rock->position, u, e));
 		entities.push_back(rock);
 	}
@@ -372,7 +367,7 @@ public:
 	}
 
 	//in the Y-Z plane
-	vec3 rockEquation(int z, int x = 0) {
+	vec3 lineEquation(int z, int x = 0) {
 		//double y = pow((0.16 * z), 4);
 		double y = LINE_SLOPE * (z + LINE_Z_OFFSET) + LINE_Y_OFFSET;
 		return vec3(x, y, z);
@@ -380,9 +375,9 @@ public:
 
 	void initWallEntities(string resourceDirectory) {
 
-		float WALL_HEIGHT = 4;
+		float WALL_HEIGHT = 4.9;
 		float WALL_WIDTH = 39;
-		int NUM_WALLS_WIDE = 5;
+		int NUM_WALLS_WIDE = 10;
 
 		const vec3 WALL_SCALE = vec3(.2);
 		const vec3 ROT_AXIS = vec3(1, 0, 0);
@@ -410,8 +405,7 @@ public:
 			for (int i = 0; i < NUM_ROCKS * 2; i++) {
 				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 				entities.push_back(wall);
-
-				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT);
+				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT); //Move down by slope 
 			}
 		}
 	}
@@ -420,36 +414,35 @@ public:
 		const float SPACE_BETWEEN_ROCKS = GRID_SCALE * 3;
 
 		const string OBJ_DIR = resourceDirectory + "/squareRock.obj";
-		const vec3 ROCK_POS = rockEquation(START_VALUE);
-		const vec3 ROCK_SCALE = vec3(.22, .2, .35);
+		const vec3 ROCK_POS = lineEquation(START_HEIGHT);
+		const vec3 ROCK_SCALE = vec3(.65, .2, 1);
 		const vec3 ROT_AXIS = vec3(1, 0, 0);
 		const float ROT_ANGLE = 0;
 		const ProgramManager::Material ROCK_MAT = ProgramManager::BRASS;
-
-		shared_ptr<Entity> rock = make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK);
+		const int OFFSET_LEFT = 12*GRID_SCALE / 2; // Sum of widths at grid scale/2
+		
+		vec3 curPos;
+		int omitRand;
+		vector<int> widths{ 1, 2, 2, 3, 4 };
+		int lastOmitted = widths.size()/2;
 
 		//Starting rock
-		addRock(rock);
+		addRock(make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 
-		for (int i = START_VALUE + GRID_SCALE; i <= 0; i += GRID_SCALE) {
-			//rock center
-			vec3 position1 = rockEquation(i) + vec3(0, randOffset(), 0);
-			if (rand() % 2 == 1) {
-				addRock(make_shared<Entity>(OBJ_DIR, position1, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
+		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
+			curPos = lineEquation(i) - vec3(OFFSET_LEFT, 0, 0);
+			random_shuffle(widths.begin(), widths.end());
+			do {
+				omitRand = rand() % widths.size();
+			} while (abs(lastOmitted - omitRand) > 1);
+			for (int widthNdx = 0; widthNdx < widths.size(); widthNdx++) {
+				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
+				lastOmitted = omitRand;
+				if (widthNdx != omitRand) {
+					addRock(make_shared<Entity>(OBJ_DIR, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
+				}
+				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 			}
-
-			//rock right
-			if (rand() % 2 == 1) {
-				vec3 position2 = position1 + vec3(SPACE_BETWEEN_ROCKS , randOffset(), 0);
-				addRock(make_shared<Entity>(OBJ_DIR, position2, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
-			}
-
-			//rock left
-			if (rand() % 2 == 1) {
-				vec3 position3 = position1 + vec3(-SPACE_BETWEEN_ROCKS, randOffset(), 0);
-				addRock(make_shared<Entity>(OBJ_DIR, position3, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
-			}
-
 		}
 	}
 
@@ -457,7 +450,7 @@ public:
 	{
 		GLSL::checkVersion();
 
-		vec3 rockStart = rockEquation(START_VALUE);
+		vec3 rockStart = lineEquation(START_HEIGHT);
 
 		bird = make_shared<Entity>(
 			resourceDirectory + "/Chick.obj",
@@ -476,8 +469,8 @@ public:
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
 
-		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/cube.obj"), vec3(0, 0, 0), vec3(60, .05, 60), vec3(0), false, ProgramManager::LIGHT_BLUE);
-		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, 0, 1), vec3(1, 0, 0), vec3(-1, 0, 0)));
+		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/cube.obj"), lineEquation(0), vec3(1000, .1, 1000), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE);
+		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
 
 		// Set background color.
