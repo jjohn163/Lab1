@@ -23,6 +23,7 @@
 #include "ProgramManager.h"
 #include "OBBCollider.h"
 #include "physx/PxPhysicsAPI.h"
+#include "Ragdoll.h"
 //#include "physx/extensions/PxExtensionsAPI.h"
 //#include "physx/common/PxTolerancesScale.h"
 
@@ -56,6 +57,7 @@ public:
 	physx::PxRigidDynamic* actorarm2;
 	physx::PxRigidStatic* plane;
 	physx::PxMaterial* mMaterial;
+	vec3 LOC = vec3(2, 1625, -50);
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -475,52 +477,25 @@ public:
 		mScene = mPhysics->createScene(sceneDesc);
 		if (!mScene)
 			throw "Scene creation failed!";
-
-	}
-
-	physx::PxRigidDynamic* createDynamic(const physx::PxTransform& t, const physx::PxGeometry& geometry, const physx::PxVec3& velocity = physx::PxVec3(0))
-	{
-		physx::PxRigidDynamic* dynamic = PxCreateDynamic(*mPhysics, t, geometry, *mMaterial, 5.0f);
-		dynamic->setLinearVelocity(velocity);
-		mScene->addActor(*dynamic);
-		return dynamic;
-	}
-
-
-	void initPhysXScene() {
-
 		mMaterial = mPhysics->createMaterial(0.5f, 0.5f, 0.1f);    //static friction, dynamic friction, restitution
 		if (!mMaterial)
 			throw "createMaterial failed!";
-		
-		//create the actor for bird entity position
-		actor = createDynamic(physx::PxTransform(physx::PxVec3(0, 1625, -50)), physx::PxSphereGeometry(3), physx::PxVec3(0, 0, 0));
-		actor->setMass(10);
-		actorarm = createDynamic(physx::PxTransform(physx::PxVec3(3, 1625, -50)), physx::PxBoxGeometry(3,1,1), physx::PxVec3(0, 0, 0));
-		physx::PxSphericalJoint* joint = physx::PxSphericalJointCreate(*mPhysics,
-			actor, physx::PxTransform(physx::PxVec3(3, 0, 0)),
-			actorarm, physx::PxTransform(physx::PxVec3(-3,0,0)));
-		actorarm->setMass(1);
-		joint->setLimitCone(physx::PxJointLimitCone(physx::PxPi / 2, physx::PxPi / 2, 0.01f));
-		joint->setSphericalJointFlag(physx::PxSphericalJointFlag::eLIMIT_ENABLED, true);
+	}
 
-		mScene->addActor(*actorarm);
-		actorarm2 = createDynamic(physx::PxTransform(physx::PxVec3(-3, 1625, -50)), physx::PxBoxGeometry(3, 1, 1), physx::PxVec3(0, 0, 0));
-		actorarm2->setMass(1);
-		mScene->addActor(*actorarm2);
+	void initPhysXScene() {
+		//create ragdoll
+		Ragdoll ragdoll = Ragdoll(mPhysics, mScene, mMaterial);
+		actor = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x, LOC.y, LOC.z)), physx::PxSphereGeometry(3), 10);
+		actorarm = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x + 3, LOC.y, LOC.z)), physx::PxBoxGeometry(3, 1, 1), 10);
+		actorarm2 = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x - 3, LOC.y, LOC.z)), physx::PxBoxGeometry(3, 1, 1), 10);
+		ragdoll.addBody(actor);
+		ragdoll.addLimb(actorarm, vec3(-3, 0, 0), vec3(3, 0, 0));
+		ragdoll.addLimb(actorarm2, vec3(3, 0, 0), vec3(-3, 0, 0));
 
-		physx::PxSphericalJoint* joint2 = physx::PxSphericalJointCreate(*mPhysics,
-			actor, physx::PxTransform(physx::PxVec3(-3, 0, 0)),
-			actorarm2, physx::PxTransform(physx::PxVec3(3, 0, 0)));
-		joint2->setLimitCone(physx::PxJointLimitCone(physx::PxPi / 2, physx::PxPi / 2, 0.01f));
-		joint2->setSphericalJointFlag(physx::PxSphericalJointFlag::eLIMIT_ENABLED, true);
-
-		//mScene->addActor(*joint);
-		
 		//physx::PxPlane p = physx::PxPlane(0, 0.124035, 0.992278, 100.096);
 		//plane = physx::PxCreatePlane(*mPhysics, p, *mMaterial);
 
-		physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(-6, 1500, -56)), physx::PxBoxGeometry(5,5,5), *mMaterial);
+		physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(0, 1500, -50)), physx::PxBoxGeometry(5,5,5), *mMaterial);
 		mScene->addActor(*o);
 		//if (!plane)
 		//	throw "create plane failed!";
