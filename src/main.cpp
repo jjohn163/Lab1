@@ -142,6 +142,10 @@ public:
 		"iceflow_bk.tga"
 	};
 
+	physx::PxVec3 vec3GLMtoPhysx(vec3 vector)
+	{
+		return physx::PxVec3(vector.x, vector.y, vector.z);
+	}
 
 	void updateLookAtPoint(shared_ptr<Entity> entity) {
 		if (phi > 1.5) {
@@ -493,7 +497,7 @@ public:
 		mScene = mPhysics->createScene(sceneDesc);
 		if (!mScene)
 			throw "Scene creation failed!";
-		mMaterial = mPhysics->createMaterial(0.5f, 0.5f, 0.1f);    //static friction, dynamic friction, restitution
+		mMaterial = mPhysics->createMaterial(5.0f, 5.0f, 0.1f);    //static friction, dynamic friction, restitution
 		if (!mMaterial)
 			throw "createMaterial failed!";
 	}
@@ -503,7 +507,6 @@ public:
 		vec3 rockStart = lineEquation(START_HEIGHT);
 		LOC = vec3(rockStart.x, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE);
 
-
 		Ragdoll ragdoll = Ragdoll(mPhysics, mScene, mMaterial);
 		actor = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x, LOC.y, LOC.z)), physx::PxSphereGeometry(3), 10);
 		actorarm = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x + 3, LOC.y, LOC.z)), physx::PxBoxGeometry(3, 1, 1), 10);
@@ -512,14 +515,18 @@ public:
 		ragdoll.addLimb(actorarm, vec3(-3, 0, 0), vec3(3, 0, 0));
 		ragdoll.addLimb(actorarm2, vec3(3, 0, 0), vec3(-3, 0, 0));
 
-		//physx::PxPlane p = physx::PxPlane(0, 0.124035, 0.992278, 100.096);
-		//plane = physx::PxCreatePlane(*mPhysics, p, *mMaterial);
+		vec3 point1 = lineEquation(START_HEIGHT);
+		vec3 point2 = lineEquation(0);
+		vec3 point3 = lineEquation(0) + vec3(1,0,0);
+
+		physx::PxPlane p1 = physx::PxPlane(vec3GLMtoPhysx(point1), vec3GLMtoPhysx(point2), vec3GLMtoPhysx(point3));
+		plane = physx::PxCreatePlane(*mPhysics, p1, *mMaterial);
 
 		physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(LOC.x, LOC.y - 50, LOC.z)), physx::PxBoxGeometry(5,5,5), *mMaterial);
 		mScene->addActor(*o);
-		//if (!plane)
-		//	throw "create plane failed!";
-		//mScene->addActor(*plane);
+		if (!plane)
+			throw "create plane failed!";
+		mScene->addActor(*plane);
 
 		//physx::PxRigidDynamic* aSphereActor = physx::PxCreateDynamic(&mPhysics, &physx::PxTransform(physx::PxVec3(0,100,0)), &physx::PxSphereGeometry(2.0f), &mMaterial, 1.0f);
 	}
@@ -644,7 +651,7 @@ public:
 		//bird->updatePosition(deltaTime);
 		mScene->simulate(deltaTime);
 
-		cout << actor->getGlobalPose().p.y << endl;
+		//cout << actor->getGlobalPose().p.y << endl;
 
 		// Get current frame buffer size.
 		int width, height;
