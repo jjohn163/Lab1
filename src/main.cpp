@@ -51,12 +51,9 @@ public:
 	physx::PxPhysics* mPhysics;
 	physx::PxScene* mScene;
 	physx::PxDefaultCpuDispatcher* mCpuDispatcher;
-	physx::PxRigidDynamic* actor;
-	physx::PxRigidDynamic* actorarm;
-	physx::PxRigidDynamic* actorarm2;
 	physx::PxRigidStatic* plane;
 	physx::PxMaterial* mMaterial;
-	shared_ptr<Entity> rock;
+	//shared_ptr<Entity> rock;
 	vec3 LOC = vec3(2, 1625, -50);
 
 	WindowManager * windowManager = nullptr;
@@ -128,8 +125,6 @@ public:
 	};
 	vector<shared_ptr<CollectionSphere>> collectionSpheres;
 	shared_ptr<Entity> bird;
-	shared_ptr<Entity> arm;
-	shared_ptr<Entity> arm2;
 	vector<shared_ptr<Entity>> entities;
 	vector<vec3> rockPositions{};
 
@@ -181,6 +176,7 @@ public:
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
 			entity->velocity += delta;
+			bird->body->addForce(physx::PxVec3(0, 0, 100), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingBackward) {
 			vec3 direction = lookAtPoint - entity->position;
@@ -188,18 +184,21 @@ public:
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
 			entity->velocity -= delta;
+			bird->body->addForce(physx::PxVec3(0, 0, -100), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingLeft) {
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
 			entity->velocity += PLAYER_SPEED * deltaTime * u;
+			bird->body->addForce(physx::PxVec3(100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingRight) {
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
 			entity->velocity -= PLAYER_SPEED * deltaTime * u;
+			bird->body->addForce(physx::PxVec3(-100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingUp) {
 			/*vec3 direction = lookAtPoint - entity->position;
@@ -222,6 +221,7 @@ public:
 			glfwSetWindowShouldClose(window, GL_TRUE);
 		}
 		if (key == GLFW_KEY_W && action == GLFW_PRESS) {
+			bird->body->addForce(physx::PxVec3(0, 0, 100), physx::PxForceMode::eACCELERATION);
 			movingForward = true;
 		}
 		if (key == GLFW_KEY_W && action == GLFW_RELEASE) {
@@ -234,6 +234,7 @@ public:
 			movingUp = false;
 		}
 		if (key == GLFW_KEY_S && action == GLFW_PRESS) {
+			bird->body->addForce(physx::PxVec3(0, 0, -100), physx::PxForceMode::eACCELERATION);
 			movingBackward = true;
 		}
 		if (key == GLFW_KEY_S && action == GLFW_RELEASE) {
@@ -241,14 +242,14 @@ public:
 		}
 		if (key == GLFW_KEY_A && action == GLFW_PRESS) {
 			movingLeft = true;
-			actor->addForce(physx::PxVec3(100, 0, 0), physx::PxForceMode::eACCELERATION);
+			bird->body->addForce(physx::PxVec3(100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (key == GLFW_KEY_A && action == GLFW_RELEASE) {
 			movingLeft = false;
 		}
 		if (key == GLFW_KEY_D && action == GLFW_PRESS) {
 			movingRight = true;
-			actor->addForce(physx::PxVec3(-100, 0, 0), physx::PxForceMode::eACCELERATION);
+			bird->body->addForce(physx::PxVec3(-100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (key == GLFW_KEY_D && action == GLFW_RELEASE) {
 			movingRight = false;
@@ -381,6 +382,11 @@ public:
 		float e[3] = { rock->scale.x*GRID_SCALE*.75, rock->scale.y*GRID_SCALE, rock->scale.z*GRID_SCALE*.65 };
 		rock->colliders.push_back(make_shared<OBBCollider>(rock->position, u, e));
 		entities.push_back(rock);
+		physx::PxRigidStatic* pxRock = physx::PxCreateStatic(*mPhysics,
+			physx::PxTransform(physx::PxVec3(rock->position.x, rock->position.y, rock->position.z)),
+			physx::PxBoxGeometry(e[0], e[1], e[2]), *mMaterial);
+		mScene->addActor(*pxRock);
+
 	}
 
 	//Gets random number between -ROCK_OFFSET_MAX and ROCK_OFFSET_MAX
@@ -431,6 +437,16 @@ public:
 				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT); //Move down by slope 
 			}
 		}
+		vec3 point1 = lineEquation(START_HEIGHT);
+		vec3 point2 = lineEquation(0);
+		vec3 point3 = lineEquation(0) + vec3(1, 0, 0);
+
+		physx::PxPlane p1 = physx::PxPlane(vec3GLMtoPhysx(point1), vec3GLMtoPhysx(point2), vec3GLMtoPhysx(point3));
+		plane = physx::PxCreatePlane(*mPhysics, p1, *mMaterial);
+
+		if (!plane)
+			throw "create plane failed!";
+		mScene->addActor(*plane);
 	}
 
 	void initRockEntities(string resourceDirectory) {
@@ -451,7 +467,10 @@ public:
 
 
 		//Starting rock
-		addRock(make_shared<Entity>(OBJ_DIR, vec3(LOC.x, LOC.y-50, LOC.z), ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
+		//addRock(make_shared<Entity>(OBJ_DIR, vec3(LOC.x, LOC.y-50, LOC.z), ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
+		//physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(LOC.x, LOC.y - 50, LOC.z)), physx::PxBoxGeometry(5, 5, 5), *mMaterial);
+		//mScene->addActor(*o);
+
 		addRock(make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 
 		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
@@ -502,108 +521,17 @@ public:
 			throw "createMaterial failed!";
 	}
 
-	void initPhysXScene() {
-		//create ragdoll
-		vec3 rockStart = lineEquation(START_HEIGHT);
-		LOC = vec3(rockStart.x, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE);
-
-		Ragdoll ragdoll = Ragdoll(mPhysics, mScene, mMaterial);
-		actor = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x, LOC.y, LOC.z)), physx::PxSphereGeometry(3), 10);
-		actorarm = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x + 3, LOC.y, LOC.z)), physx::PxBoxGeometry(3, 1, 1), 10);
-		actorarm2 = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x - 3, LOC.y, LOC.z)), physx::PxBoxGeometry(3, 1, 1), 10);
-		ragdoll.addBody(actor);
-		ragdoll.addLimb(actorarm, vec3(-3, 0, 0), vec3(3, 0, 0));
-		ragdoll.addLimb(actorarm2, vec3(3, 0, 0), vec3(-3, 0, 0));
-
-		vec3 point1 = lineEquation(START_HEIGHT);
-		vec3 point2 = lineEquation(0);
-		vec3 point3 = lineEquation(0) + vec3(1,0,0);
-
-		physx::PxPlane p1 = physx::PxPlane(vec3GLMtoPhysx(point1), vec3GLMtoPhysx(point2), vec3GLMtoPhysx(point3));
-		plane = physx::PxCreatePlane(*mPhysics, p1, *mMaterial);
-
-		if (!plane)
-			throw "create plane failed!";
-		mScene->addActor(*plane);
-		physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(LOC.x, LOC.y - 50, LOC.z)), physx::PxBoxGeometry(5,5,5), *mMaterial);
-		mScene->addActor(*o);
-		
-
-		//physx::PxRigidDynamic* aSphereActor = physx::PxCreateDynamic(&mPhysics, &physx::PxTransform(physx::PxVec3(0,100,0)), &physx::PxSphereGeometry(2.0f), &mMaterial, 1.0f);
-	}
-
 	void init(const std::string& resourceDirectory)
 	{
 		GLSL::checkVersion();
 		initPhysX();
-		//initPhysXScene();
 
 		vec3 rockStart = lineEquation(START_HEIGHT);
-		LOC = vec3(rockStart.x, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE);
-
+		vec3 pos = vec3(rockStart.x, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE);
+		LOC = pos;
+		
 		Ragdoll ragdoll = Ragdoll(mPhysics, mScene, mMaterial);
-		actor = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x, LOC.y, LOC.z)), physx::PxSphereGeometry(3), 10);
-		actorarm = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x + 3, LOC.y, LOC.z)), physx::PxBoxGeometry(3, 1, 1), 10);
-		actorarm2 = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x - 3, LOC.y, LOC.z)), physx::PxBoxGeometry(3, 1, 1), 10);
-		ragdoll.addBody(actor);
-		ragdoll.addLimb(actorarm, vec3(-3, 0, 0), vec3(3, 0, 0));
-		ragdoll.addLimb(actorarm2, vec3(3, 0, 0), vec3(-3, 0, 0));
-
-		vec3 point1 = lineEquation(START_HEIGHT);
-		vec3 point2 = lineEquation(0);
-		vec3 point3 = lineEquation(0) + vec3(1, 0, 0);
-
-		physx::PxPlane p1 = physx::PxPlane(vec3GLMtoPhysx(point1), vec3GLMtoPhysx(point2), vec3GLMtoPhysx(point3));
-		plane = physx::PxCreatePlane(*mPhysics, p1, *mMaterial);
-
-		if (!plane)
-			throw "create plane failed!";
-		mScene->addActor(*plane);
-
-		physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(LOC.x, LOC.y - 50, LOC.z)), physx::PxBoxGeometry(5, 5, 5), *mMaterial);
-		mScene->addActor(*o);
-
-		bird = make_shared<Entity>(
-			resourceDirectory + "/sphere.obj",
-			vec3(rockStart.x, rockStart.y+GRID_SCALE, rockStart.z+GRID_SCALE),
-			vec3(3, 3, 3),
-			vec3(1, 0, 0), 
-			true,
-			ProgramManager::GREEN_PLASTIC,
-			0, 
-			ProgramManager::YELLOW,
-			actor);
-		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
-		entities.push_back(bird);
-
-		arm = make_shared<Entity>(
-			resourceDirectory + "/cube.obj",
-			vec3(rockStart.x + 5, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE),
-			vec3(6, 2, 2),
-			vec3(1, 0, 0),
-			true,
-			ProgramManager::GREEN_PLASTIC,
-			0,
-			ProgramManager::ORANGE,
-			actorarm);
-		entities.push_back(arm);
-
-		arm2 = make_shared<Entity>(
-			resourceDirectory + "/cube.obj",
-			vec3(rockStart.x -5, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE),
-			vec3(6, 2, 2),
-			vec3(1, 0, 0),
-			true,
-			ProgramManager::GREEN_PLASTIC,
-			0,
-			ProgramManager::ORANGE,
-			actorarm2);
-		entities.push_back(arm2);
-		cout << bird->position.x << endl;
-		cout << bird->position.y << endl;
-		cout << bird->position.z << endl;
-
-
+		bird = Ragdoll::createBirdRagdoll(pos, entities, ragdoll, resourceDirectory);
 
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
@@ -649,7 +577,6 @@ public:
 	void render() {
 		TimeManager::Instance()->Update();
 		deltaTime = TimeManager::Instance()->DeltaTime();
-		updateEntities();
 		mScene->simulate(deltaTime);
 
 		// Get current frame buffer size.
@@ -701,6 +628,7 @@ public:
 		Projection->popMatrix();
 		//View->popMatrix();
 		mScene->fetchResults();
+		updateEntities();
 		updateCamera(bird);
 
 	}

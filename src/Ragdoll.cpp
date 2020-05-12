@@ -25,6 +25,6 @@ void Ragdoll::addLimb(physx::PxRigidDynamic* limb, vec3 localLimb, vec3 localBod
 	physx::PxSphericalJoint* joint = physx::PxSphericalJointCreate(*mPhysics,
 		body, physx::PxTransform(physx::PxVec3(localBody.x, localBody.y, localBody.z)),
 		limb, physx::PxTransform(physx::PxVec3(localLimb.x, localLimb.y, localLimb.z)));
-	joint->setLimitCone(physx::PxJointLimitCone(physx::PxPi / 2, physx::PxPi / 2, 0.01f));
+	joint->setLimitCone(physx::PxJointLimitCone(physx::PxPi / 6, physx::PxPi / 8));
 	joint->setSphericalJointFlag(physx::PxSphericalJointFlag::eLIMIT_ENABLED, true);
 }
