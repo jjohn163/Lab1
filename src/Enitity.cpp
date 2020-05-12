@@ -14,7 +14,8 @@ Entity::Entity(
 	bool mov, 
 	ProgramManager::Material mat, 
 	float rotDeg,
-	ProgramManager::CustomTextures texture)
+	ProgramManager::CustomTextures texture,
+	physx::PxRigidDynamic* collider)
 {
 	objDirectory = objDir;
 	position = pos;
@@ -25,6 +26,7 @@ Entity::Entity(
 	rotationDegrees = rotDeg;
 	material = mat;
 	this->texture = texture;
+	body = collider;
 	initMesh();
 }
 

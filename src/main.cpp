@@ -522,11 +522,12 @@ public:
 		physx::PxPlane p1 = physx::PxPlane(vec3GLMtoPhysx(point1), vec3GLMtoPhysx(point2), vec3GLMtoPhysx(point3));
 		plane = physx::PxCreatePlane(*mPhysics, p1, *mMaterial);
 
-		physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(LOC.x, LOC.y - 50, LOC.z)), physx::PxBoxGeometry(5,5,5), *mMaterial);
-		mScene->addActor(*o);
 		if (!plane)
 			throw "create plane failed!";
 		mScene->addActor(*plane);
+		physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(LOC.x, LOC.y - 50, LOC.z)), physx::PxBoxGeometry(5,5,5), *mMaterial);
+		mScene->addActor(*o);
+		
 
 		//physx::PxRigidDynamic* aSphereActor = physx::PxCreateDynamic(&mPhysics, &physx::PxTransform(physx::PxVec3(0,100,0)), &physx::PxSphereGeometry(2.0f), &mMaterial, 1.0f);
 	}
@@ -535,9 +536,32 @@ public:
 	{
 		GLSL::checkVersion();
 		initPhysX();
-		initPhysXScene();
+		//initPhysXScene();
 
 		vec3 rockStart = lineEquation(START_HEIGHT);
+		LOC = vec3(rockStart.x, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE);
+
+		Ragdoll ragdoll = Ragdoll(mPhysics, mScene, mMaterial);
+		actor = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x, LOC.y, LOC.z)), physx::PxSphereGeometry(3), 10);
+		actorarm = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x + 3, LOC.y, LOC.z)), physx::PxBoxGeometry(3, 1, 1), 10);
+		actorarm2 = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x - 3, LOC.y, LOC.z)), physx::PxBoxGeometry(3, 1, 1), 10);
+		ragdoll.addBody(actor);
+		ragdoll.addLimb(actorarm, vec3(-3, 0, 0), vec3(3, 0, 0));
+		ragdoll.addLimb(actorarm2, vec3(3, 0, 0), vec3(-3, 0, 0));
+
+		vec3 point1 = lineEquation(START_HEIGHT);
+		vec3 point2 = lineEquation(0);
+		vec3 point3 = lineEquation(0) + vec3(1, 0, 0);
+
+		physx::PxPlane p1 = physx::PxPlane(vec3GLMtoPhysx(point1), vec3GLMtoPhysx(point2), vec3GLMtoPhysx(point3));
+		plane = physx::PxCreatePlane(*mPhysics, p1, *mMaterial);
+
+		if (!plane)
+			throw "create plane failed!";
+		mScene->addActor(*plane);
+
+		physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(LOC.x, LOC.y - 50, LOC.z)), physx::PxBoxGeometry(5, 5, 5), *mMaterial);
+		mScene->addActor(*o);
 
 		bird = make_shared<Entity>(
 			resourceDirectory + "/sphere.obj",
@@ -547,8 +571,8 @@ public:
 			true,
 			ProgramManager::GREEN_PLASTIC,
 			0, 
-			ProgramManager::YELLOW
-			);
+			ProgramManager::YELLOW,
+			actor);
 		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
 		entities.push_back(bird);
 
@@ -560,7 +584,8 @@ public:
 			true,
 			ProgramManager::GREEN_PLASTIC,
 			0,
-			ProgramManager::ORANGE);
+			ProgramManager::ORANGE,
+			actorarm);
 		entities.push_back(arm);
 
 		arm2 = make_shared<Entity>(
@@ -571,7 +596,8 @@ public:
 			true,
 			ProgramManager::GREEN_PLASTIC,
 			0,
-			ProgramManager::ORANGE);
+			ProgramManager::ORANGE,
+			actorarm2);
 		entities.push_back(arm2);
 		cout << bird->position.x << endl;
 		cout << bird->position.y << endl;
@@ -612,46 +638,19 @@ public:
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
 
 	}
-
+	void updateEntities() {
+		for (shared_ptr<Entity> entity : entities) {
+			if (entity->body) {
+				Ragdoll::updateOrientation(entity);
+			}
+		}
+	}
 
 	void render() {
 		TimeManager::Instance()->Update();
 		deltaTime = TimeManager::Instance()->DeltaTime();
-		//deltaTime = .02;
-		//cout << TimeManager::Instance()->FrameRate() << endl;
-
-
-		//managePhysics(bird);
-		//manageCollisions();
-		physx::PxVec3 pos = actor->getGlobalPose().p;
-		physx::PxQuat rot = actor->getGlobalPose().q;
-
-		physx::PxVec3 pos2 = actorarm->getGlobalPose().p;
-		physx::PxQuat rot2 = actorarm->getGlobalPose().q;
-
-		physx::PxVec3 pos3 = actorarm2->getGlobalPose().p;
-		physx::PxQuat rot3 = actorarm2->getGlobalPose().q;
-
-		physx::PxVec3 temp = physx::PxVec3(0,0,0);
-		rot.toRadiansAndUnitAxis(bird->rotationDegrees, temp);
-		//bird->rotationDegrees = degrees(bird->rotationDegrees);
-		bird->rotation = vec3(temp.x, temp.y, temp.z);
-
-		rot2.toRadiansAndUnitAxis(arm->rotationDegrees, temp);
-		//arm->rotationDegrees = degrees(arm->rotationDegrees);
-		arm->rotation = vec3(temp.x, temp.y, temp.z);
-
-		rot3.toRadiansAndUnitAxis(arm2->rotationDegrees, temp);
-		//arm2->rotationDegrees = degrees(arm2->rotationDegrees);
-		arm2->rotation = vec3(temp.x, temp.y, temp.z);
-
-		bird->position = vec3(pos.x, pos.y, pos.z);
-		arm->position = vec3(pos2.x, pos2.y, pos2.z);
-		arm2->position = vec3(pos3.x, pos3.y, pos3.z);
-		//bird->updatePosition(deltaTime);
+		updateEntities();
 		mScene->simulate(deltaTime);
-
-		//cout << actor->getGlobalPose().p.y << endl;
 
 		// Get current frame buffer size.
 		int width, height;
@@ -678,8 +677,6 @@ public:
 		Projection->perspective(45.0f, aspect, 0.01f, 1000.0f);
 
 		// Draw a stack of cubes with indiviudal transforms
-		
-		
 		ProgramManager::progMat->bind();
 			glUniformMatrix4fv(ProgramManager::progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
 			glUniformMatrix4fv(ProgramManager::progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
@@ -696,31 +693,6 @@ public:
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
 		particleSystem->render(deltaTime, View, eye);
-
-		//to draw the sky box bind the right shader
-		//cubeProg->bind();
-		//Model->loadIdentity();
-		////Model->translate(vec3(0, 20, 0));
-		//Model->scale(vec3(80, 80, 80));
-		//
-		//
-		////set the projection matrix - can use the same one
-		//glUniformMatrix4fv(cubeProg->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-		////set the depth function to always draw the box!
-		//glDepthFunc(GL_LEQUAL);
-		////set up view matrix to include your view transforms 
-		////(your code likely will be different depending
-		//glUniformMatrix4fv(cubeProg->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-		////set and send model transforms - likely want a bigger cube
-		//glUniformMatrix4fv(cubeProg->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
-		////bind the cube map texture
-		//glBindTexture(GL_TEXTURE_CUBE_MAP, skyTextureId);
-		////draw the actual cube
-		//meshfloor->draw(cubeProg);
-		////set the depth test back to normal!
-		//glDepthFunc(GL_LESS);
-		////unbind the shader for the skybox
-		//cubeProg->unbind();
 		
 		//animation update example
 		sTheta = sin(glfwGetTime());

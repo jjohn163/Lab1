@@ -9,6 +9,7 @@
 #include "Shape.h"
 #include "Program.h"
 #include "ProgramManager.h"
+#include "physx/PxPhysicsAPI.h"
 
 
 using namespace std;
@@ -25,7 +26,8 @@ public:
 		bool mov, 
 		ProgramManager::Material mat, 
 		float rotDeg = 0,
-		ProgramManager::CustomTextures texture = ProgramManager::DEFAULT);
+		ProgramManager::CustomTextures texture = ProgramManager::DEFAULT,
+		physx::PxRigidDynamic* collider = NULL);
 	~Entity();
 	void initMesh();
 	void draw(shared_ptr<MatrixStack> Model);
@@ -40,6 +42,7 @@ public:
 	bool moving;
 	shared_ptr<Shape> mesh;
 	string objDirectory;
+	physx::PxRigidDynamic* body;
 
 	ProgramManager::CustomTextures texture;
 };
