@@ -14,6 +14,8 @@ Texture * ProgramManager::tex_sample;
 Texture * ProgramManager::tex_chick;
 Texture * ProgramManager::tex_rock;
 Texture * ProgramManager::tex_wall;
+Texture * ProgramManager::tex_yellow;
+Texture * ProgramManager::tex_orange;
 
 ProgramManager::ProgramManager()
 {
@@ -69,6 +71,18 @@ void ProgramManager::init() {
 	tex_wall->init();
 	tex_wall->setUnit(0);
 	tex_wall->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+	tex_yellow = new Texture();
+	tex_yellow->setFilename(resourceDirectory + "/yellow.jpg");
+	tex_yellow->init();
+	tex_yellow->setUnit(0);
+	tex_yellow->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+	tex_orange = new Texture();
+	tex_orange->setFilename(resourceDirectory + "/orange.jpg");
+	tex_orange->init();
+	tex_orange->setUnit(0);
+	tex_orange->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 }
 
 void ProgramManager::setModel(std::shared_ptr<MatrixStack>M) {
@@ -138,6 +152,12 @@ void ProgramManager::setTexture(CustomTextures i) {
 		break;
 	case WALL:
 		tex_wall->bind(ProgramManager::progMat->getUniform("Texture0"));
+		break;
+	case YELLOW:
+		tex_yellow->bind(ProgramManager::progMat->getUniform("Texture0"));
+		break;
+	case ORANGE:
+		tex_orange->bind(ProgramManager::progMat->getUniform("Texture0"));
 		break;
 	case DEFAULT:
 		tex_sample->bind(ProgramManager::progMat->getUniform("Texture0"));

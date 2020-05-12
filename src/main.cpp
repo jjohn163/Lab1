@@ -540,7 +540,7 @@ public:
 			true,
 			ProgramManager::GREEN_PLASTIC,
 			0, 
-			ProgramManager::CHICK
+			ProgramManager::YELLOW
 			);
 		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
 		entities.push_back(bird);
@@ -551,7 +551,9 @@ public:
 			vec3(6, 2, 2),
 			vec3(1, 0, 0),
 			true,
-			ProgramManager::GREEN_PLASTIC);
+			ProgramManager::GREEN_PLASTIC,
+			0,
+			ProgramManager::ORANGE);
 		entities.push_back(arm);
 
 		arm2 = make_shared<Entity>(
@@ -560,7 +562,9 @@ public:
 			vec3(6, 2, 2),
 			vec3(1, 0, 0),
 			true,
-			ProgramManager::GREEN_PLASTIC);
+			ProgramManager::GREEN_PLASTIC,
+			0,
+			ProgramManager::ORANGE);
 		entities.push_back(arm2);
 		cout << bird->position.x << endl;
 		cout << bird->position.y << endl;
