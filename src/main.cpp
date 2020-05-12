@@ -399,10 +399,9 @@ public:
 		vec3 wallPos = wallStart;
 
 		for (int curWallsWide = 0; curWallsWide < NUM_WALLS_WIDE; curWallsWide++) {
-			//Move wall right for next wall tile (this is still slightly buggy)
 			wallPos = wallStart - vec3(WALL_WIDTH*((NUM_WALLS_WIDE / 2 - curWallsWide) / 2), 0, 0);
 
-			for (int i = 0; i < NUM_ROCKS * 2; i++) {
+			for (int i = 0; i < (NUM_ROCKS*(WALL_WIDTH))/NUM_WALLS_WIDE; i++) {
 				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 				entities.push_back(wall);
 				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT); //Move down by slope 
@@ -467,9 +466,10 @@ public:
 
 
 		initWallEntities(resourceDirectory);
-		initRockEntities(resourceDirectory);
+		//initRockEntities(resourceDirectory);
+		//shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/rockyCliff_uv_smooth.obj"), lineEquation(0), vec3(100, .1, 100), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0, ProgramManager::WALL);
 
-		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/cube.obj"), lineEquation(0), vec3(1000, .1, 1000), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE);
+		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/rockyCliff_uv_smooth.obj"), lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, PI/2, ProgramManager::WALL);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
 
