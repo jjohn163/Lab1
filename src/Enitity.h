@@ -24,7 +24,8 @@ public:
 		glm::vec3 rot, 
 		bool mov, 
 		ProgramManager::Material mat, 
-		float rotDeg = 0);
+		float rotDeg = 0,
+		ProgramManager::CustomTextures texture = ProgramManager::DEFAULT);
 	~Entity();
 	void initMesh();
 	void draw(shared_ptr<MatrixStack> Model);
@@ -39,5 +40,7 @@ public:
 	bool moving;
 	shared_ptr<Shape> mesh;
 	string objDirectory;
+
+	ProgramManager::CustomTextures texture;
 };
 

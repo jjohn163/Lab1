@@ -13,7 +13,8 @@ Entity::Entity(
 	glm::vec3 rot, 
 	bool mov, 
 	ProgramManager::Material mat, 
-	float rotDeg)
+	float rotDeg,
+	ProgramManager::CustomTextures texture)
 {
 	objDirectory = objDir;
 	position = pos;
@@ -23,6 +24,7 @@ Entity::Entity(
 	moving = mov;
 	rotationDegrees = rotDeg;
 	material = mat;
+	this->texture = texture;
 	initMesh();
 }
 
@@ -44,6 +46,7 @@ void Entity::initMesh() {
 
 void Entity::draw(shared_ptr<MatrixStack> Model) {
 	ProgramManager::setMaterial(this->material);
+	ProgramManager::setTexture(this->texture);
 	Model->pushMatrix();
 	Model->translate(this->position);
 	Model->rotate(this->rotationDegrees, this->rotation);

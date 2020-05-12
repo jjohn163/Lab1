@@ -12,71 +12,45 @@
 #include <vector>
 #include "Enitity.h"
 #include "Program.h"
+#include "Particle.h"
 #include "GLSL.h"
-
 
 #define P_TEX_WIDTH  8    // Particle texture dimensions
 #define P_TEX_HEIGHT 8
-
-
-struct Particle {
-	vec3 position;
-	float rotation;
-	vec3 velocity;
-	float gravityEffect;
-	float lifeLength;
-	float scale;
-
-	float elapsedTime = 0;
-
-	Particle(vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale) {
-		this->position = position;
-		this->velocity = velocity;
-		this->gravityEffect = gravityEffect;
-		this->lifeLength = lifeLength;
-		this->scale = scale;
-	}
-
-	bool update(float deltaTime) {
-
-		float GRAVITY = 17.0f;
-		velocity.y += GRAVITY * gravityEffect * deltaTime;	// update velocity
-		vec3 delta_pos = velocity * deltaTime;	// update pos
-		position += delta_pos;
-		elapsedTime += deltaTime;	// update elapsed time
-
-		return elapsedTime < lifeLength;
-	}
-};
-
 
 class ParticleSystem {
 public:
 
 	// Constructor
-	ParticleSystem(string tex_file_path, string vs_file_path, string fs_file_path);
+	ParticleSystem(string resourceDir, string vs_file_path, string fs_file_path);
 
+	// Add new particle to particle system
+	Particle* addNewParticle(string particle_name, string particle_type, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale);
 	// Per frame
 	void updateParticles(float delta_frame);
 	void render(float delta_time, mat4 V, vec3 camera);
 	void setProjection(mat4 P);
 
-	static vector<Particle>& getParticles() { return particles; }
+	static vector<Particle*>& getParticles() { return particles; }
 
-	Particle * newParticle(vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale);
+	//Particle * newParticle(string tex_file_path, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale);
 
 private:
-	static vector<Particle> particles;
+
+	string get_particle_resource(string particle_name);
+
+	static vector<Particle*> particles;
 
 	// Render State
 	std::shared_ptr<Program> prog;	// Program
+	string resource_dir;
 	string vs_file_path;
 	string fs_file_path;
 
 	unsigned int VAO;				// Mesh
 
-	GLuint particle_tex_id;			// Texture
-	string tex_file_path;
+	std::map<string, GLuint> particle_dictionary;
+	GLuint number_of_particles = 0;
 	unsigned char *data;
 };
 

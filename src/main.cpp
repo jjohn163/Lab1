@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <chrono>
 
-
 #include "stb_image.h"
 #include "GLSL.h"
 #include "Program.h"
@@ -57,6 +56,7 @@ public:
 	physx::PxRigidDynamic* actorarm2;
 	physx::PxRigidStatic* plane;
 	physx::PxMaterial* mMaterial;
+	shared_ptr<Entity> rock;
 	vec3 LOC = vec3(2, 1625, -50);
 
 	WindowManager * windowManager = nullptr;
@@ -105,16 +105,27 @@ public:
 	int NUM_ROCKS = 20;
 
 	//the scale at which the rock generation grid is at
-	float GRID_SCALE = 5;
+	float GRID_SCALE = 15;
 
 	float deltaTime = 0;
 	float PI = 3.14159;
 	float rotate = 0;
-	vec3 light = vec3(2000, 2000, 2000);
+	vec3 light = vec3(0, 10000, 0);
 	unsigned int skyTextureId;
 
 	float SPHERE_RADIUS = 1.0;
 	float EYE_RADIUS = 2.0;
+	const string feathers[9] = {
+		"feather1",
+		"feather2",
+		"feather3",
+		"feather4",
+		"feather5",
+		"feather6",
+		"feather7",
+		"feather8",
+		"feather9",
+	};
 	vector<shared_ptr<CollectionSphere>> collectionSpheres;
 	shared_ptr<Entity> bird;
 	shared_ptr<Entity> arm;
@@ -259,12 +270,22 @@ public:
 	}
 
 	void featherParticle() {
-		float random = (rand() % 4) - 2;
-		vec3 rand_pos = bird->position;
-		rand_pos.x += random;
-		rand_pos.z += random - 10.0f;	// center particle to bird
+		int limit = rand() % 10 + 15;
+		for (int i = 0; i < limit; i++) {
+			float rrotx = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;
+			float rroty = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;
+			mat4 rotx = glm::rotate(mat4(1), glm::radians(rrotx), vec3(1, 0, 0));
+			mat4 roty = glm::rotate(mat4(1), glm::radians(rroty), vec3(0, 1, 0));
 
-		particleSystem->newParticle(rand_pos, random, bird->velocity, 1, 3.0f, 10.0f);
+			string feather_name = feathers[rand() % feathers->size()];
+			vec3 particle_pos = bird->position + vec3(0,2,0);
+			float random_rotation = (rand() % 4) - 2;
+			vec3 velocity = vec4(bird->velocity, 1) * rotx * roty;
+			float gravity_effect = 1;
+			float life_length = rand() % 3 + 2.0f;
+			float scale = 0.125f;
+			particleSystem->addNewParticle(feather_name, "Feather", particle_pos, random_rotation, velocity, gravity_effect, life_length, scale);
+		}
 	}
 
 	const float GRAVITY = -17.0f;
@@ -342,22 +363,18 @@ public:
 
 	//Rock generation constants
 	double LINE_SLOPE = -8.0;
-	float LINE_Y_OFFSET = 0;
-	float ROCK_OFFSET_MAX = 4.0;
-	float START_VALUE = -NUM_ROCKS*GRID_SCALE;
-	float LINE_Z_OFFSET = START_VALUE;
-	float COLLISION_PLANE_OFFSET = 12;
-	float BIRD_RADIUS = 3.5;
+	float LINE_Y_OFFSET = 0.0f;
+	float ROCK_OFFSET_MAX = 4.0f;
+	float START_HEIGHT = -NUM_ROCKS*GRID_SCALE;
+	float LINE_Z_OFFSET = START_HEIGHT;
+	float COLLISION_PLANE_OFFSET = 12.0f;
+	float BIRD_RADIUS = 3.5f;
+	float MAP_WIDTH = 60.0f;
 
 
 	void addRock(shared_ptr<Entity> rock) {
-		const vec3 ROCK_SCALE = vec3(.22, .2, .35);
-		const vec3 ROT_AXIS = vec3(1, 0, 0);
-		const float ROT_ANGLE = 0;
-
 		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
-		float e[3] = { 2, 2, 2 };
-		//rock->colliders.push_back(make_shared<SphereCollider>(position, 4 * WORLD_SCALE));
+		float e[3] = { rock->scale.x*GRID_SCALE*.75, rock->scale.y*GRID_SCALE, rock->scale.z*GRID_SCALE*.65 };
 		rock->colliders.push_back(make_shared<OBBCollider>(rock->position, u, e));
 		entities.push_back(rock);
 	}
@@ -369,7 +386,7 @@ public:
 	}
 
 	//in the Y-Z plane
-	vec3 rockEquation(int z, int x = 0) {
+	vec3 lineEquation(int z, int x = 0) {
 		//double y = pow((0.16 * z), 4);
 		double y = LINE_SLOPE * (z + LINE_Z_OFFSET) + LINE_Y_OFFSET;
 		return vec3(x, y, z);
@@ -377,19 +394,19 @@ public:
 
 	void initWallEntities(string resourceDirectory) {
 
-		float WALL_HEIGHT = 4;
+		float WALL_HEIGHT = 4.9;
 		float WALL_WIDTH = 39;
-		int NUM_WALLS_WIDE = 5;
+		int NUM_WALLS_WIDE = 10;
 
 		const vec3 WALL_SCALE = vec3(.2);
 		const vec3 ROT_AXIS = vec3(1, 0, 0);
 		const float ROT_ANGLE = (PI * 1.5 - atan(LINE_SLOPE));
-		const string OBJ_DIR = resourceDirectory + "/cliff_3.obj";
+		const string OBJ_DIR = resourceDirectory + "/rockyCliff_uv_smooth.obj";
 
 		//Initialize first wall with collider
 
-		vec3 wallStart = rockEquation(START_VALUE) - vec3(0, GRID_SCALE, 0);
-		shared_ptr<Entity> wall = make_shared<Entity>(OBJ_DIR, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE);
+		vec3 wallStart = lineEquation(START_HEIGHT) - vec3(0, GRID_SCALE, 0);
+		shared_ptr<Entity> wall = make_shared<Entity>(OBJ_DIR, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 
 		//Creates a plane along the slope of the line, and offsets it vertically based on COLLISIONS_PLANE_OFFSET
 		wall->colliders.push_back(make_shared<PlaneCollider>(
@@ -405,10 +422,9 @@ public:
 			wallPos = wallStart - vec3(WALL_WIDTH*((NUM_WALLS_WIDE / 2 - curWallsWide) / 2), 0, 0);
 
 			for (int i = 0; i < NUM_ROCKS * 2; i++) {
-				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE);
+				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 				entities.push_back(wall);
-
-				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT);
+				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT); //Move down by slope 
 			}
 		}
 	}
@@ -417,37 +433,37 @@ public:
 		const float SPACE_BETWEEN_ROCKS = GRID_SCALE * 3;
 
 		const string OBJ_DIR = resourceDirectory + "/squareRock.obj";
-		const vec3 ROCK_POS = rockEquation(START_VALUE);
-		const vec3 ROCK_SCALE = vec3(.22, .2, .35);
+		const vec3 ROCK_POS = lineEquation(START_HEIGHT);
+		const vec3 ROCK_SCALE = vec3(.65, .2, 1);
 		const vec3 ROT_AXIS = vec3(1, 0, 0);
 		const float ROT_ANGLE = 0;
 		const ProgramManager::Material ROCK_MAT = ProgramManager::BRASS;
+		const int OFFSET_LEFT = 12*GRID_SCALE / 2; // Sum of widths at grid scale/2
+		
+		vec3 curPos;
+		int omitRand;
+		vector<int> widths{ 1, 2, 2, 3, 4 };
+		int lastOmitted = widths.size()/2;
 
-		shared_ptr<Entity> rock = make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE);
 
 		//Starting rock
-		addRock(rock);
+		addRock(make_shared<Entity>(OBJ_DIR, vec3(LOC.x, LOC.y-50, LOC.z), ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
+		addRock(make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 
-		addRock(make_shared<Entity>(OBJ_DIR, vec3(0, 1500, -52), ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
-		for (int i = START_VALUE + GRID_SCALE; i <= 0; i += GRID_SCALE) {
-			//rock center
-			vec3 position1 = rockEquation(i) + vec3(0, randOffset(), 0);
-			if (rand() % 2 == 1) {
-				addRock(make_shared<Entity>(OBJ_DIR, position1, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
+		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
+			curPos = lineEquation(i) - vec3(OFFSET_LEFT, 0, 0);
+			random_shuffle(widths.begin(), widths.end());
+			do {
+				omitRand = rand() % widths.size();
+			} while (abs(lastOmitted - omitRand) > 1);
+			for (int widthNdx = 0; widthNdx < widths.size(); widthNdx++) {
+				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
+				lastOmitted = omitRand;
+				if (widthNdx != omitRand) {
+					addRock(make_shared<Entity>(OBJ_DIR, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
+				}
+				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 			}
-
-			//rock right
-			if (rand() % 2 == 1) {
-				vec3 position2 = position1 + vec3(SPACE_BETWEEN_ROCKS , randOffset(), 0);
-				addRock(make_shared<Entity>(OBJ_DIR, position2, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
-			}
-
-			//rock left
-			if (rand() % 2 == 1) {
-				vec3 position3 = position1 + vec3(-SPACE_BETWEEN_ROCKS, randOffset(), 0);
-				addRock(make_shared<Entity>(OBJ_DIR, position3, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
-			}
-
 		}
 	}
 	
@@ -484,6 +500,10 @@ public:
 
 	void initPhysXScene() {
 		//create ragdoll
+		vec3 rockStart = lineEquation(START_HEIGHT);
+		LOC = vec3(rockStart.x, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE);
+
+
 		Ragdoll ragdoll = Ragdoll(mPhysics, mScene, mMaterial);
 		actor = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x, LOC.y, LOC.z)), physx::PxSphereGeometry(3), 10);
 		actorarm = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(LOC.x + 3, LOC.y, LOC.z)), physx::PxBoxGeometry(3, 1, 1), 10);
@@ -495,7 +515,7 @@ public:
 		//physx::PxPlane p = physx::PxPlane(0, 0.124035, 0.992278, 100.096);
 		//plane = physx::PxCreatePlane(*mPhysics, p, *mMaterial);
 
-		physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(0, 1500, -50)), physx::PxBoxGeometry(5,5,5), *mMaterial);
+		physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(LOC.x, LOC.y - 50, LOC.z)), physx::PxBoxGeometry(5,5,5), *mMaterial);
 		mScene->addActor(*o);
 		//if (!plane)
 		//	throw "create plane failed!";
@@ -509,7 +529,8 @@ public:
 		GLSL::checkVersion();
 		initPhysX();
 		initPhysXScene();
-		vec3 rockStart = rockEquation(START_VALUE);
+
+		vec3 rockStart = lineEquation(START_HEIGHT);
 
 		bird = make_shared<Entity>(
 			resourceDirectory + "/sphere.obj",
@@ -517,7 +538,10 @@ public:
 			vec3(3, 3, 3),
 			vec3(1, 0, 0), 
 			true,
-			ProgramManager::GREEN_PLASTIC);
+			ProgramManager::GREEN_PLASTIC,
+			0, 
+			ProgramManager::CHICK
+			);
 		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
 		entities.push_back(bird);
 
@@ -547,8 +571,8 @@ public:
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
 
-		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/cube.obj"), vec3(0, 0, 0), vec3(60, .05, 60), vec3(0), false, ProgramManager::LIGHT_BLUE);
-		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, 0, 1), vec3(1, 0, 0), vec3(-1, 0, 0)));
+		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/cube.obj"), lineEquation(0), vec3(1000, .1, 1000), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE);
+		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
 
 		// Set background color.
@@ -574,8 +598,8 @@ public:
 		window = windowManager->getHandle();
 
 		srand(time(NULL));
+		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
 
-		particleSystem = new ParticleSystem(resourceDirectory + "/feathers.png", resourceDirectory + "/particle_vert.glsl", resourceDirectory + "/particle_frag.glsl");
 	}
 
 
