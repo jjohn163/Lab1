@@ -51,10 +51,10 @@ public:
 	physx::PxPhysics* mPhysics;
 	physx::PxScene* mScene;
 	physx::PxDefaultCpuDispatcher* mCpuDispatcher;
-	physx::PxRigidStatic* plane;
 	physx::PxMaterial* mMaterial;
-	//shared_ptr<Entity> rock;
 	vec3 LOC = vec3(2, 1625, -50);
+	float lastSpeed = 0.f;
+	const float MIN_SPEED_CHANGE = 3.f;
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -231,6 +231,7 @@ public:
 			movingUp = true;
 		}
 		if (key == GLFW_KEY_SPACE && action == GLFW_RELEASE) {
+			featherParticle();
 			movingUp = false;
 		}
 		if (key == GLFW_KEY_S && action == GLFW_PRESS) {
@@ -442,7 +443,7 @@ public:
 		vec3 point3 = lineEquation(0) + vec3(1, 0, 0);
 
 		physx::PxPlane p1 = physx::PxPlane(vec3GLMtoPhysx(point1), vec3GLMtoPhysx(point2), vec3GLMtoPhysx(point3));
-		plane = physx::PxCreatePlane(*mPhysics, p1, *mMaterial);
+		physx::PxRigidStatic* plane = physx::PxCreatePlane(*mPhysics, p1, *mMaterial);
 
 		if (!plane)
 			throw "create plane failed!";
@@ -572,6 +573,12 @@ public:
 				Ragdoll::updateOrientation(entity);
 			}
 		}
+		physx::PxVec3 velocity = bird->body->getLinearVelocity();
+		float speed = velocity.magnitude();
+		if (lastSpeed - speed > MIN_SPEED_CHANGE) {
+			featherParticle();
+		}
+		lastSpeed = speed;
 	}
 
 	void render() {

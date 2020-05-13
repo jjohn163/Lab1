@@ -33,12 +33,16 @@ public:
 		entity->rotation = vec3(rotN.x, rotN.y, rotN.z);
 	}
 	static shared_ptr<Entity> createBirdRagdoll(vec3 pos, vector<shared_ptr<Entity>>& entities, Ragdoll ragdoll, const std::string& resourceDirectory) {
+
+		//create physx bodies
 		physx::PxRigidDynamic* body = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(pos.x, pos.y, pos.z)), physx::PxSphereGeometry(3.5), 10);
 		physx::PxRigidDynamic* head = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(pos.x, pos.y, pos.z + 3)), physx::PxSphereGeometry(4), 10);
 		physx::PxRigidDynamic* armLeft = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(pos.x + 3, pos.y, pos.z)), physx::PxBoxGeometry(1.5, 1, .5), 10);
 		physx::PxRigidDynamic* legLeft = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(pos.x + 1, pos.y, pos.z - 3)), physx::PxBoxGeometry(0.5, 0.5, 1), 10);
 		physx::PxRigidDynamic* armRight = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(pos.x - 3, pos.y, pos.z)), physx::PxBoxGeometry(1.5, 1, .5), 10);
 		physx::PxRigidDynamic* legRight = ragdoll.createDynamic(physx::PxTransform(physx::PxVec3(pos.x - 1, pos.y, pos.z + 3)), physx::PxBoxGeometry(0.5, 0.5, 1), 10);
+		
+		//add bodies to ragdoll
 		ragdoll.addBody(body);
 		ragdoll.addLimb(head, vec3(0, 0, -4), vec3(0, 0, 3));
 		ragdoll.addLimb(armLeft, vec3(-1.5, 0, 0), vec3(3, 0, 0));
@@ -46,6 +50,7 @@ public:
 		ragdoll.addLimb(armRight, vec3(1.5, 0, 0), vec3(-3, 0, 0));
 		ragdoll.addLimb(legRight, vec3(0, 0, 1), vec3(-1, 0, -3));
 
+		//add bodies to entity components
 		shared_ptr<Entity> bird = make_shared<Entity>(
 			resourceDirectory + "/sphere.obj",
 			pos,
@@ -56,7 +61,6 @@ public:
 			0,
 			ProgramManager::YELLOW,
 			body);
-		//bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
 		entities.push_back(bird);
 
 		shared_ptr<Entity> birdHead = make_shared<Entity>(
@@ -69,7 +73,6 @@ public:
 			0,
 			ProgramManager::YELLOW,
 			head);
-		//bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
 		entities.push_back(birdHead);
 
 		shared_ptr<Entity> wingLeft = make_shared<Entity>(
