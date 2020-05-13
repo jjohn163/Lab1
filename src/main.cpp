@@ -47,14 +47,13 @@ class Application : public EventCallbacks
 public:
 
 	//PHYSX
-	physx::PxFoundation* mFoundation;
 	physx::PxPhysics* mPhysics;
 	physx::PxScene* mScene;
-	physx::PxDefaultCpuDispatcher* mCpuDispatcher;
 	physx::PxMaterial* mMaterial;
-	vec3 LOC = vec3(2, 1625, -50);
 	float lastSpeed = 0.f;
 	const float MIN_SPEED_CHANGE = 3.f;
+	vec3 startPosition;
+	shared_ptr<Ragdoll> ragdoll;
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -228,10 +227,10 @@ public:
 			movingForward = false;
 		}
 		if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+			ragdoll->setPosition(startPosition);
 			movingUp = true;
 		}
 		if (key == GLFW_KEY_SPACE && action == GLFW_RELEASE) {
-			featherParticle();
 			movingUp = false;
 		}
 		if (key == GLFW_KEY_S && action == GLFW_PRESS) {
@@ -468,10 +467,6 @@ public:
 
 
 		//Starting rock
-		//addRock(make_shared<Entity>(OBJ_DIR, vec3(LOC.x, LOC.y-50, LOC.z), ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE));
-		//physx::PxRigidStatic* o = physx::PxCreateStatic(*mPhysics, physx::PxTransform(physx::PxVec3(LOC.x, LOC.y - 50, LOC.z)), physx::PxBoxGeometry(5, 5, 5), *mMaterial);
-		//mScene->addActor(*o);
-
 		addRock(make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 
 		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
@@ -490,49 +485,16 @@ public:
 			}
 		}
 	}
-	
-	void initPhysX() {
-		static physx::PxDefaultErrorCallback gDefaultErrorCallback;
-		static physx::PxDefaultAllocator gDefaultAllocatorCallback;
-
-		physx::PxFoundation* mFoundation = PxCreateFoundation(PX_PHYSICS_VERSION, gDefaultAllocatorCallback, gDefaultErrorCallback);
-		if (!mFoundation)
-			throw "PxCreateFoundation failed!";
-
-		bool recordMemoryAllocations = true;
-
-		mPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *mFoundation, physx::PxTolerancesScale(), recordMemoryAllocations);
-		if (!mPhysics)
-			throw "PxCreatePhysics failed!";
-
-		physx::PxSceneDesc sceneDesc(mPhysics->getTolerancesScale());
-		sceneDesc.gravity = physx::PxVec3(0.0f, -9.81f, 0.0f);
-
-		mCpuDispatcher = physx::PxDefaultCpuDispatcherCreate(2);
-		if (!mCpuDispatcher)
-			throw "PxDefaultCpuDispatcherCreate failed!";
-		sceneDesc.cpuDispatcher = mCpuDispatcher;
-		sceneDesc.filterShader = physx::PxDefaultSimulationFilterShader;
-
-		mScene = mPhysics->createScene(sceneDesc);
-		if (!mScene)
-			throw "Scene creation failed!";
-		mMaterial = mPhysics->createMaterial(5.0f, 5.0f, 0.1f);    //static friction, dynamic friction, restitution
-		if (!mMaterial)
-			throw "createMaterial failed!";
-	}
 
 	void init(const std::string& resourceDirectory)
 	{
 		GLSL::checkVersion();
-		initPhysX();
 
 		vec3 rockStart = lineEquation(START_HEIGHT);
-		vec3 pos = vec3(rockStart.x, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE);
-		LOC = pos;
+		startPosition = vec3(rockStart.x, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE);
 		
-		Ragdoll ragdoll = Ragdoll(mPhysics, mScene, mMaterial);
-		bird = Ragdoll::createBirdRagdoll(pos, entities, ragdoll, resourceDirectory);
+		ragdoll = make_shared<Ragdoll>(mPhysics, mScene, mMaterial);
+		bird = Ragdoll::createBirdRagdoll(startPosition, entities, ragdoll, resourceDirectory);
 
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
