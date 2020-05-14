@@ -528,8 +528,14 @@ public:
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
 
+		vec3 point1 = vec3(0, ground->position.y, 1); 
+		vec3 point2 = vec3(1, ground->position.y, 0);
+		vec3 point3 = vec3(-1, ground->position.y, 0);
 
-		physx::PxRigidStatic* pxGround = physx::PxCreatePlane(*mPhysics, physx::PxPlane(0,1,0,0), *mMaterial);
+		physx::PxPlane p2 = physx::PxPlane(vec3GLMtoPhysx(point1), vec3GLMtoPhysx(point2), vec3GLMtoPhysx(point3));
+		physx::PxRigidStatic* pxGround = physx::PxCreatePlane(*mPhysics, p2, *mMaterial);
+
+		//physx::PxRigidStatic* pxGround = physx::PxCreatePlane(*mPhysics, physx::PxPlane(0,1,0,0), *mMaterial);
 		if (!pxGround)
 			throw "create plane failed!";
 		mScene->addActor(*pxGround);
