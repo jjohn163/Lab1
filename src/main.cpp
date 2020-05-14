@@ -23,6 +23,7 @@
 #include "OBBCollider.h"
 #include "physx/PxPhysicsAPI.h"
 #include "Ragdoll.h"
+#include "irrKlang.h"
 //#include "physx/extensions/PxExtensionsAPI.h"
 //#include "physx/common/PxTolerancesScale.h"
 
@@ -54,6 +55,12 @@ public:
 	const float MIN_SPEED_CHANGE = 3.f;
 	vec3 startPosition;
 	shared_ptr<Ragdoll> ragdoll;
+
+	//IRRKLANG
+	irrklang::ISoundEngine* soundEngine = irrklang::createIrrKlangDevice();
+	irrklang::ISoundSource* impactSound;
+	const std::string IMPACT_SOUND_FILE = "/impact.wav";
+	const std::string BACKGROUND_MUSIC_FILE = "/bensound-buddy.mp3";
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -486,6 +493,15 @@ public:
 		}
 	}
 
+	void initSound(const std::string& resourceDirectory)
+	{
+		std::string impactFile = (resourceDirectory + IMPACT_SOUND_FILE).c_str();
+		impactSound = soundEngine->addSoundSourceFromFile(impactFile.c_str());
+
+		std::string backgroundMusic = (resourceDirectory + BACKGROUND_MUSIC_FILE).c_str();
+		soundEngine->play2D(backgroundMusic.c_str(), true);
+	}
+
 	void init(const std::string& resourceDirectory)
 	{
 		GLSL::checkVersion();
@@ -498,6 +514,7 @@ public:
 
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
+		initSound(resourceDirectory);
 
 		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/cube.obj"), lineEquation(0), vec3(1000, .1, 1000), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
@@ -539,6 +556,7 @@ public:
 		float speed = velocity.magnitude();
 		if (lastSpeed - speed > MIN_SPEED_CHANGE) {
 			featherParticle();
+			soundEngine->play2D(impactSound);
 		}
 		lastSpeed = speed;
 	}
