@@ -89,9 +89,6 @@ public:
 	int collected = 0;
 	int NUM_ROCKS = 20;
 
-	//the scale at which the rock generation grid is at
-	float GRID_SCALE = 15;
-
 	float deltaTime = 0;
 	float PI = 3.14159;
 	float rotate = 0;
@@ -342,10 +339,11 @@ public:
 		skyTextureId = createSky(cracksDirectory, faces);
 	}
 
-	//Rock generation constants
+	//Map generation constants
 	double LINE_SLOPE = -8.0;
 	float LINE_Y_OFFSET = 0.0f;
 	float ROCK_OFFSET_MAX = 4.0f;
+	float GRID_SCALE = 15; // the overall scale at which the rock generation grid is at
 	float START_HEIGHT = -NUM_ROCKS*GRID_SCALE;
 	float LINE_Z_OFFSET = START_HEIGHT;
 	float COLLISION_PLANE_OFFSET = 12.0f;
@@ -354,21 +352,23 @@ public:
 
 
 	void addRock(shared_ptr<Entity> rock) {
+		const float bb_adjust_x = .75;
+		const float bb_adjust_z = .65;
+
 		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
-		float e[3] = { rock->scale.x*GRID_SCALE*.75, rock->scale.y*GRID_SCALE, rock->scale.z*GRID_SCALE*.65 };
+		float e[3] = { rock->scale.x*GRID_SCALE*bb_adjust_x, rock->scale.y*GRID_SCALE, rock->scale.z*GRID_SCALE*bb_adjust_z };
 		rock->colliders.push_back(make_shared<OBBCollider>(rock->position, u, e));
 		entities.push_back(rock);
 	}
 
-	//Gets random number between -ROCK_OFFSET_MAX and ROCK_OFFSET_MAX
-	float randOffset() {
+	//Gets random number between +- offesetBounds
+	float randOffset(float offsetBounds) {
 		float numer =(rand() % 100); 
-		return numer / (100.0/ROCK_OFFSET_MAX) - ROCK_OFFSET_MAX/2;
+		return numer / (100.0/(2*offsetBounds)) - offsetBounds;
 	}
 
-	//in the Y-Z plane
+	//calculates point of line in the y-z plane.
 	vec3 lineEquation(int z, int x = 0) {
-		//double y = pow((0.16 * z), 4);
 		double y = LINE_SLOPE * (z + LINE_Z_OFFSET) + LINE_Y_OFFSET;
 		return vec3(x, y, z);
 	}
@@ -466,8 +466,7 @@ public:
 
 
 		initWallEntities(resourceDirectory);
-		//initRockEntities(resourceDirectory);
-		//shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/rockyCliff_uv_smooth.obj"), lineEquation(0), vec3(100, .1, 100), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0, ProgramManager::WALL);
+		initRockEntities(resourceDirectory);
 
 		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/rockyCliff_uv_smooth.obj"), lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, PI/2, ProgramManager::WALL);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
