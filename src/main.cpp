@@ -44,12 +44,9 @@ public:
 
 	//std::shared_ptr<Program> cubeProg;
 	// Shape to be used (from  file) - modify to support multiple
-	shared_ptr<Shape> meshfloor;
-	shared_ptr<Shape> meshsphere;
-	shared_ptr<Shape> meshwall;
-	shared_ptr<Shape> meshrock1;
-	shared_ptr<Shape> meshChick;
-	shared_ptr<Shape> meshPillar;
+	shared_ptr<Program> psky;
+
+	shared_ptr<Shape> meshSkybox;
 
 	ParticleSystem * particleSystem;
 
@@ -58,6 +55,7 @@ public:
 
 	// Data necessary to give our triangle to OpenGL
 	GLuint VertexBufferID;
+	GLuint Texture;
 
 	//example data that might be useful when trying to compute bounds on multi-shape
 	vec3 gMin;
@@ -491,12 +489,59 @@ public:
 		//cubeProg->addAttribute("vertNor");
 		//prog->addAttribute("vertTex");
 
+		meshSkybox = make_shared<Shape>();
+		string errStr;
+		vector<tinyobj::shape_t> TOshapesObject;
+		vector<tinyobj::material_t> objMaterialsObject;
+		bool rc = tinyobj::LoadObj(TOshapesObject, objMaterialsObject, errStr, (resourceDirectory + "/spheresmooth.obj").c_str());
+		if (!rc) {
+			cerr << errStr << endl;
+		}
+		else {
+			meshSkybox = make_shared<Shape>();
+			meshSkybox->createShape(TOshapesObject[0]);
+			meshSkybox->measure();
+			meshSkybox->init();
+		}
+
+		int width, height, channels;
+		char filepath[1000];
+
+		string str = resourceDirectory + "/arcticpolished.jpg";
+		strcpy(filepath, str.c_str());
+		unsigned char* data = stbi_load(filepath, &width, &height, &channels, 4);
+
+		glGenTextures(1, &Texture);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, Texture);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		psky = std::make_shared<Program>();
+		psky->setVerbose(true);
+		psky->setShaderNames(resourceDirectory + "/skyvertex.glsl", resourceDirectory + "/skyfrag.glsl");
+		if (!psky->init())
+		{
+			std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
+			exit(1);
+		}
+		psky->addUniform("P");
+		psky->addUniform("V");
+		psky->addUniform("M");
+		psky->addUniform("campos");
+		psky->addAttribute("vertPos");
+		psky->addAttribute("vertNor");
+		psky->addAttribute("vertTex");
+
 
 		window = windowManager->getHandle();
 
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
-
 	}
 
 
@@ -538,6 +583,39 @@ public:
 
 		// Draw a stack of cubes with indiviudal transforms
 		
+
+
+		psky->bind();
+
+		float sangle = 3.1415926 / 2.;
+		glm::mat4 RotateXSky = glm::rotate(glm::mat4(1.0f), sangle, glm::vec3(-1.0f, 0.0f, 0.0f));
+
+		glm::mat4 V, M, P;
+		V = glm::mat4(1);
+		M = glm::translate(glm::mat4(1.0f), eye + vec3(0,-1,0)) * RotateXSky;
+		P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f);
+
+		vec3 campos = eye;
+
+		//glm::vec3 camp = eye;
+		//glm::mat4 TransSky = glm::translate(glm::mat4(1.0f), camp);
+		//glm::mat4 SSky = glm::scale(glm::mat4(1.0f), glm::vec3(1, 1, 1));
+
+		//M = TransSky * RotateXSky * SSky;
+
+		//send the matrices to the shaders
+		glUniformMatrix4fv(psky->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+		glUniformMatrix4fv(psky->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+		glUniformMatrix4fv(psky->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		glUniform3fv(psky->getUniform("campos"), 1, &campos[0]);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, Texture);
+		glDisable(GL_DEPTH_TEST);
+		meshSkybox->draw(psky);
+		glEnable(GL_DEPTH_TEST);
+
+		psky->unbind();
 		
 		ProgramManager::progMat->bind();
 			glUniformMatrix4fv(ProgramManager::progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
