@@ -215,12 +215,10 @@ public:
 			entity->velocity += deltaTime * (up * vec3(40));
 		}
 
-		vec3 pt = lookAtPoint;
-		//cout <<"entity: " <<  entity->position.x << ", " << entity->position.y << ", " << entity->position.z << "   eye: " << eye.x << ", " << eye.y << ", " << eye.z << endl;
-		eye.y += (pt.y + 25 - eye.y) * deltaTime * 10;
-		eye.x += ((pt.x) - eye.x) * deltaTime * 10;
-		eye.z += ((pt.z) - eye.z) * deltaTime * 10;
-	}
+		//"tweening" from the juice video
+		vec3 target = lookAtPoint + vec3(0, 25, 0);
+		eye += ((target - eye) * deltaTime * 3.f);
+	} 
 
 	void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
 	{
@@ -264,6 +262,7 @@ public:
 			movingRight = false;
 		}
 		if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
+			soundEngine->setAllSoundsPaused();
 			eye.y -= 0.5;
 		}
 		if (key == GLFW_KEY_E && action == GLFW_PRESS) {
@@ -519,6 +518,9 @@ public:
 		
 		ragdoll = make_shared<Ragdoll>(mPhysics, mScene, mMaterial);
 		bird = Ragdoll::createBirdRagdoll(startPosition, entities, ragdoll, resourceDirectory);
+		lookAtPoint = startPosition;
+		eye = startPosition + vec3(0, 25, 0);
+
 
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
