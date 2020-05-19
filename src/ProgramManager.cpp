@@ -1,7 +1,9 @@
 #include "ProgramManager.h"
 #include <stdlib.h>
 #include <memory>
+#include "Shape.h"
 #include <glad/glad.h>
+#include <iostream>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "Program.h"
@@ -10,16 +12,21 @@
 using namespace std;
 using namespace glm;
 
-Texture * ProgramManager::tex_sample;
-Texture * ProgramManager::tex_chick;
-Texture * ProgramManager::tex_rock;
-Texture * ProgramManager::tex_wall;
-Texture * ProgramManager::tex_yellow;
-Texture * ProgramManager::tex_orange;
+ProgramManager* ProgramManager::sInstance = NULL;
 
-ProgramManager::ProgramManager()
-{
-}
+//Texture * ProgramManager::tex_sample;
+//Texture * ProgramManager::tex_chick;
+//Texture * ProgramManager::tex_rock;
+//Texture * ProgramManager::tex_wall;
+//Texture * ProgramManager::tex_yellow;
+//Texture * ProgramManager::tex_orange;
+
+//Shape* ProgramManager::mesh_cube;
+//Shape* ProgramManager::mesh_sphere;
+//Shape* ProgramManager::mesh_rock;
+//Shape* ProgramManager::mesh_wall;
+
+
 
 
 ProgramManager::~ProgramManager()
@@ -29,24 +36,53 @@ ProgramManager::~ProgramManager()
 const string ProgramManager::resourceDirectory = "../resources";
 
 // Our shader program
-const std::shared_ptr<Program> ProgramManager::progMat = make_shared<Program>();
+//const std::shared_ptr<Program> ProgramManager::progMat = make_shared<Program>();
  
+void initMesh(const string file, Shape* &mesh) {
+	string objDirectory = ProgramManager::resourceDirectory + file;
+	string errStr;
+	vector<tinyobj::shape_t> TOshapesObject;
+	vector<tinyobj::material_t> objMaterialsObject;
+	//Shape* mesh;
+	bool rc = tinyobj::LoadObj(TOshapesObject, objMaterialsObject, errStr, objDirectory.c_str());
+	if (!rc) {
+		cerr << errStr << endl;
+	}
+	else {
+		//shared_ptr<Shape> temp = make_shared<Shape>();
+		mesh = new Shape;
+		mesh->createShape(TOshapesObject[0]);
+		mesh->measure();
+		mesh->init();
+	}
+}
+
+ProgramManager* ProgramManager::Instance()
+{
+	if (!sInstance) {
+		sInstance = new ProgramManager;
+		sInstance->init();
+	}
+	return sInstance;
+}
+
 void ProgramManager::init() {
-	ProgramManager::progMat->setVerbose(true);
-	ProgramManager::progMat->setShaderNames(resourceDirectory + "/my_vert.glsl", resourceDirectory + "/my_frag.glsl");
-	ProgramManager::progMat->init();
-	ProgramManager::progMat->addUniform("P");
-	ProgramManager::progMat->addUniform("V");
-	ProgramManager::progMat->addUniform("M");
-	ProgramManager::progMat->addUniform("MatDif");
-	ProgramManager::progMat->addUniform("MatAmb");
-	ProgramManager::progMat->addUniform("MatSpec");
-	ProgramManager::progMat->addUniform("shine");
-	ProgramManager::progMat->addUniform("LightPos");
-	ProgramManager::progMat->addUniform("Texture0");
-	ProgramManager::progMat->addAttribute("vertPos");
-	ProgramManager::progMat->addAttribute("vertNor");
-	ProgramManager::progMat->addAttribute("vertTex");
+	progMat = make_shared<Program>();
+	progMat->setVerbose(true);
+	progMat->setShaderNames(resourceDirectory + "/my_vert.glsl", resourceDirectory + "/my_frag.glsl");
+	progMat->init();
+	progMat->addUniform("P");
+	progMat->addUniform("V");
+	progMat->addUniform("M");
+	progMat->addUniform("MatDif");
+	progMat->addUniform("MatAmb");
+	progMat->addUniform("MatSpec");
+	progMat->addUniform("shine");
+	progMat->addUniform("LightPos");
+	progMat->addUniform("Texture0");
+	progMat->addAttribute("vertPos");
+	progMat->addAttribute("vertNor");
+	progMat->addAttribute("vertTex");
 
 	tex_sample = new Texture();
 	tex_sample->setFilename(resourceDirectory + "/crate.jpg");
@@ -83,6 +119,11 @@ void ProgramManager::init() {
 	tex_orange->init();
 	tex_orange->setUnit(0);
 	tex_orange->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+	initMesh("/cube.obj", mesh_cube);
+	initMesh("/sphere.obj", mesh_sphere);
+	initMesh("/squareRock.obj", mesh_rock);
+	initMesh("/rockyCliff_uv_smooth.obj", mesh_wall);
 }
 
 void ProgramManager::setModel(std::shared_ptr<MatrixStack>M) {
@@ -161,6 +202,23 @@ void ProgramManager::setTexture(CustomTextures i) {
 		break;
 	case DEFAULT:
 		tex_sample->bind(ProgramManager::progMat->getUniform("Texture0"));
+		break;
+	}
+}
+
+void ProgramManager::drawMesh(Mesh i) {
+	switch (i) {
+	case CUBE_MESH:
+		mesh_cube->draw(progMat);
+		break;
+	case SPHERE_MESH:
+		mesh_sphere->draw(progMat);
+		break;
+	case ROCK_MESH:
+		mesh_rock->draw(progMat);
+		break;
+	case WALL_MESH:
+		mesh_wall->draw(progMat);
 		break;
 	}
 }

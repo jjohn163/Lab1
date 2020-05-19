@@ -19,7 +19,8 @@ class Entity
 {
 public:
 	Entity(
-		string objDir, 
+		//string objDir, 
+		ProgramManager::Mesh mesh,
 		glm::vec3 pos,
 		glm::vec3 scale, 
 		glm::vec3 rot, 
@@ -29,7 +30,7 @@ public:
 		ProgramManager::CustomTextures texture = ProgramManager::DEFAULT,
 		physx::PxRigidDynamic* collider = NULL);
 	~Entity();
-	void initMesh();
+	//void initMesh();
 	void draw(shared_ptr<MatrixStack> Model);
 	void updatePosition(float deltaTime);
 	glm::vec3 position;
@@ -40,7 +41,8 @@ public:
 	ProgramManager::Material material;
 	vector<shared_ptr<Collider>> colliders;
 	bool moving;
-	shared_ptr<Shape> mesh;
+	ProgramManager::Mesh mesh;
+	//shared_ptr<Shape> mesh;
 	string objDirectory;
 	physx::PxRigidDynamic* body;
 

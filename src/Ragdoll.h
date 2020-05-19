@@ -54,7 +54,7 @@ public:
 
 		//add bodies to entity components
 		shared_ptr<Entity> bird = make_shared<Entity>(
-			resourceDirectory + "/sphere.obj",
+			ProgramManager::SPHERE_MESH,
 			pos,
 			vec3(3, 3, 3),
 			vec3(1, 0, 0),
@@ -66,7 +66,7 @@ public:
 		entities.push_back(bird);
 
 		shared_ptr<Entity> birdHead = make_shared<Entity>(
-			resourceDirectory + "/sphere.obj",
+			ProgramManager::SPHERE_MESH,
 			pos,
 			vec3(4, 4, 4),
 			vec3(1, 0, 0),
@@ -78,7 +78,7 @@ public:
 		entities.push_back(birdHead);
 
 		shared_ptr<Entity> wingLeft = make_shared<Entity>(
-			resourceDirectory + "/cube.obj",
+			ProgramManager::CUBE_MESH,
 			vec3(pos.x + 5, pos.y, pos.z),
 			vec3(3, 2, 1),
 			vec3(1, 0, 0),
@@ -90,7 +90,7 @@ public:
 		entities.push_back(wingLeft);
 
 		shared_ptr<Entity> wingRight = make_shared<Entity>(
-			resourceDirectory + "/cube.obj",
+			ProgramManager::CUBE_MESH,
 			vec3(pos.x - 5, pos.y, pos.z),
 			vec3(3, 2, 1),
 			vec3(1, 0, 0),
@@ -102,7 +102,7 @@ public:
 		entities.push_back(wingRight);
 
 		shared_ptr<Entity> footLeft = make_shared<Entity>(
-			resourceDirectory + "/cube.obj",
+			ProgramManager::CUBE_MESH,
 			vec3(pos.x + 5, pos.y, pos.z),
 			vec3(1, 1, 2),
 			vec3(1, 0, 0),
@@ -114,7 +114,7 @@ public:
 		entities.push_back(footLeft);
 
 		shared_ptr<Entity> footRight = make_shared<Entity>(
-			resourceDirectory + "/cube.obj",
+			ProgramManager::CUBE_MESH,
 			vec3(pos.x + 5, pos.y, pos.z),
 			vec3(1, 1, 2),
 			vec3(1, 0, 0),

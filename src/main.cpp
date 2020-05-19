@@ -422,12 +422,12 @@ public:
 		const vec3 WALL_SCALE = vec3(.2);
 		const vec3 ROT_AXIS = vec3(1, 0, 0);
 		const float ROT_ANGLE = (PI * 1.5 - atan(LINE_SLOPE));
-		const string OBJ_DIR = resourceDirectory + "/rockyCliff_uv_smooth.obj";
+		//const string OBJ_DIR = resourceDirectory + "/rockyCliff_uv_smooth.obj";
 
 		//Initialize first wall with collider
 
 		vec3 wallStart = lineEquation(START_HEIGHT) - vec3(0, GRID_SCALE, 0);
-		shared_ptr<Entity> wall = make_shared<Entity>(OBJ_DIR, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
+		shared_ptr<Entity> wall = make_shared<Entity>(ProgramManager::WALL_MESH, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 
 		//Creates a plane along the slope of the line, and offsets it vertically based on COLLISIONS_PLANE_OFFSET
 		wall->colliders.push_back(make_shared<PlaneCollider>(
@@ -443,7 +443,7 @@ public:
 			wallPos = wallStart - vec3(WALL_WIDTH*((NUM_WALLS_WIDE / 2 - curWallsWide) / 2), 0, 0);
 
 			for (int i = 0; i < (NUM_ROCKS * (WALL_WIDTH)) / NUM_WALLS_WIDE; i++) {
-				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
+				wall = make_shared<Entity>(ProgramManager::WALL_MESH, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 				entities.push_back(wall);
 				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT); //Move down by slope 
 			}
@@ -463,7 +463,7 @@ public:
 	void initRockEntities(string resourceDirectory) {
 		const float SPACE_BETWEEN_ROCKS = GRID_SCALE * 3;
 
-		const string OBJ_DIR = resourceDirectory + "/squareRock.obj";
+		//const string OBJ_DIR = resourceDirectory + "/squareRock.obj";
 		const vec3 ROCK_POS = lineEquation(START_HEIGHT);
 		const vec3 ROCK_SCALE = vec3(.65, .2, 1);
 		const vec3 ROT_AXIS = vec3(1, 0, 0);
@@ -478,7 +478,7 @@ public:
 
 
 		//Starting rock
-		addRock(make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
+		addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 
 		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
 			curPos = lineEquation(i) - vec3(OFFSET_LEFT, 0, 0);
@@ -490,7 +490,7 @@ public:
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 				lastOmitted = omitRand;
 				if (widthNdx != omitRand) {
-					addRock(make_shared<Entity>(OBJ_DIR, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
+					addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 				}
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 			}
@@ -511,6 +511,7 @@ public:
 
 	void init(const std::string& resourceDirectory)
 	{
+		//ProgramManager::init();
 		GLSL::checkVersion();
 
 		vec3 rockStart = lineEquation(START_HEIGHT);
@@ -526,7 +527,7 @@ public:
 		initRockEntities(resourceDirectory);
 		initSound(resourceDirectory);
 
-		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/rockyCliff_uv_smooth.obj"), lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL);
+		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
 
@@ -549,7 +550,6 @@ public:
 		glEnable(GL_DEPTH_TEST);
 		initTex(resourceDirectory);
 		// Initialize the GLSL program.
-		ProgramManager::init();
 		//cubeProg = make_shared<Program>();
 		//cubeProg->setVerbose(true);
 		//cubeProg->setShaderNames(resourceDirectory + "/cube_vert.glsl", resourceDirectory + "/cube_frag.glsl");
@@ -695,10 +695,10 @@ public:
 		psky->unbind();
 
 		// Draw a stack of cubes with indiviudal transforms
-		ProgramManager::progMat->bind();
-			glUniformMatrix4fv(ProgramManager::progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-			glUniformMatrix4fv(ProgramManager::progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-			glUniform3f(ProgramManager::progMat->getUniform("LightPos"), light.x, light.y, light.z);
+		ProgramManager::Instance()->progMat->bind();
+			glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+			glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+			glUniform3f(ProgramManager::Instance()->progMat->getUniform("LightPos"), light.x, light.y, light.z);
 			Model->pushMatrix();
 			Model->loadIdentity();
 				//Model->rotate(rotate, vec3(0, 1, 0));
@@ -706,7 +706,7 @@ public:
 					entity->draw(Model);
 				}
 			Model->popMatrix();
-		ProgramManager::progMat->unbind();
+			ProgramManager::Instance()->progMat->unbind();
 
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
