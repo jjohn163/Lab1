@@ -111,7 +111,7 @@ void ProgramManager::init() {
 	tex_wall->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
 	tex_yellow = new Texture();
-	tex_yellow->setFilename(resourceDirectory + "/yellow.jpg");
+	tex_yellow->setFilename(resourceDirectory + "/feathers_texture.jpg");
 	tex_yellow->init();
 	tex_yellow->setUnit(0);
 	tex_yellow->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
@@ -123,7 +123,7 @@ void ProgramManager::init() {
 	tex_orange->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
 	initMesh("/cube.obj", mesh_cube);
-	initMesh("/SmoothSphere.obj", mesh_sphere);
+	initMesh("/spheresmooth.obj", mesh_sphere);
 	initMesh("/squareRock.obj", mesh_rock);
 	initMesh("/rockyCliff_uv_smooth.obj", mesh_wall);
 }

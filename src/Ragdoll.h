@@ -56,7 +56,7 @@ public:
 		shared_ptr<Entity> bird = make_shared<Entity>(
 			ProgramManager::SPHERE_MESH,
 			pos,
-			vec3(3, 3, 3),
+			vec3(3.0/100.0, 3.0 / 100.0, 3.0 / 100.0),
 			vec3(1, 0, 0),
 			false,
 			ProgramManager::GREEN_PLASTIC,
@@ -68,7 +68,7 @@ public:
 		shared_ptr<Entity> birdHead = make_shared<Entity>(
 			ProgramManager::SPHERE_MESH,
 			pos,
-			vec3(4, 4, 4),
+			vec3(4.0 / 100.0, 4.0 / 100.0, 4.0 / 100.0),
 			vec3(1, 0, 0),
 			false,
 			ProgramManager::GREEN_PLASTIC,
