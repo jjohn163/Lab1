@@ -16,7 +16,6 @@ out OUT_struct {
 	vec2 vTexCoord;
 	vec4 fPosLS;
 	vec3 vColor;
-    int computeShadow;
 } out_struct;
 
 void main() {
@@ -34,10 +33,4 @@ void main() {
   out_struct.fPosLS = LS * M * vec4(vertPos.xyz, 1.0);
   /* a color that could be blended - or be shading */
   out_struct.vColor = vec3(max(dot(out_struct.fragNor, normalize(lightDir)), 0));
-  out_struct.computeShadow = 1;
-  if(lightDir.y - out_struct.fPos.y > 400){
-    out_struct.computeShadow = 0;
-  }
-  //out_struct.computeShadow = lightDir.y - out_struct.fPos.y > 300;
-  //out_struct.computeShadow = true;
 }
