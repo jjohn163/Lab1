@@ -69,17 +69,19 @@ ProgramManager* ProgramManager::Instance()
 void ProgramManager::init() {
 	progMat = make_shared<Program>();
 	progMat->setVerbose(true);
-	progMat->setShaderNames(resourceDirectory + "/my_vert.glsl", resourceDirectory + "/my_frag.glsl");
+	progMat->setShaderNames(resourceDirectory + "/shadow_vert.glsl", resourceDirectory + "/shadow_frag.glsl");
 	progMat->init();
 	progMat->addUniform("P");
 	progMat->addUniform("V");
 	progMat->addUniform("M");
-	progMat->addUniform("MatDif");
-	progMat->addUniform("MatAmb");
-	progMat->addUniform("MatSpec");
-	progMat->addUniform("shine");
-	progMat->addUniform("LightPos");
+	//progMat->addUniform("MatDif");
+	//progMat->addUniform("MatAmb");
+	//progMat->addUniform("MatSpec");
+	//progMat->addUniform("shine");
+	progMat->addUniform("lightDir");
 	progMat->addUniform("Texture0");
+	progMat->addUniform("shadowDepth");
+	progMat->addUniform("LS");
 	progMat->addAttribute("vertPos");
 	progMat->addAttribute("vertNor");
 	progMat->addAttribute("vertTex");
@@ -121,13 +123,13 @@ void ProgramManager::init() {
 	tex_orange->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
 	initMesh("/cube.obj", mesh_cube);
-	initMesh("/sphere.obj", mesh_sphere);
+	initMesh("/SmoothSphere.obj", mesh_sphere);
 	initMesh("/squareRock.obj", mesh_rock);
 	initMesh("/rockyCliff_uv_smooth.obj", mesh_wall);
 }
 
-void ProgramManager::setModel(std::shared_ptr<MatrixStack>M) {
-	glUniformMatrix4fv(progMat->getUniform("M"), 1, GL_FALSE, value_ptr(M->topMatrix()));
+void ProgramManager::setModel(std::shared_ptr<MatrixStack>M, shared_ptr<Program> shader) {
+	glUniformMatrix4fv(shader->getUniform("M"), 1, GL_FALSE, value_ptr(M->topMatrix()));
 }
 
 void ProgramManager::setMaterial(Material i) {
@@ -186,39 +188,39 @@ void ProgramManager::setMaterial(Material i) {
 void ProgramManager::setTexture(CustomTextures i) {
 	switch (i) {
 	case CHICK:
-		tex_chick->bind(ProgramManager::progMat->getUniform("Texture0"));
+		tex_chick->bind(progMat->getUniform("Texture0"));
 		break;
 	case ROCK:
-		tex_rock->bind(ProgramManager::progMat->getUniform("Texture0"));
+		tex_rock->bind(progMat->getUniform("Texture0"));
 		break;
 	case WALL:
-		tex_wall->bind(ProgramManager::progMat->getUniform("Texture0"));
+		tex_wall->bind(progMat->getUniform("Texture0"));
 		break;
 	case YELLOW:
-		tex_yellow->bind(ProgramManager::progMat->getUniform("Texture0"));
+		tex_yellow->bind(progMat->getUniform("Texture0"));
 		break;
 	case ORANGE:
-		tex_orange->bind(ProgramManager::progMat->getUniform("Texture0"));
+		tex_orange->bind(progMat->getUniform("Texture0"));
 		break;
 	case DEFAULT:
-		tex_sample->bind(ProgramManager::progMat->getUniform("Texture0"));
+		tex_sample->bind(progMat->getUniform("Texture0"));
 		break;
 	}
 }
 
-void ProgramManager::drawMesh(Mesh i) {
+void ProgramManager::drawMesh(Mesh i, shared_ptr<Program> shader) {
 	switch (i) {
 	case CUBE_MESH:
-		mesh_cube->draw(progMat);
+		mesh_cube->draw(shader);
 		break;
 	case SPHERE_MESH:
-		mesh_sphere->draw(progMat);
+		mesh_sphere->draw(shader);
 		break;
 	case ROCK_MESH:
-		mesh_rock->draw(progMat);
+		mesh_rock->draw(shader);
 		break;
 	case WALL_MESH:
-		mesh_wall->draw(progMat);
+		mesh_wall->draw(shader);
 		break;
 	}
 }

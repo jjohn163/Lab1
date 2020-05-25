@@ -9,6 +9,7 @@
 #include "Program.h"
 #include "Texture.h"
 
+using namespace std;
 
 class ProgramManager
 {
@@ -22,8 +23,8 @@ public:
 	void init();
 	void setMaterial(Material i);
 	void setTexture(CustomTextures i);
-	void setModel(std::shared_ptr<MatrixStack> Model);
-	void drawMesh(Mesh i);
+	void setModel(std::shared_ptr<MatrixStack> Model, shared_ptr<Program> shader);
+	void drawMesh(Mesh i, shared_ptr<Program> shader);
 
 	std::shared_ptr<Program> progMat;
 	

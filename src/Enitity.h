@@ -31,7 +31,7 @@ public:
 		physx::PxRigidDynamic* collider = NULL);
 	~Entity();
 	//void initMesh();
-	void draw(shared_ptr<MatrixStack> Model);
+	void draw(shared_ptr<MatrixStack> Model, shared_ptr<Program> shader=NULL);
 	void updatePosition(float deltaTime);
 	glm::vec3 position;
 	glm::vec3 scale;

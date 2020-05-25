@@ -62,6 +62,20 @@ public:
 	const std::string IMPACT_SOUND_FILE = "/impact.wav";
 	const std::string BACKGROUND_MUSIC_FILE = "/bensound-buddy.mp3";
 
+	//SHADOWS
+	GLuint depthMapFBO;
+	//const GLuint S_WIDTH = 1024*10, S_HEIGHT = 1024*10;
+	const GLuint S_WIDTH = 1024 * 4, S_HEIGHT = 1024 *4;
+	GLuint depthMap;
+	shared_ptr<Program> DepthProg;
+	shared_ptr<Program> ShadowProg;
+	shared_ptr<Program> DepthProgDebug;
+	bool SHADOW = true;
+	bool DEBUG = true;
+	bool FIRST = true;
+	mat4 LP, LV, LS;
+
+
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
 
@@ -279,6 +293,7 @@ public:
 		}
 		if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
 			featherParticle();
+			DEBUG = !DEBUG;
 		}
 	}
 
@@ -427,7 +442,7 @@ public:
 		//Initialize first wall with collider
 
 		vec3 wallStart = lineEquation(START_HEIGHT) - vec3(0, GRID_SCALE, 0);
-		shared_ptr<Entity> wall = make_shared<Entity>(ProgramManager::WALL_MESH, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
+		shared_ptr<Entity> wall = make_shared<Entity>(ProgramManager::WALL_MESH, wallStart, WALL_SCALE, ROT_AXIS, true, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 
 		//Creates a plane along the slope of the line, and offsets it vertically based on COLLISIONS_PLANE_OFFSET
 		wall->colliders.push_back(make_shared<PlaneCollider>(
@@ -443,7 +458,7 @@ public:
 			wallPos = wallStart - vec3(WALL_WIDTH*((NUM_WALLS_WIDE / 2 - curWallsWide) / 2), 0, 0);
 
 			for (int i = 0; i < (NUM_ROCKS * (WALL_WIDTH)) / NUM_WALLS_WIDE; i++) {
-				wall = make_shared<Entity>(ProgramManager::WALL_MESH, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
+				wall = make_shared<Entity>(ProgramManager::WALL_MESH, wallPos, WALL_SCALE, ROT_AXIS, true, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 				entities.push_back(wall);
 				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT); //Move down by slope 
 			}
@@ -478,7 +493,7 @@ public:
 
 
 		//Starting rock
-		addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
+		addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, ROCK_POS, 4.0f * ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 
 		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
 			curPos = lineEquation(i) - vec3(OFFSET_LEFT, 0, 0);
@@ -495,6 +510,33 @@ public:
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 			}
 		}
+	}
+
+	/* set up the FBO for storing the light's depth */
+	void initShadow() {
+
+		//generate the FBO for the shadow depth
+		glGenFramebuffers(1, &depthMapFBO);
+
+		//generate the texture
+		glGenTextures(1, &depthMap);
+		glBindTexture(GL_TEXTURE_2D, depthMap);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, S_WIDTH, S_HEIGHT,
+			0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+		//bind with framebuffer's depth buffer
+		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		float pos= 500;
+		light = bird->position + vec3(pos, pos, pos);
 	}
 
 	void initSound(const std::string& resourceDirectory)
@@ -527,7 +569,7 @@ public:
 		initRockEntities(resourceDirectory);
 		initSound(resourceDirectory);
 
-		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL);
+		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
 
@@ -610,13 +652,65 @@ public:
 		psky->addAttribute("vertNor");
 		psky->addAttribute("vertTex");
 
+		ShadowProg = make_shared<Program>();
+		ShadowProg->setVerbose(true);
+		ShadowProg->setShaderNames(resourceDirectory + "/shadow_vert.glsl", resourceDirectory + "/shadow_frag.glsl");
+		ShadowProg->init();
+		ShadowProg->addUniform("P");
+		ShadowProg->addUniform("M");
+		ShadowProg->addUniform("V");
+		ShadowProg->addUniform("LS");
+		ShadowProg->addUniform("lightDir");
+		ShadowProg->addAttribute("vertPos");
+		ShadowProg->addAttribute("vertNor");
+		ShadowProg->addAttribute("vertTex");
+		ShadowProg->addUniform("Texture0");
+		ShadowProg->addUniform("shadowDepth");
 
+		DepthProg = make_shared<Program>();
+		DepthProg->setVerbose(true);
+		DepthProg->setShaderNames(resourceDirectory + "/depth_vert.glsl", resourceDirectory + "/depth_frag.glsl");
+		DepthProg->init();
+		DepthProg->addUniform("LP");
+		DepthProg->addUniform("LV");
+		DepthProg->addUniform("M");
+		DepthProg->addAttribute("vertPos");
+		//un-needed, better solution to modifying shape
+		DepthProg->addAttribute("vertNor");
+		DepthProg->addAttribute("vertTex");
+		
+		DepthProgDebug = make_shared<Program>();
+		DepthProgDebug->setVerbose(true);
+		DepthProgDebug->setShaderNames(resourceDirectory + "/depth_vertDebug.glsl", resourceDirectory + "/depth_fragDebug.glsl");
+		DepthProgDebug->init();
+		DepthProgDebug->addUniform("LP");
+		DepthProgDebug->addUniform("LV");
+		DepthProgDebug->addUniform("M");
+		DepthProgDebug->addAttribute("vertPos");
+		//un-needed, better solution to modifying shape
+		DepthProgDebug->addAttribute("vertNor");
+		DepthProgDebug->addAttribute("vertTex");
 		window = windowManager->getHandle();
 
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
-
+		initShadow();
 	}
+
+	mat4 SetOrthoMatrix(shared_ptr<Program> curShade) {
+		float edge = 300;
+		mat4 ortho = glm::ortho(-edge, edge, -edge, edge, 0.1f, 2 * edge);
+		glUniformMatrix4fv(curShade->getUniform("LP"), 1, GL_FALSE, value_ptr(ortho));
+		return ortho;
+	}
+
+	/* TODO fix */
+	mat4 SetLightView(shared_ptr<Program> curShade, vec3 pos, vec3 LA, vec3 up) {
+		mat4 Cam = glm::lookAt(pos, LA, up);
+		glUniformMatrix4fv(curShade->getUniform("LV"), 1, GL_FALSE, value_ptr(Cam));
+		return Cam;
+	}
+
 	void updateEntities() {
 		for (shared_ptr<Entity> entity : entities) {
 			if (entity->body) {
@@ -639,10 +733,52 @@ public:
 
 		// Get current frame buffer size.
 		int width, height;
-		
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		
+		// Create the matrix stacks - please leave these alone for now
+		auto Projection = make_shared<MatrixStack>();
+		mat4 View = glm::lookAt(eye, lookAtPoint, vec3(0, 0, 1));
+		auto Model = make_shared<MatrixStack>();
+
+		vec3 lightLA = bird->position;
+		vec3 lightUp = vec3(0, 1, 0);
+		//mat4 LP, LV, LS;
 		
+		if (FIRST) {
+			//FIRST = false;
+			//set up light's depth map
+			glViewport(0, 0, S_WIDTH, S_HEIGHT);
+
+			//sets up the output to be out FBO
+			glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+			glClear(GL_DEPTH_BUFFER_BIT);
+			glCullFace(GL_FRONT);
+
+			//set up shadow shader and render the scene
+			DepthProg->bind();
+			//TODO you will need to fix these
+			LP = SetOrthoMatrix(DepthProg);
+			LV = SetLightView(DepthProg, light, lightLA, lightUp);
+			LS = LP * LV;
+			//drawScene(DepthProg, 0, 0);
+			Model->pushMatrix();
+			Model->loadIdentity();
+			//Model->rotate(rotate, vec3(0, 1, 0));
+			for (shared_ptr<Entity> entity : entities) {
+				if (fabs(entity->position.y - bird->position.y) < 300) {
+					entity->draw(Model, DepthProg);
+				}
+			}
+			Model->popMatrix();
+			DepthProg->unbind();
+
+			//set culling back to normal
+			glCullFace(GL_BACK);
+
+			//this sets the output back to the screen
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		}
+
 		glViewport(0, 0, width, height);
 
 		// Clear framebuffer.
@@ -651,15 +787,9 @@ public:
 		//Use the matrix stack for Lab 6
 		float aspect = width/(float)height;
 
-		// Create the matrix stacks - please leave these alone for now
-		auto Projection = make_shared<MatrixStack>();
-		//auto View = make_shared<MatrixStack>();
-		mat4 View = glm::lookAt(eye, lookAtPoint, vec3(0,0,1));
-		auto Model = make_shared<MatrixStack>();
-
 		// Apply perspective projection.
 		Projection->pushMatrix();
-		Projection->perspective(45.0f, aspect, 0.01f, 1000.0f);
+		Projection->perspective(45.0f, aspect, 0.01f, 10000.0f);
 		//Draw skybox
 
 		psky->bind();
@@ -693,20 +823,44 @@ public:
 		glEnable(GL_DEPTH_TEST);
 		
 		psky->unbind();
-
-		// Draw a stack of cubes with indiviudal transforms
-		ProgramManager::Instance()->progMat->bind();
-			glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-			glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-			glUniform3f(ProgramManager::Instance()->progMat->getUniform("LightPos"), light.x, light.y, light.z);
+		if (DEBUG) {
+			DepthProgDebug->bind();
+			//render scene from light's point of view
+			SetOrthoMatrix(DepthProgDebug);
+			SetLightView(DepthProgDebug, light, lightLA, lightUp);
 			Model->pushMatrix();
 			Model->loadIdentity();
-				//Model->rotate(rotate, vec3(0, 1, 0));
-				for (shared_ptr<Entity> entity : entities) {
+			for (shared_ptr<Entity> entity : entities) {
+				entity->draw(Model, DepthProgDebug);
+			}
+			Model->popMatrix();
+			//drawScene(DepthProgDebug, ShadowProg->getUniform("Texture0"), 0);
+			DepthProgDebug->unbind();
+		}
+		else {
+			// Draw a stack of cubes with indiviudal transforms
+			shared_ptr<Program> prog = ProgramManager::Instance()->progMat;
+			prog->bind();
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, depthMap);
+			glUniform1i(prog->getUniform("shadowDepth"), 1);
+			glUniformMatrix4fv(prog->getUniform("LS"), 1, GL_FALSE, value_ptr(LS));
+			glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+			glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+			glUniform3f(prog->getUniform("lightDir"), light.x, light.y, light.z);
+			Model->pushMatrix();
+			Model->loadIdentity();
+			//Model->rotate(rotate, vec3(0, 1, 0));
+			for (shared_ptr<Entity> entity : entities) {
+				float difference = bird->position.y - entity->position.y;
+				if (entity->moving || (difference < 1500 && difference > -100)) {
 					entity->draw(Model);
 				}
+			}
 			Model->popMatrix();
-			ProgramManager::Instance()->progMat->unbind();
+			prog->unbind();
+		}
+		
 
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
@@ -721,7 +875,8 @@ public:
 		mScene->fetchResults();
 		updateEntities();
 		updateCamera(bird);
-
+		light = bird->position + vec3(100, 100, 100);
+		//cout << bird->position.y << endl;
 	}
 };
 

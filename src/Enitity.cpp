@@ -48,16 +48,19 @@ void Entity::initMesh() {
 	}
 }
 */
-void Entity::draw(shared_ptr<MatrixStack> Model) {
-	ProgramManager::Instance()->setMaterial(this->material);
-	ProgramManager::Instance()->setTexture(this->texture);
+void Entity::draw(shared_ptr<MatrixStack> Model, shared_ptr<Program> shader) {
+	if (!shader) {
+		shader = ProgramManager::Instance()->progMat;
+		//ProgramManager::Instance()->setMaterial(this->material);
+		ProgramManager::Instance()->setTexture(this->texture);
+	}
 	Model->pushMatrix();
 	Model->translate(this->position);
 	Model->rotate(this->rotationDegrees, this->rotation);
 	Model->scale(this->scale);
-	ProgramManager::Instance()->setModel(Model);
-	ProgramManager::Instance()->setMaterial(this->material);
-	ProgramManager::Instance()->drawMesh(this->mesh);
+	ProgramManager::Instance()->setModel(Model, shader);
+	//ProgramManager::Instance()->setMaterial(this->material, shader);
+	ProgramManager::Instance()->drawMesh(this->mesh, shader);
 	//Shape * shape = ProgramManager::getMesh(this->mesh);
 	//shape->draw(ProgramManager::progMat);
 	Model->popMatrix();
