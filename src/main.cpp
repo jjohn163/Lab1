@@ -149,6 +149,7 @@ public:
 	// Deferred stuff 
 	std::shared_ptr<Program> mergeProg;
 	std::shared_ptr<Program> norProg;
+	std::shared_ptr<Program> blur_prog;
 	//std::shared_ptr<Program> norProg;
 
 	//reference to texture FBO
@@ -158,6 +159,9 @@ public:
 
 	GLuint LframeBuf;
 	GLuint LtexBuf;
+
+	GLuint frameBuf[2];
+	GLuint texBuf[2];
 
 	bool FirstTime = true;
 	bool Defer = false;
@@ -720,6 +724,17 @@ public:
 		norProg->addAttribute("vertPos");
 		norProg->addAttribute("vertNor");
 
+		//set up the shaders to blur the FBO decomposed just a placeholder pass thru now
+		//TODO - modify and possibly add other shaders to complete blur
+		blur_prog = make_shared<Program>();
+		blur_prog->setVerbose(true);
+		blur_prog->setShaderNames(resourceDirectory + "/blur_vert.glsl", resourceDirectory + "/blur_frag.glsl");
+		blur_prog->init();
+		blur_prog->addUniform("texBuf");
+		blur_prog->addUniform("fTime");
+		blur_prog->addAttribute("vertPos");
+
+
 		initBuffers();
 
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
@@ -742,6 +757,15 @@ public:
 		//Initialize the geometry to render a quad to the screen
 		initQuad();
 
+		glGenFramebuffers(2, frameBuf);
+		glGenTextures(2, texBuf);
+		glGenFramebuffers(2, frameBuf);
+		glGenTextures(2, texBuf);
+		glGenRenderbuffers(1, &depthBuf);
+
+		//create one FBO
+		createFBO(frameBuf[0], texBuf[0]);
+		createFBO(frameBuf[1], texBuf[1]);
 	}
 
 
@@ -812,6 +836,48 @@ public:
 			cout << "Error setting up frame buffer - exiting" << endl;
 			exit(0);
 		}
+	}
+
+	void motionBlur(GLuint texImageToBlur, GLuint targetFrameBuf, GLuint motionBlurIterations)
+	{
+		if (motionBlurIterations == 0) return;
+
+		CHECKED_GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBuf[0]));
+		CHECKED_GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+		ProcessDrawTex(texImageToBlur);
+
+		for (int i = 0; i < motionBlurIterations - 1; i++)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, frameBuf[(i + 1) % 2]);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			ProcessDrawTex(texBuf[i % 2]);
+		}
+
+		//regardless NOW set up to render to the screen = 0
+		CHECKED_GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, targetFrameBuf));
+		CHECKED_GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+		/* now draw the actual output  to the default framebuffer - ie display */
+		/* note the current base code is just using one FBO and texture - will need
+		  to change that  - we pass in texBuf[0] right now */
+		ProcessDrawTex(texBuf[motionBlurIterations % 2]);
+	}
+
+	void ProcessDrawTex(GLuint inTex) {
+
+		//set up inTex as my input texture
+		CHECKED_GL_CALL(glActiveTexture(GL_TEXTURE0));
+		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, inTex));
+		//example applying of 'drawing' the FBO texture
+		//this shader just draws right now
+		blur_prog->bind();
+		CHECKED_GL_CALL(glUniform1i(blur_prog->getUniform("texBuf"), 0));
+		CHECKED_GL_CALL(glUniform1f(blur_prog->getUniform("fTime"), glfwGetTime()));
+		CHECKED_GL_CALL(glEnableVertexAttribArray(0));
+		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer));
+		CHECKED_GL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0));
+		CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
+		CHECKED_GL_CALL(glDisableVertexAttribArray(0));
+		blur_prog->unbind();
 	}
 
 	void updateEntities() {
@@ -933,32 +999,34 @@ public:
 		ProgramManager::Instance()->progMat->unbind();
 		
 		if (Defer) {
-			/* now draw the actual output */
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			motionBlur(gColorSpec, 0, 6);
+
+			///* now draw the actual output */
+			//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-			// example applying of 'drawing' the FBO texture - change shaders
-			mergeProg->bind();
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, gPosition);
-			glActiveTexture(GL_TEXTURE0 + 1);
-			glBindTexture(GL_TEXTURE_2D, gNormal);
-			glActiveTexture(GL_TEXTURE0 + 2);
-			glBindTexture(GL_TEXTURE_2D, gColorSpec);
-			glActiveTexture(GL_TEXTURE0 + 3);
-			glBindTexture(GL_TEXTURE_2D, LtexBuf);
-			glUniform1i(mergeProg->getUniform("gBuf"), 0);
-			glUniform1i(mergeProg->getUniform("norBuf"), 1);
-			glUniform1i(mergeProg->getUniform("colorBuf"), 2);
-			glUniform1i(mergeProg->getUniform("lightBuf"), 3);
-			//glUniform3f(texProg->getUniform("Ldir"), g_light.x, g_light.y, g_light.z);
-			glEnableVertexAttribArray(0);
-			glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-			glDrawArrays(GL_TRIANGLES, 0, 6);
-			glDisableVertexAttribArray(0);
-			mergeProg->unbind();
+			//// example applying of 'drawing' the FBO texture - change shaders
+			//mergeProg->bind();
+			//glActiveTexture(GL_TEXTURE0);
+			//glBindTexture(GL_TEXTURE_2D, gPosition);
+			//glActiveTexture(GL_TEXTURE0 + 1);
+			//glBindTexture(GL_TEXTURE_2D, gNormal);
+			//glActiveTexture(GL_TEXTURE0 + 2);
+			//glBindTexture(GL_TEXTURE_2D, gColorSpec);
+			//glActiveTexture(GL_TEXTURE0 + 3);
+			//glBindTexture(GL_TEXTURE_2D, LtexBuf);
+			//glUniform1i(mergeProg->getUniform("gBuf"), 0);
+			//glUniform1i(mergeProg->getUniform("norBuf"), 1);
+			//glUniform1i(mergeProg->getUniform("colorBuf"), 2);
+			//glUniform1i(mergeProg->getUniform("lightBuf"), 3);
+			////glUniform3f(texProg->getUniform("Ldir"), g_light.x, g_light.y, g_light.z);
+			//glEnableVertexAttribArray(0);
+			//glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+			//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+			//glDrawArrays(GL_TRIANGLES, 0, 6);
+			//glDisableVertexAttribArray(0);
+			//mergeProg->unbind();
 
 			if (FirstTime)
 			{
