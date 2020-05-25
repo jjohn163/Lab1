@@ -128,10 +128,6 @@ public:
 	float PLAYER_SPEED = 10.0;
 	int NUM_ROCKS = 20;
 
-<<<<<<< HEAD
-=======
-
->>>>>>> physx
 	float deltaTime = 0;
 	float PI = 3.14159;
 	float rotate = 0;
@@ -399,11 +395,7 @@ public:
 	double LINE_SLOPE = -8.0;
 	float LINE_Y_OFFSET = 0.0f;
 	float ROCK_OFFSET_MAX = 4.0f;
-<<<<<<< HEAD
-	float GRID_SCALE = 15; // the overall scale at which the rock generation grid is at
-=======
 	float GRID_SCALE = 15; //the scale at which the rock generation grid is at
->>>>>>> physx
 	float START_HEIGHT = -NUM_ROCKS*GRID_SCALE;
 	float LINE_Z_OFFSET = START_HEIGHT;
 	float COLLISION_PLANE_OFFSET = 12.0f;
@@ -416,11 +408,7 @@ public:
 		const float bb_adjust_z = .65;
 
 		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
-<<<<<<< HEAD
-		float e[3] = { rock->scale.x*GRID_SCALE*bb_adjust_x, rock->scale.y*GRID_SCALE, rock->scale.z*GRID_SCALE*bb_adjust_z };
-=======
 		float e[3] = { rock->scale.x * GRID_SCALE * bb_adjust_x, rock->scale.y * GRID_SCALE, rock->scale.z * GRID_SCALE * bb_adjust_z };
->>>>>>> physx
 		rock->colliders.push_back(make_shared<OBBCollider>(rock->position, u, e));
 		entities.push_back(rock);
 		physx::PxRigidStatic* pxRock = physx::PxCreateStatic(*mPhysics,
@@ -433,11 +421,7 @@ public:
 	//Gets random number between +- offesetBounds
 	float randOffset(float offsetBounds) {
 		float numer =(rand() % 100); 
-<<<<<<< HEAD
-		return numer / (100.0/(2*offsetBounds)) - offsetBounds;
-=======
 		return numer / (100.0 / (2 * offsetBounds)) - offsetBounds;
->>>>>>> physx
 	}
 
 	//calculates point of line in the y-z plane.
@@ -474,13 +458,9 @@ public:
 		for (int curWallsWide = 0; curWallsWide < NUM_WALLS_WIDE; curWallsWide++) {
 			wallPos = wallStart - vec3(WALL_WIDTH*((NUM_WALLS_WIDE / 2 - curWallsWide) / 2), 0, 0);
 
-<<<<<<< HEAD
-			for (int i = 0; i < (NUM_ROCKS*(WALL_WIDTH))/NUM_WALLS_WIDE; i++) {
-				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
-=======
+
 			for (int i = 0; i < (NUM_ROCKS * (WALL_WIDTH)) / NUM_WALLS_WIDE; i++) {
 				wall = make_shared<Entity>(ProgramManager::WALL_MESH, wallPos, WALL_SCALE, ROT_AXIS, true, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
->>>>>>> physx
 				entities.push_back(wall);
 				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT); //Move down by slope 
 			}
@@ -591,11 +571,7 @@ public:
 		initRockEntities(resourceDirectory);
 		initSound(resourceDirectory);
 
-<<<<<<< HEAD
-		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/rockyCliff_uv_smooth.obj"), lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, PI/2, ProgramManager::WALL);
-=======
 		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL);
->>>>>>> physx
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
 
