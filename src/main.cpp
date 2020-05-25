@@ -24,6 +24,7 @@
 #include "physx/PxPhysicsAPI.h"
 #include "Ragdoll.h"
 #include "irrKlang.h"
+#include "GLTextureWriter.h"
 //#include "physx/extensions/PxExtensionsAPI.h"
 //#include "physx/common/PxTolerancesScale.h"
 
@@ -144,6 +145,26 @@ public:
 		"iceflow_ft.tga",
 		"iceflow_bk.tga"
 	};
+
+	// Deferred stuff 
+	std::shared_ptr<Program> texProg;
+	//std::shared_ptr<Program> norProg;
+
+	//reference to texture FBO
+	GLuint gBuffer;
+	GLuint gPosition, gNormal, gColorSpec;
+	GLuint depthBuf;
+
+	GLuint LframeBuf;
+	GLuint LtexBuf;
+
+	bool FirstTime = true;
+	bool Defer = false;
+
+	//geometry for texture render
+	GLuint quad_VertexArrayID;
+	GLuint quad_vertexbuffer;
+
 
 	physx::PxVec3 vec3GLMtoPhysx(vec3 vector)
 	{
@@ -280,6 +301,31 @@ public:
 		if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
 			featherParticle();
 		}
+		if (key == GLFW_KEY_P && action == GLFW_PRESS) {
+			Defer = !Defer;
+		}
+	}
+
+
+	/**** geometry set up for a quad *****/
+	void initQuad() {
+		//now set up a simple quad for rendering FBO
+		glGenVertexArrays(1, &quad_VertexArrayID);
+		glBindVertexArray(quad_VertexArrayID);
+
+		static const GLfloat g_quad_vertex_buffer_data[] =
+		{
+			-1.0f, -1.0f, 0.0f,
+			1.0f, -1.0f, 0.0f,
+			-1.0f,  1.0f, 0.0f,
+			-1.0f,  1.0f, 0.0f,
+			1.0f, -1.0f, 0.0f,
+			1.0f,  1.0f, 0.0f,
+		};
+
+		glGenBuffers(1, &quad_vertexbuffer);
+		glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
 	}
 
 	void featherParticle() {
@@ -616,7 +662,119 @@ public:
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
 
+		//set up the shaders to blur the FBO just a placeholder pass thru now
+		//next lab modify and possibly add other shaders to complete blur
+		texProg = make_shared<Program>();
+		texProg->setVerbose(true);
+		texProg->setShaderNames(
+			resourceDirectory + "/pass_vert.glsl",
+			resourceDirectory + "/tex_frag.glsl");
+		if (!texProg->init()) {
+			std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
+			exit(1);
+		}
+		texProg->addUniform("gBuf");
+		texProg->addUniform("colorBuf");
+		texProg->addUniform("norBuf");
+		texProg->addUniform("lightBuf");
+		texProg->addAttribute("vertPos");
+		texProg->addUniform("Ldir");
+
+
+		initBuffers();
+
+		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
+		glGenFramebuffers(1, &LframeBuf);
+		glGenTextures(1, &LtexBuf);
+		glGenRenderbuffers(1, &depthBuf);
+		createFBO(LframeBuf, LtexBuf);
+
+		//set up depth necessary since we are rendering a mesh that needs depth test
+		glBindRenderbuffer(GL_RENDERBUFFER, depthBuf);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT,
+			width, height);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER,
+			GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuf);
+
+		//more FBO set up
+		GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+		glDrawBuffers(1, DrawBuffers);
+
+		//Initialize the geometry to render a quad to the screen
+		initQuad();
+
 	}
+
+
+	void initBuffers() {
+		int width, height;
+		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
+
+		//initialize the buffers -- from learnopengl.com
+		glGenFramebuffers(1, &gBuffer);
+		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+
+		// - position color buffer
+		glGenTextures(1, &gPosition);
+		glBindTexture(GL_TEXTURE_2D, gPosition);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+
+		// - normal color buffer
+		glGenTextures(1, &gNormal);
+		glBindTexture(GL_TEXTURE_2D, gNormal);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+
+		// - color + specular color buffer
+		glGenTextures(1, &gColorSpec);
+		glBindTexture(GL_TEXTURE_2D, gColorSpec);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gColorSpec, 0);
+
+		glGenRenderbuffers(1, &depthBuf);
+		//set up depth necessary as rendering a mesh that needs depth test
+		glBindRenderbuffer(GL_RENDERBUFFER, depthBuf);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuf);
+
+		//more FBO set up
+		GLenum DrawBuffers[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+		glDrawBuffers(3, DrawBuffers);
+
+	}
+
+	void createFBO(GLuint& fb, GLuint& tex) {
+		//initialize FBO
+		int width, height;
+		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
+
+		//set up framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, fb);
+		//set up texture
+		glBindTexture(GL_TEXTURE_2D, tex);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		{
+			cout << "Error setting up frame buffer - exiting" << endl;
+			exit(0);
+		}
+	}
+
 	void updateEntities() {
 		for (shared_ptr<Entity> entity : entities) {
 			if (entity->body) {
@@ -694,8 +852,18 @@ public:
 		
 		psky->unbind();
 
+
+		// Begin rendering objects in the scene
+		// Bind to the gbuffer or to the screen (0)
+		if (Defer) glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+		else glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		// Clear framebuffer.
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		// Draw a stack of cubes with indiviudal transforms
 		ProgramManager::Instance()->progMat->bind();
+
 			glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
 			glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
 			glUniform3f(ProgramManager::Instance()->progMat->getUniform("LightPos"), light.x, light.y, light.z);
@@ -707,6 +875,44 @@ public:
 				}
 			Model->popMatrix();
 			ProgramManager::Instance()->progMat->unbind();
+		
+			if (Defer) {
+				/* now draw the actual output */
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+				// example applying of 'drawing' the FBO texture - change shaders
+				texProg->bind();
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, gPosition);
+				glActiveTexture(GL_TEXTURE0 + 1);
+				glBindTexture(GL_TEXTURE_2D, gNormal);
+				glActiveTexture(GL_TEXTURE0 + 2);
+				glBindTexture(GL_TEXTURE_2D, gColorSpec);
+				glActiveTexture(GL_TEXTURE0 + 3);
+				glBindTexture(GL_TEXTURE_2D, LtexBuf);
+				glUniform1i(texProg->getUniform("gBuf"), 0);
+				glUniform1i(texProg->getUniform("norBuf"), 1);
+				glUniform1i(texProg->getUniform("colorBuf"), 2);
+				glUniform1i(texProg->getUniform("lightBuf"), 3);
+				//glUniform3f(texProg->getUniform("Ldir"), g_light.x, g_light.y, g_light.z);
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+				glDisableVertexAttribArray(0);
+				texProg->unbind();
+
+				if (FirstTime)
+				{
+					assert(GLTextureWriter::WriteImage(gBuffer, "gBuf.png"));
+					assert(GLTextureWriter::WriteImage(gPosition, "gPos.png"));
+					assert(GLTextureWriter::WriteImage(gNormal, "gNorm.png"));
+					assert(GLTextureWriter::WriteImage(gColorSpec, "gColorSpec.png"));
+					FirstTime = false;
+				}
+			}
 
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);

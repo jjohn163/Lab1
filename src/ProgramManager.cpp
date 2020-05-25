@@ -69,7 +69,8 @@ ProgramManager* ProgramManager::Instance()
 void ProgramManager::init() {
 	progMat = make_shared<Program>();
 	progMat->setVerbose(true);
-	progMat->setShaderNames(resourceDirectory + "/my_vert.glsl", resourceDirectory + "/my_frag.glsl");
+	//progMat->setShaderNames(resourceDirectory + "/my_vert.glsl", resourceDirectory + "/my_frag.glsl");
+	progMat->setShaderNames(resourceDirectory + "/simple_vert.glsl", resourceDirectory + "/gbuf_frag.glsl");
 	progMat->init();
 	progMat->addUniform("P");
 	progMat->addUniform("V");
@@ -124,6 +125,25 @@ void ProgramManager::init() {
 	initMesh("/sphere.obj", mesh_sphere);
 	initMesh("/squareRock.obj", mesh_rock);
 	initMesh("/rockyCliff_uv_smooth.obj", mesh_wall);
+
+	//// new prog for deferred			
+	//prog = make_shared<Program>();
+	//prog->setVerbose(true);
+	//prog->setShaderNames(
+	//	resourceDirectory + "/simple_vert.glsl",
+	//	resourceDirectory + "/gbuf_frag.glsl");
+	//if (!prog->init())
+	//{
+	//	std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
+	//	exit(1);
+	//}
+	//prog->addUniform("P");
+	//prog->addUniform("V");
+	//prog->addUniform("M");
+	//prog->addUniform("MatAmb");
+	//prog->addUniform("MatDif");
+	//prog->addAttribute("vertPos");
+	//prog->addAttribute("vertNor");
 }
 
 void ProgramManager::setModel(std::shared_ptr<MatrixStack>M) {
