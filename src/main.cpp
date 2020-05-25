@@ -68,15 +68,15 @@ public:
 
 	//std::shared_ptr<Program> cubeProg;
 	// Shape to be used (from  file) - modify to support multiple
+	
 	shared_ptr<Shape> meshfloor;
 	shared_ptr<Shape> meshsphere;
 	shared_ptr<Shape> meshwall;
 	shared_ptr<Shape> meshrock1;
 	shared_ptr<Shape> meshChick;
 	shared_ptr<Shape> meshPillar;
-	shared_ptr<Program> psky;
-
 	shared_ptr<Shape> meshSkybox;
+	shared_ptr<Program> psky;
 
 	ParticleSystem * particleSystem;
 
@@ -147,7 +147,8 @@ public:
 	};
 
 	// Deferred stuff 
-	std::shared_ptr<Program> texProg;
+	std::shared_ptr<Program> mergeProg;
+	std::shared_ptr<Program> norProg;
 	//std::shared_ptr<Program> norProg;
 
 	//reference to texture FBO
@@ -555,6 +556,25 @@ public:
 		soundEngine->play2D(music, true);
 	}
 
+	void makeSphere(const std::string& resourceDirectory)
+	{
+		// Initialize the obj mesh VBOs etc
+		meshsphere = make_shared<Shape>();
+		string errStr;
+		vector<tinyobj::shape_t> TOshapesObject;
+		vector<tinyobj::material_t> objMaterialsObject;
+		bool rc = tinyobj::LoadObj(TOshapesObject, objMaterialsObject, errStr, (resourceDirectory + "/sphere.obj").c_str());
+		if (!rc) {
+			cerr << errStr << endl;
+		}
+		else {
+			meshsphere = make_shared<Shape>();
+			meshsphere->createShape(TOshapesObject[0]);
+			meshsphere->measure();
+			meshsphere->init();
+		}
+	}
+
 	void init(const std::string& resourceDirectory)
 	{
 		//ProgramManager::init();
@@ -662,24 +682,43 @@ public:
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
 
+		// Create sphere geometry
+		makeSphere(resourceDirectory);
+
 		//set up the shaders to blur the FBO just a placeholder pass thru now
 		//next lab modify and possibly add other shaders to complete blur
-		texProg = make_shared<Program>();
-		texProg->setVerbose(true);
-		texProg->setShaderNames(
+		mergeProg = make_shared<Program>();
+		mergeProg->setVerbose(true);
+		mergeProg->setShaderNames(
 			resourceDirectory + "/pass_vert.glsl",
 			resourceDirectory + "/tex_frag.glsl");
-		if (!texProg->init()) {
+		if (!mergeProg->init()) {
 			std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
 			exit(1);
 		}
-		texProg->addUniform("gBuf");
-		texProg->addUniform("colorBuf");
-		texProg->addUniform("norBuf");
-		texProg->addUniform("lightBuf");
-		texProg->addAttribute("vertPos");
-		texProg->addUniform("Ldir");
+		mergeProg->addUniform("gBuf");
+		mergeProg->addUniform("colorBuf");
+		mergeProg->addUniform("norBuf");
+		mergeProg->addUniform("lightBuf");
+		mergeProg->addAttribute("vertPos");
+		mergeProg->addUniform("Ldir");
 
+		// Initialize the GLSL program.
+		norProg = make_shared<Program>();
+		norProg->setVerbose(true);
+		norProg->setShaderNames(
+			resourceDirectory + "/simple_vert.glsl",
+			resourceDirectory + "/nor_frag.glsl");
+		if (!norProg->init())
+		{
+			std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
+			exit(1);
+		}
+		norProg->addUniform("P");
+		norProg->addUniform("M");
+		norProg->addUniform("V");
+		norProg->addAttribute("vertPos");
+		norProg->addAttribute("vertNor");
 
 		initBuffers();
 
@@ -853,6 +892,24 @@ public:
 		psky->unbind();
 
 
+
+		// Draw some light objects
+		norProg->bind();
+		glUniformMatrix4fv(norProg->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+		glUniformMatrix4fv(norProg->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+		Model->pushMatrix();
+		Model->loadIdentity();
+			Model->translate(campos);
+			meshsphere->draw(norProg);
+		Model->popMatrix();
+		norProg->unbind();
+		//Debug
+		if (FirstTime) {
+			assert(GLTextureWriter::WriteImage(LtexBuf, "light.png"));
+		}
+
+
+
 		// Begin rendering objects in the scene
 		// Bind to the gbuffer or to the screen (0)
 		if (Defer) glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
@@ -861,58 +918,57 @@ public:
 		// Clear framebuffer.
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// Draw a stack of cubes with indiviudal transforms
 		ProgramManager::Instance()->progMat->bind();
 
-			glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-			glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-			glUniform3f(ProgramManager::Instance()->progMat->getUniform("LightPos"), light.x, light.y, light.z);
-			Model->pushMatrix();
-			Model->loadIdentity();
-				//Model->rotate(rotate, vec3(0, 1, 0));
-				for (shared_ptr<Entity> entity : entities) {
-					entity->draw(Model);
-				}
-			Model->popMatrix();
-			ProgramManager::Instance()->progMat->unbind();
+		glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+		glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+		glUniform3f(ProgramManager::Instance()->progMat->getUniform("LightPos"), light.x, light.y, light.z);
+		Model->pushMatrix();
+		Model->loadIdentity();
+		//Model->rotate(rotate, vec3(0, 1, 0));
+		for (shared_ptr<Entity> entity : entities) {
+			entity->draw(Model);
+		}
+		Model->popMatrix();
+		ProgramManager::Instance()->progMat->unbind();
 		
-			if (Defer) {
-				/* now draw the actual output */
-				glBindFramebuffer(GL_FRAMEBUFFER, 0);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		if (Defer) {
+			/* now draw the actual output */
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-				// example applying of 'drawing' the FBO texture - change shaders
-				texProg->bind();
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, gPosition);
-				glActiveTexture(GL_TEXTURE0 + 1);
-				glBindTexture(GL_TEXTURE_2D, gNormal);
-				glActiveTexture(GL_TEXTURE0 + 2);
-				glBindTexture(GL_TEXTURE_2D, gColorSpec);
-				glActiveTexture(GL_TEXTURE0 + 3);
-				glBindTexture(GL_TEXTURE_2D, LtexBuf);
-				glUniform1i(texProg->getUniform("gBuf"), 0);
-				glUniform1i(texProg->getUniform("norBuf"), 1);
-				glUniform1i(texProg->getUniform("colorBuf"), 2);
-				glUniform1i(texProg->getUniform("lightBuf"), 3);
-				//glUniform3f(texProg->getUniform("Ldir"), g_light.x, g_light.y, g_light.z);
-				glEnableVertexAttribArray(0);
-				glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
-				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-				glDrawArrays(GL_TRIANGLES, 0, 6);
-				glDisableVertexAttribArray(0);
-				texProg->unbind();
+			// example applying of 'drawing' the FBO texture - change shaders
+			mergeProg->bind();
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, gPosition);
+			glActiveTexture(GL_TEXTURE0 + 1);
+			glBindTexture(GL_TEXTURE_2D, gNormal);
+			glActiveTexture(GL_TEXTURE0 + 2);
+			glBindTexture(GL_TEXTURE_2D, gColorSpec);
+			glActiveTexture(GL_TEXTURE0 + 3);
+			glBindTexture(GL_TEXTURE_2D, LtexBuf);
+			glUniform1i(mergeProg->getUniform("gBuf"), 0);
+			glUniform1i(mergeProg->getUniform("norBuf"), 1);
+			glUniform1i(mergeProg->getUniform("colorBuf"), 2);
+			glUniform1i(mergeProg->getUniform("lightBuf"), 3);
+			//glUniform3f(texProg->getUniform("Ldir"), g_light.x, g_light.y, g_light.z);
+			glEnableVertexAttribArray(0);
+			glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+			glDisableVertexAttribArray(0);
+			mergeProg->unbind();
 
-				if (FirstTime)
-				{
-					assert(GLTextureWriter::WriteImage(gBuffer, "gBuf.png"));
-					assert(GLTextureWriter::WriteImage(gPosition, "gPos.png"));
-					assert(GLTextureWriter::WriteImage(gNormal, "gNorm.png"));
-					assert(GLTextureWriter::WriteImage(gColorSpec, "gColorSpec.png"));
-					FirstTime = false;
-				}
+			if (FirstTime)
+			{
+				assert(GLTextureWriter::WriteImage(gBuffer, "gBuf.png"));
+				assert(GLTextureWriter::WriteImage(gPosition, "gPos.png"));
+				assert(GLTextureWriter::WriteImage(gNormal, "gNorm.png"));
+				assert(GLTextureWriter::WriteImage(gColorSpec, "gColorSpec.png"));
+				FirstTime = false;
 			}
+		}
 
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
