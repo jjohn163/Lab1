@@ -21,6 +21,12 @@
 #include "ParticleSystem.h"
 #include "ProgramManager.h"
 #include "OBBCollider.h"
+#include "physx/PxPhysicsAPI.h"
+#include "Ragdoll.h"
+#include "irrKlang.h"
+//#include "physx/extensions/PxExtensionsAPI.h"
+//#include "physx/common/PxTolerancesScale.h"
+
 
 
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -30,6 +36,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+
+
 using namespace std;
 using namespace glm;
 
@@ -38,6 +46,38 @@ class Application : public EventCallbacks
 {
 
 public:
+
+	//PHYSX
+	physx::PxPhysics* mPhysics;
+	physx::PxScene* mScene;
+	physx::PxMaterial* mMaterial;
+	float lastSpeed = 0.f;
+	const float MIN_SPEED_CHANGE = 3.f;
+	vec3 startPosition;
+	shared_ptr<Ragdoll> ragdoll;
+
+	//IRRKLANG
+	irrklang::ISoundEngine* soundEngine = irrklang::createIrrKlangDevice();
+	irrklang::ISoundSource* impactSound;
+	const std::string IMPACT_SOUND_FILE = "/impact.wav";
+	const std::string BACKGROUND_MUSIC_FILE = "/bensound-buddy.mp3";
+
+	//SHADOWS
+	GLuint depthMapFBO;
+	//const GLuint S_WIDTH = 1024*10, S_HEIGHT = 1024*10;
+	const GLuint S_WIDTH = 1024 * 4, S_HEIGHT = 1024 *8;
+	GLuint depthMap;
+	shared_ptr<Program> DepthProg;
+	shared_ptr<Program> ShadowProg;
+	shared_ptr<Program> DepthProgDebug;
+	bool SHADOW = true;
+	bool DEBUG = false;
+	bool FIRST = true;
+	mat4 LP, LV, LS;
+	float EDGE = 500;
+	float EDGE_BOT = -1.5f * EDGE;
+	float EDGE_TOP = 0.5f * EDGE;
+
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -50,6 +90,9 @@ public:
 	shared_ptr<Shape> meshrock1;
 	shared_ptr<Shape> meshChick;
 	shared_ptr<Shape> meshPillar;
+	shared_ptr<Program> psky;
+
+	shared_ptr<Shape> meshSkybox;
 
 	ParticleSystem * particleSystem;
 
@@ -58,6 +101,7 @@ public:
 
 	// Data necessary to give our triangle to OpenGL
 	GLuint VertexBufferID;
+	GLuint Texture;
 
 	//example data that might be useful when trying to compute bounds on multi-shape
 	vec3 gMin;
@@ -81,14 +125,13 @@ public:
 	vec3 eye = vec3(0, 10, -5);
 	vec3 up = vec3(0, 1, 0);
 	vec3 lastPosition = vec3(0, 0, 0);
-	const int SPAWN_DELAY = 3000;
 	float PLAYER_SPEED = 10.0;
-	float SPHERE_SPEED = 5.0;
-	const int WIDTH = 30.0;
-	const int HEIGHT = 30.0;
-	int collected = 0;
 	int NUM_ROCKS = 20;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> physx
 	float deltaTime = 0;
 	float PI = 3.14159;
 	float rotate = 0;
@@ -122,6 +165,10 @@ public:
 		"iceflow_bk.tga"
 	};
 
+	physx::PxVec3 vec3GLMtoPhysx(vec3 vector)
+	{
+		return physx::PxVec3(vector.x, vector.y, vector.z);
+	}
 
 	void updateLookAtPoint(shared_ptr<Entity> entity) {
 		if (phi > 1.5) {
@@ -157,6 +204,7 @@ public:
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
 			entity->velocity += delta;
+			bird->body->addForce(physx::PxVec3(0, 0, 100), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingBackward) {
 			vec3 direction = lookAtPoint - entity->position;
@@ -164,18 +212,21 @@ public:
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
 			entity->velocity -= delta;
+			bird->body->addForce(physx::PxVec3(0, 0, -100), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingLeft) {
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
 			entity->velocity += PLAYER_SPEED * deltaTime * u;
+			bird->body->addForce(physx::PxVec3(100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingRight) {
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
 			entity->velocity -= PLAYER_SPEED * deltaTime * u;
+			bird->body->addForce(physx::PxVec3(-100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingUp) {
 			/*vec3 direction = lookAtPoint - entity->position;
@@ -184,12 +235,10 @@ public:
 			entity->velocity += deltaTime * (up * vec3(40));
 		}
 
-		vec3 pt = lookAtPoint;
-		//cout <<"entity: " <<  entity->position.x << ", " << entity->position.y << ", " << entity->position.z << "   eye: " << eye.x << ", " << eye.y << ", " << eye.z << endl;
-		eye.y += (pt.y + 25 - eye.y) * deltaTime * 10;
-		eye.x += ((pt.x) - eye.x) * deltaTime * 10;
-		eye.z += ((pt.z) - eye.z) * deltaTime * 10;
-	}
+		//"tweening" from the juice video
+		vec3 target = lookAtPoint + vec3(0, 25, 0);
+		eye += ((target - eye) * deltaTime * 3.f);
+	} 
 
 	void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
 	{
@@ -198,18 +247,21 @@ public:
 			glfwSetWindowShouldClose(window, GL_TRUE);
 		}
 		if (key == GLFW_KEY_W && action == GLFW_PRESS) {
+			bird->body->addForce(physx::PxVec3(0, 0, 100), physx::PxForceMode::eACCELERATION);
 			movingForward = true;
 		}
 		if (key == GLFW_KEY_W && action == GLFW_RELEASE) {
 			movingForward = false;
 		}
 		if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+			ragdoll->setPosition(startPosition);
 			movingUp = true;
 		}
 		if (key == GLFW_KEY_SPACE && action == GLFW_RELEASE) {
 			movingUp = false;
 		}
 		if (key == GLFW_KEY_S && action == GLFW_PRESS) {
+			bird->body->addForce(physx::PxVec3(0, 0, -100), physx::PxForceMode::eACCELERATION);
 			movingBackward = true;
 		}
 		if (key == GLFW_KEY_S && action == GLFW_RELEASE) {
@@ -217,17 +269,20 @@ public:
 		}
 		if (key == GLFW_KEY_A && action == GLFW_PRESS) {
 			movingLeft = true;
+			bird->body->addForce(physx::PxVec3(100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (key == GLFW_KEY_A && action == GLFW_RELEASE) {
 			movingLeft = false;
 		}
 		if (key == GLFW_KEY_D && action == GLFW_PRESS) {
 			movingRight = true;
+			bird->body->addForce(physx::PxVec3(-100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (key == GLFW_KEY_D && action == GLFW_RELEASE) {
 			movingRight = false;
 		}
 		if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
+			soundEngine->setAllSoundsPaused();
 			eye.y -= 0.5;
 		}
 		if (key == GLFW_KEY_E && action == GLFW_PRESS) {
@@ -244,6 +299,7 @@ public:
 		}
 		if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
 			featherParticle();
+			DEBUG = !DEBUG;
 		}
 	}
 
@@ -343,7 +399,11 @@ public:
 	double LINE_SLOPE = -8.0;
 	float LINE_Y_OFFSET = 0.0f;
 	float ROCK_OFFSET_MAX = 4.0f;
+<<<<<<< HEAD
 	float GRID_SCALE = 15; // the overall scale at which the rock generation grid is at
+=======
+	float GRID_SCALE = 15; //the scale at which the rock generation grid is at
+>>>>>>> physx
 	float START_HEIGHT = -NUM_ROCKS*GRID_SCALE;
 	float LINE_Z_OFFSET = START_HEIGHT;
 	float COLLISION_PLANE_OFFSET = 12.0f;
@@ -356,15 +416,28 @@ public:
 		const float bb_adjust_z = .65;
 
 		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
+<<<<<<< HEAD
 		float e[3] = { rock->scale.x*GRID_SCALE*bb_adjust_x, rock->scale.y*GRID_SCALE, rock->scale.z*GRID_SCALE*bb_adjust_z };
+=======
+		float e[3] = { rock->scale.x * GRID_SCALE * bb_adjust_x, rock->scale.y * GRID_SCALE, rock->scale.z * GRID_SCALE * bb_adjust_z };
+>>>>>>> physx
 		rock->colliders.push_back(make_shared<OBBCollider>(rock->position, u, e));
 		entities.push_back(rock);
+		physx::PxRigidStatic* pxRock = physx::PxCreateStatic(*mPhysics,
+			physx::PxTransform(physx::PxVec3(rock->position.x, rock->position.y, rock->position.z)),
+			physx::PxBoxGeometry(e[0], e[1], e[2]), *mMaterial);
+		mScene->addActor(*pxRock);
+
 	}
 
 	//Gets random number between +- offesetBounds
 	float randOffset(float offsetBounds) {
 		float numer =(rand() % 100); 
+<<<<<<< HEAD
 		return numer / (100.0/(2*offsetBounds)) - offsetBounds;
+=======
+		return numer / (100.0 / (2 * offsetBounds)) - offsetBounds;
+>>>>>>> physx
 	}
 
 	//calculates point of line in the y-z plane.
@@ -382,12 +455,12 @@ public:
 		const vec3 WALL_SCALE = vec3(.2);
 		const vec3 ROT_AXIS = vec3(1, 0, 0);
 		const float ROT_ANGLE = (PI * 1.5 - atan(LINE_SLOPE));
-		const string OBJ_DIR = resourceDirectory + "/rockyCliff_uv_smooth.obj";
+		//const string OBJ_DIR = resourceDirectory + "/rockyCliff_uv_smooth.obj";
 
 		//Initialize first wall with collider
 
 		vec3 wallStart = lineEquation(START_HEIGHT) - vec3(0, GRID_SCALE, 0);
-		shared_ptr<Entity> wall = make_shared<Entity>(OBJ_DIR, wallStart, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
+		shared_ptr<Entity> wall = make_shared<Entity>(ProgramManager::WALL_MESH, wallStart, WALL_SCALE, ROT_AXIS, true, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
 
 		//Creates a plane along the slope of the line, and offsets it vertically based on COLLISIONS_PLANE_OFFSET
 		wall->colliders.push_back(make_shared<PlaneCollider>(
@@ -401,18 +474,33 @@ public:
 		for (int curWallsWide = 0; curWallsWide < NUM_WALLS_WIDE; curWallsWide++) {
 			wallPos = wallStart - vec3(WALL_WIDTH*((NUM_WALLS_WIDE / 2 - curWallsWide) / 2), 0, 0);
 
+<<<<<<< HEAD
 			for (int i = 0; i < (NUM_ROCKS*(WALL_WIDTH))/NUM_WALLS_WIDE; i++) {
 				wall = make_shared<Entity>(OBJ_DIR, wallPos, WALL_SCALE, ROT_AXIS, false, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
+=======
+			for (int i = 0; i < (NUM_ROCKS * (WALL_WIDTH)) / NUM_WALLS_WIDE; i++) {
+				wall = make_shared<Entity>(ProgramManager::WALL_MESH, wallPos, WALL_SCALE, ROT_AXIS, true, ProgramManager::RED, ROT_ANGLE, ProgramManager::WALL);
+>>>>>>> physx
 				entities.push_back(wall);
 				wallPos += vec3(0, LINE_SLOPE*WALL_HEIGHT, WALL_HEIGHT); //Move down by slope 
 			}
 		}
+		vec3 point1 = lineEquation(START_HEIGHT);
+		vec3 point2 = lineEquation(0);
+		vec3 point3 = lineEquation(0) + vec3(1, 0, 0);
+
+		physx::PxPlane p1 = physx::PxPlane(vec3GLMtoPhysx(point1), vec3GLMtoPhysx(point2), vec3GLMtoPhysx(point3));
+		physx::PxRigidStatic* plane = physx::PxCreatePlane(*mPhysics, p1, *mMaterial);
+
+		if (!plane)
+			throw "create plane failed!";
+		mScene->addActor(*plane);
 	}
 
 	void initRockEntities(string resourceDirectory) {
 		const float SPACE_BETWEEN_ROCKS = GRID_SCALE * 3;
 
-		const string OBJ_DIR = resourceDirectory + "/squareRock.obj";
+		//const string OBJ_DIR = resourceDirectory + "/squareRock.obj";
 		const vec3 ROCK_POS = lineEquation(START_HEIGHT);
 		const vec3 ROCK_SCALE = vec3(.65, .2, 1);
 		const vec3 ROT_AXIS = vec3(1, 0, 0);
@@ -425,8 +513,9 @@ public:
 		vector<int> widths{ 1, 2, 2, 3, 4 };
 		int lastOmitted = widths.size()/2;
 
+
 		//Starting rock
-		addRock(make_shared<Entity>(OBJ_DIR, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
+		addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 
 		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
 			curPos = lineEquation(i) - vec3(OFFSET_LEFT, 0, 0);
@@ -438,39 +527,90 @@ public:
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 				lastOmitted = omitRand;
 				if (widthNdx != omitRand) {
-					addRock(make_shared<Entity>(OBJ_DIR, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
+					addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 				}
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 			}
 		}
 	}
 
+	/* set up the FBO for storing the light's depth */
+	void initShadow() {
+
+		//generate the FBO for the shadow depth
+		glGenFramebuffers(1, &depthMapFBO);
+
+		//generate the texture
+		glGenTextures(1, &depthMap);
+		glBindTexture(GL_TEXTURE_2D, depthMap);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, S_WIDTH, S_HEIGHT,
+			0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+		//bind with framebuffer's depth buffer
+		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		float pos= 500;
+		light = bird->position + vec3(pos, pos, pos);
+	}
+
+	void initSound(const std::string& resourceDirectory)
+	{
+		std::string impactFile = (resourceDirectory + IMPACT_SOUND_FILE).c_str();
+		impactSound = soundEngine->addSoundSourceFromFile(impactFile.c_str());
+		impactSound->setDefaultVolume(2.0);
+
+		std::string backgroundMusic = (resourceDirectory + BACKGROUND_MUSIC_FILE).c_str();
+		irrklang::ISoundSource* music = soundEngine->addSoundSourceFromFile(backgroundMusic.c_str());
+		music->setDefaultVolume(0.1);
+		soundEngine->play2D(music, true);
+	}
+
 	void init(const std::string& resourceDirectory)
 	{
+		//ProgramManager::init();
 		GLSL::checkVersion();
 
 		vec3 rockStart = lineEquation(START_HEIGHT);
-
-		bird = make_shared<Entity>(
-			resourceDirectory + "/Chick.obj",
-			vec3(rockStart.x, rockStart.y+GRID_SCALE, rockStart.z+GRID_SCALE),
-			vec3(.4, .4, .4),
-			vec3(1, 0, 0), 
-			true,
-			ProgramManager::GREEN_PLASTIC,
-			0, 
-			ProgramManager::CHICK
-			);
-		bird->colliders.push_back(make_shared<SphereCollider>(bird->position, BIRD_RADIUS));
-		entities.push_back(bird);
+		startPosition = vec3(rockStart.x, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE);
+		
+		ragdoll = make_shared<Ragdoll>(mPhysics, mScene, mMaterial);
+		bird = Ragdoll::createBirdRagdoll(startPosition, entities, ragdoll, resourceDirectory);
+		lookAtPoint = startPosition;
+		eye = startPosition + vec3(0, 25, 0);
 
 
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
+		initSound(resourceDirectory);
 
+<<<<<<< HEAD
 		shared_ptr<Entity> ground = make_shared<Entity>((resourceDirectory + "/rockyCliff_uv_smooth.obj"), lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, PI/2, ProgramManager::WALL);
+=======
+		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL);
+>>>>>>> physx
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
+
+		vec3 point1 = vec3(0, ground->position.y, 1); 
+		vec3 point2 = vec3(1, ground->position.y, 0);
+		vec3 point3 = vec3(-1, ground->position.y, 0);
+
+		physx::PxPlane p2 = physx::PxPlane(vec3GLMtoPhysx(point1), vec3GLMtoPhysx(point2), vec3GLMtoPhysx(point3));
+		physx::PxRigidStatic* pxGround = physx::PxCreatePlane(*mPhysics, p2, *mMaterial);
+
+		//physx::PxRigidStatic* pxGround = physx::PxCreatePlane(*mPhysics, physx::PxPlane(0,1,0,0), *mMaterial);
+		if (!pxGround)
+			throw "create plane failed!";
+		mScene->addActor(*pxGround);
+
 
 		// Set background color.
 		glClearColor(.12f, .34f, .56f, 1.0f);
@@ -478,7 +618,6 @@ public:
 		glEnable(GL_DEPTH_TEST);
 		initTex(resourceDirectory);
 		// Initialize the GLSL program.
-		ProgramManager::init();
 		//cubeProg = make_shared<Program>();
 		//cubeProg->setVerbose(true);
 		//cubeProg->setShaderNames(resourceDirectory + "/cube_vert.glsl", resourceDirectory + "/cube_frag.glsl");
@@ -491,33 +630,183 @@ public:
 		//cubeProg->addAttribute("vertNor");
 		//prog->addAttribute("vertTex");
 
+		meshSkybox = make_shared<Shape>();
+		string errStr;
+		vector<tinyobj::shape_t> TOshapesObject;
+		vector<tinyobj::material_t> objMaterialsObject;
+		bool rc = tinyobj::LoadObj(TOshapesObject, objMaterialsObject, errStr, (resourceDirectory + "/spheresmooth.obj").c_str());
+		if (!rc) {
+			cerr << errStr << endl;
+		}
+		else {
+			meshSkybox = make_shared<Shape>();
+			meshSkybox->createShape(TOshapesObject[0]);
+			meshSkybox->measure();
+			meshSkybox->init();
+		}
 
+		int width, height, channels;
+		char filepath[1000];
+
+		string str = resourceDirectory + "/arcticpolished.jpg";
+		strcpy(filepath, str.c_str());
+		unsigned char* data = stbi_load(filepath, &width, &height, &channels, 4);
+
+		glGenTextures(1, &Texture);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, Texture);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		psky = std::make_shared<Program>();
+		psky->setVerbose(true);
+		psky->setShaderNames(resourceDirectory + "/skyvertex.glsl", resourceDirectory + "/skyfrag.glsl");
+		if (!psky->init())
+		{
+			std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
+			exit(1);
+		}
+		psky->addUniform("P");
+		psky->addUniform("V");
+		psky->addUniform("M");
+		psky->addUniform("campos");
+		psky->addAttribute("vertPos");
+		psky->addAttribute("vertNor");
+		psky->addAttribute("vertTex");
+
+		ShadowProg = make_shared<Program>();
+		ShadowProg->setVerbose(true);
+		ShadowProg->setShaderNames(resourceDirectory + "/shadow_vert.glsl", resourceDirectory + "/shadow_frag.glsl");
+		ShadowProg->init();
+		ShadowProg->addUniform("P");
+		ShadowProg->addUniform("M");
+		ShadowProg->addUniform("V");
+		ShadowProg->addUniform("LS");
+		ShadowProg->addUniform("lightDir");
+		ShadowProg->addAttribute("vertPos");
+		ShadowProg->addAttribute("vertNor");
+		ShadowProg->addAttribute("vertTex");
+		ShadowProg->addUniform("Texture0");
+		ShadowProg->addUniform("shadowDepth");
+
+		DepthProg = make_shared<Program>();
+		DepthProg->setVerbose(true);
+		DepthProg->setShaderNames(resourceDirectory + "/depth_vert.glsl", resourceDirectory + "/depth_frag.glsl");
+		DepthProg->init();
+		DepthProg->addUniform("LP");
+		DepthProg->addUniform("LV");
+		DepthProg->addUniform("M");
+		DepthProg->addAttribute("vertPos");
+		//un-needed, better solution to modifying shape
+		DepthProg->addAttribute("vertNor");
+		DepthProg->addAttribute("vertTex");
+		
+		DepthProgDebug = make_shared<Program>();
+		DepthProgDebug->setVerbose(true);
+		DepthProgDebug->setShaderNames(resourceDirectory + "/depth_vertDebug.glsl", resourceDirectory + "/depth_fragDebug.glsl");
+		DepthProgDebug->init();
+		DepthProgDebug->addUniform("LP");
+		DepthProgDebug->addUniform("LV");
+		DepthProgDebug->addUniform("M");
+		DepthProgDebug->addAttribute("vertPos");
+		//un-needed, better solution to modifying shape
+		DepthProgDebug->addAttribute("vertNor");
+		DepthProgDebug->addAttribute("vertTex");
 		window = windowManager->getHandle();
 
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
-
+		initShadow();
 	}
 
+	mat4 SetOrthoMatrix(shared_ptr<Program> curShade) {
+		//float edge = 500;
+		//mat4 ortho = glm::ortho(-edge, edge, -edge, edge, 0.1f, 2 * edge);
+		mat4 ortho = glm::ortho(-EDGE, EDGE, EDGE_BOT, EDGE_TOP, 0.1f, 2 * EDGE);
+		glUniformMatrix4fv(curShade->getUniform("LP"), 1, GL_FALSE, value_ptr(ortho));
+		return ortho;
+	}
+
+	/* TODO fix */
+	mat4 SetLightView(shared_ptr<Program> curShade, vec3 pos, vec3 LA, vec3 up) {
+		mat4 Cam = glm::lookAt(pos, LA, up);
+		glUniformMatrix4fv(curShade->getUniform("LV"), 1, GL_FALSE, value_ptr(Cam));
+		return Cam;
+	}
+
+	void updateEntities() {
+		for (shared_ptr<Entity> entity : entities) {
+			if (entity->body) {
+				Ragdoll::updateOrientation(entity);
+			}
+		}
+		physx::PxVec3 velocity = bird->body->getLinearVelocity();
+		float speed = velocity.magnitude();
+		if (lastSpeed - speed > MIN_SPEED_CHANGE) {
+			featherParticle();
+			soundEngine->play2D(impactSound);
+		}
+		lastSpeed = speed;
+	}
 
 	void render() {
 		TimeManager::Instance()->Update();
 		deltaTime = TimeManager::Instance()->DeltaTime();
-		//deltaTime = .02;
-		//cout << TimeManager::Instance()->FrameRate() << endl;
-
-
-		managePhysics(bird);
-		manageCollisions();
-		bird->updatePosition(deltaTime);
-		updateCamera(bird);
+		mScene->simulate(deltaTime);
 
 		// Get current frame buffer size.
 		int width, height;
-		
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		
+		// Create the matrix stacks - please leave these alone for now
+		auto Projection = make_shared<MatrixStack>();
+		mat4 View = glm::lookAt(eye, lookAtPoint, vec3(0, 0, 1));
+		auto Model = make_shared<MatrixStack>();
+
+		vec3 lightLA = bird->position;
+		vec3 lightUp = vec3(0, 1, 0);
+		//mat4 LP, LV, LS;
 		
+		if (FIRST) {
+			//FIRST = false;
+			//set up light's depth map
+			glViewport(0, 0, S_WIDTH, S_HEIGHT);
+
+			//sets up the output to be out FBO
+			glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+			glClear(GL_DEPTH_BUFFER_BIT);
+			glCullFace(GL_FRONT);
+
+			//set up shadow shader and render the scene
+			DepthProg->bind();
+			//TODO you will need to fix these
+			LP = SetOrthoMatrix(DepthProg);
+			LV = SetLightView(DepthProg, light, lightLA, lightUp);
+			LS = LP * LV;
+			//drawScene(DepthProg, 0, 0);
+			Model->pushMatrix();
+			Model->loadIdentity();
+			//Model->rotate(rotate, vec3(0, 1, 0));
+			for (shared_ptr<Entity> entity : entities) {
+				float difference = bird->position.y - entity->position.y;
+				if (!entity->moving && (difference < -EDGE_BOT && difference > -20)) {
+					entity->draw(Model, DepthProg);
+				}
+			}
+			Model->popMatrix();
+			DepthProg->unbind();
+
+			//set culling back to normal
+			glCullFace(GL_BACK);
+
+			//this sets the output back to the screen
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		}
+
 		glViewport(0, 0, width, height);
 
 		// Clear framebuffer.
@@ -526,60 +815,84 @@ public:
 		//Use the matrix stack for Lab 6
 		float aspect = width/(float)height;
 
-		// Create the matrix stacks - please leave these alone for now
-		auto Projection = make_shared<MatrixStack>();
-		//auto View = make_shared<MatrixStack>();
-		mat4 View = glm::lookAt(eye, lookAtPoint, vec3(0,0,1));
-		auto Model = make_shared<MatrixStack>();
-
 		// Apply perspective projection.
 		Projection->pushMatrix();
-		Projection->perspective(45.0f, aspect, 0.01f, 1000.0f);
+		Projection->perspective(45.0f, aspect, 0.01f, 10000.0f);
+		//Draw skybox
 
-		// Draw a stack of cubes with indiviudal transforms
+		psky->bind();
+
+		float sangle = 3.1415926 / 2.;
+		glm::mat4 RotateXSky = glm::rotate(glm::mat4(1.0f), sangle, glm::vec3(-1.0f, 0.0f, 0.0f));
+
+		glm::mat4 V, M, P;
+		V = glm::mat4(1);
+		M = glm::translate(glm::mat4(1.0f), eye + vec3(0, -1, 0)) * RotateXSky;
+		P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f);
+
+		vec3 campos = eye;
+
+		//glm::vec3 camp = eye;
+		//glm::mat4 TransSky = glm::translate(glm::mat4(1.0f), camp);
+		//glm::mat4 SSky = glm::scale(glm::mat4(1.0f), glm::vec3(1, 1, 1));
+
+		//M = TransSky * RotateXSky * SSky;
+
+		//send the matrices to the shaders
+		glUniformMatrix4fv(psky->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+		glUniformMatrix4fv(psky->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+		glUniformMatrix4fv(psky->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		glUniform3fv(psky->getUniform("campos"), 1, &campos[0]);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, Texture);
+		glDisable(GL_DEPTH_TEST);
+		meshSkybox->draw(psky);
+		glEnable(GL_DEPTH_TEST);
 		
-		
-		ProgramManager::progMat->bind();
-			glUniformMatrix4fv(ProgramManager::progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-			glUniformMatrix4fv(ProgramManager::progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-			glUniform3f(ProgramManager::progMat->getUniform("LightPos"), light.x, light.y, light.z);
+		psky->unbind();
+		if (DEBUG) {
+			DepthProgDebug->bind();
+			//render scene from light's point of view
+			SetOrthoMatrix(DepthProgDebug);
+			SetLightView(DepthProgDebug, light, lightLA, lightUp);
 			Model->pushMatrix();
 			Model->loadIdentity();
-				Model->rotate(rotate, vec3(0, 1, 0));
-				for (shared_ptr<Entity> entity : entities) {
+			for (shared_ptr<Entity> entity : entities) {
+				entity->draw(Model, DepthProgDebug);
+			}
+			Model->popMatrix();
+			//drawScene(DepthProgDebug, ShadowProg->getUniform("Texture0"), 0);
+			DepthProgDebug->unbind();
+		}
+		else {
+			// Draw a stack of cubes with indiviudal transforms
+			shared_ptr<Program> prog = ProgramManager::Instance()->progMat;
+			prog->bind();
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, depthMap);
+			glUniform1i(prog->getUniform("shadowDepth"), 1);
+			glUniformMatrix4fv(prog->getUniform("LS"), 1, GL_FALSE, value_ptr(LS));
+			glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+			glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+			glUniform3f(prog->getUniform("lightDir"), light.x, light.y, light.z);
+			Model->pushMatrix();
+			Model->loadIdentity();
+			//Model->rotate(rotate, vec3(0, 1, 0));
+			for (shared_ptr<Entity> entity : entities) {
+				float difference = bird->position.y - entity->position.y;
+				if (entity->moving || (difference < 1500 && difference > -100)) {
 					entity->draw(Model);
 				}
+			}
 			Model->popMatrix();
-		ProgramManager::progMat->unbind();
+			prog->unbind();
+		}
+		
 
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
 		particleSystem->render(deltaTime, View, eye);
-
-		//to draw the sky box bind the right shader
-		//cubeProg->bind();
-		//Model->loadIdentity();
-		////Model->translate(vec3(0, 20, 0));
-		//Model->scale(vec3(80, 80, 80));
-		//
-		//
-		////set the projection matrix - can use the same one
-		//glUniformMatrix4fv(cubeProg->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-		////set the depth function to always draw the box!
-		//glDepthFunc(GL_LEQUAL);
-		////set up view matrix to include your view transforms 
-		////(your code likely will be different depending
-		//glUniformMatrix4fv(cubeProg->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-		////set and send model transforms - likely want a bigger cube
-		//glUniformMatrix4fv(cubeProg->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
-		////bind the cube map texture
-		//glBindTexture(GL_TEXTURE_CUBE_MAP, skyTextureId);
-		////draw the actual cube
-		//meshfloor->draw(cubeProg);
-		////set the depth test back to normal!
-		//glDepthFunc(GL_LESS);
-		////unbind the shader for the skybox
-		//cubeProg->unbind();
 		
 		//animation update example
 		sTheta = sin(glfwGetTime());
@@ -587,7 +900,11 @@ public:
 		// Pop matrix stacks.
 		Projection->popMatrix();
 		//View->popMatrix();
-
+		mScene->fetchResults();
+		updateEntities();
+		updateCamera(bird);
+		light = bird->position + vec3(50, 50, 50);
+		//cout << bird->position.y << endl;
 	}
 };
 
@@ -624,6 +941,7 @@ int main(int argc, char *argv[])
 		// Poll for and process events.
 		glfwPollEvents();
 	}
+	
 
 	// Quit program.
 	windowManager->shutdown();

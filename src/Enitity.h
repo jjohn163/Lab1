@@ -9,6 +9,7 @@
 #include "Shape.h"
 #include "Program.h"
 #include "ProgramManager.h"
+#include "physx/PxPhysicsAPI.h"
 
 
 using namespace std;
@@ -18,17 +19,19 @@ class Entity
 {
 public:
 	Entity(
-		string objDir, 
+		//string objDir, 
+		ProgramManager::Mesh mesh,
 		glm::vec3 pos,
 		glm::vec3 scale, 
 		glm::vec3 rot, 
 		bool mov, 
 		ProgramManager::Material mat, 
 		float rotDeg = 0,
-		ProgramManager::CustomTextures texture = ProgramManager::DEFAULT);
+		ProgramManager::CustomTextures texture = ProgramManager::DEFAULT,
+		physx::PxRigidDynamic* collider = NULL);
 	~Entity();
-	void initMesh();
-	void draw(shared_ptr<MatrixStack> Model);
+	//void initMesh();
+	void draw(shared_ptr<MatrixStack> Model, shared_ptr<Program> shader=NULL);
 	void updatePosition(float deltaTime);
 	glm::vec3 position;
 	glm::vec3 scale;
@@ -38,8 +41,10 @@ public:
 	ProgramManager::Material material;
 	vector<shared_ptr<Collider>> colliders;
 	bool moving;
-	shared_ptr<Shape> mesh;
+	ProgramManager::Mesh mesh;
+	//shared_ptr<Shape> mesh;
 	string objDirectory;
+	physx::PxRigidDynamic* body;
 
 	ProgramManager::CustomTextures texture;
 };

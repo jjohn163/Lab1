@@ -3,31 +3,48 @@
 #include <memory>
 #include <vector>
 #include "./MatrixStack.h"
+#include "Shape.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "Program.h"
 #include "Texture.h"
 
+using namespace std;
 
 class ProgramManager
 {
 public:
-	static const std::shared_ptr<Program> progMat;
+	
 	static const std::string resourceDirectory;
+	static ProgramManager* Instance();
 	static enum Material { BLUE_PLASTIC, FLAT_GREY, BRASS, GREEN_PLASTIC, LIGHT_BLUE, PURPLE, RED, DIRT };
-	static enum CustomTextures { CHICK, ROCK, WALL, DEFAULT };
-	static void init();
-	static void setMaterial(Material i);
-	static void setTexture(CustomTextures i);
-	static void setModel(std::shared_ptr<MatrixStack> Model);
+	static enum Mesh { CUBE_MESH, SPHERE_MESH, ROCK_MESH, WALL_MESH };
+	static enum CustomTextures { CHICK, ROCK, WALL, YELLOW, ORANGE, DEFAULT };
+	void init();
+	void setMaterial(Material i);
+	void setTexture(CustomTextures i);
+	void setModel(std::shared_ptr<MatrixStack> Model, shared_ptr<Program> shader);
+	void drawMesh(Mesh i, shared_ptr<Program> shader);
 
-	ProgramManager();
-	~ProgramManager();
+	std::shared_ptr<Program> progMat;
+	
 
 private: 
+	ProgramManager() {};
+	~ProgramManager();
+	static ProgramManager* sInstance;
+	Texture * tex_sample;
+	Texture * tex_chick;
+	Texture * tex_rock;
+	Texture * tex_wall;
+	Texture* tex_yellow;
+	Texture* tex_orange;
+	
+	Shape * mesh_cube;
+	Shape * mesh_sphere;
+	Shape * mesh_rock;
+	Shape * mesh_wall;
 
-	static Texture * tex_sample;
-	static Texture * tex_chick;
-	static Texture * tex_rock;
-	static Texture * tex_wall;
+	//std::shared_ptr<Program> progMat;
+
 };

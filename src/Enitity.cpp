@@ -7,16 +7,19 @@
 #include "Program.h"
 
 Entity::Entity(
-	string objDir, 
+	//string objDir, 
+	ProgramManager::Mesh mes,
 	glm::vec3 pos, 
 	glm::vec3 scl, 
 	glm::vec3 rot, 
 	bool mov, 
 	ProgramManager::Material mat, 
 	float rotDeg,
-	ProgramManager::CustomTextures texture)
+	ProgramManager::CustomTextures texture,
+	physx::PxRigidDynamic* collider)
 {
-	objDirectory = objDir;
+	//objDirectory = objDir;
+	mesh = mes;
 	position = pos;
 	scale = scl;
 	rotation = rot;
@@ -25,9 +28,10 @@ Entity::Entity(
 	rotationDegrees = rotDeg;
 	material = mat;
 	this->texture = texture;
-	initMesh();
+	body = collider;
+	//initMesh();
 }
-
+/*
 void Entity::initMesh() {
 	string errStr;
 	vector<tinyobj::shape_t> TOshapesObject;
@@ -43,17 +47,22 @@ void Entity::initMesh() {
 		this->mesh->init();
 	}
 }
-
-void Entity::draw(shared_ptr<MatrixStack> Model) {
-	ProgramManager::setMaterial(this->material);
-	ProgramManager::setTexture(this->texture);
+*/
+void Entity::draw(shared_ptr<MatrixStack> Model, shared_ptr<Program> shader) {
+	if (!shader) {
+		shader = ProgramManager::Instance()->progMat;
+		//ProgramManager::Instance()->setMaterial(this->material);
+		ProgramManager::Instance()->setTexture(this->texture);
+	}
 	Model->pushMatrix();
 	Model->translate(this->position);
 	Model->rotate(this->rotationDegrees, this->rotation);
 	Model->scale(this->scale);
-	ProgramManager::setModel(Model);
-	ProgramManager::setMaterial(this->material);
-	this->mesh->draw(ProgramManager::progMat);
+	ProgramManager::Instance()->setModel(Model, shader);
+	//ProgramManager::Instance()->setMaterial(this->material, shader);
+	ProgramManager::Instance()->drawMesh(this->mesh, shader);
+	//Shape * shape = ProgramManager::getMesh(this->mesh);
+	//shape->draw(ProgramManager::progMat);
 	Model->popMatrix();
 }
 
