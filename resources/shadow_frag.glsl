@@ -17,12 +17,9 @@ in OUT_struct {
 /* returns 1 if shadowed */
 /* called with the point projected into the light's coordinate space */
 float TestShadow(vec4 LSfPos) {
-    if(in_struct.fPos.y < lightDir.y - 400){
+    if(in_struct.fPos.y < lightDir.y - 750){
         return 0.0;
     }
-    //if(in_struct.computeShadow < 1){
-    //    return 1.0;
-    //}
     float bias = 0.005;
     float lightDepth = 0.0;
     float percentShadow = 0.0;
@@ -40,7 +37,8 @@ float TestShadow(vec4 LSfPos) {
             }
         }
     }
-    return percentShadow/25.0;
+    return percentShadow = percentShadow/25.0;
+    //return percentShadow - mod(percentShadow, 0.25);
 	//2: read off the stored depth (.) from the ShadowDepth, using the shifted.xy 
     //vec4 light_depth = texture(shadowDepth, shifted.xy);
 	//3: compare to the current depth (.z) of the projected depth
@@ -51,6 +49,24 @@ float TestShadow(vec4 LSfPos) {
 
 	//return 0.0;
 }
+
+/*float TestShadow(vec4 LSfPos) {
+    if(in_struct.fPos.y < lightDir.y - 750){
+        return 0.0;
+    }
+    float bias = 0.005;
+	//1: shift the coordinates from -1, 1 to 0 ,1
+    vec3 shifted = 0.5*(LSfPos.xyz +vec3(1.0));
+	//2: read off the stored depth (.) from the ShadowDepth, using the shifted.xy 
+    vec4 light_depth = texture(shadowDepth, shifted.xy);
+	//3: compare to the current depth (.z) of the projected depth
+
+	//4: return 1 if the point is shadowed
+    if (light_depth.r < shifted.z - bias)
+        return 1.0;
+
+	return 0.0;
+}*/
 
 void main() {
 

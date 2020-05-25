@@ -65,15 +65,18 @@ public:
 	//SHADOWS
 	GLuint depthMapFBO;
 	//const GLuint S_WIDTH = 1024*10, S_HEIGHT = 1024*10;
-	const GLuint S_WIDTH = 1024 * 4, S_HEIGHT = 1024 *4;
+	const GLuint S_WIDTH = 1024 * 4, S_HEIGHT = 1024 *8;
 	GLuint depthMap;
 	shared_ptr<Program> DepthProg;
 	shared_ptr<Program> ShadowProg;
 	shared_ptr<Program> DepthProgDebug;
 	bool SHADOW = true;
-	bool DEBUG = true;
+	bool DEBUG = false;
 	bool FIRST = true;
 	mat4 LP, LV, LS;
+	float EDGE = 500;
+	float EDGE_BOT = -1.5f * EDGE;
+	float EDGE_TOP = 0.5f * EDGE;
 
 
 	WindowManager * windowManager = nullptr;
@@ -493,7 +496,7 @@ public:
 
 
 		//Starting rock
-		addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, ROCK_POS, 4.0f * ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
+		addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
 
 		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
 			curPos = lineEquation(i) - vec3(OFFSET_LEFT, 0, 0);
@@ -698,8 +701,9 @@ public:
 	}
 
 	mat4 SetOrthoMatrix(shared_ptr<Program> curShade) {
-		float edge = 300;
-		mat4 ortho = glm::ortho(-edge, edge, -edge, edge, 0.1f, 2 * edge);
+		//float edge = 500;
+		//mat4 ortho = glm::ortho(-edge, edge, -edge, edge, 0.1f, 2 * edge);
+		mat4 ortho = glm::ortho(-EDGE, EDGE, EDGE_BOT, EDGE_TOP, 0.1f, 2 * EDGE);
 		glUniformMatrix4fv(curShade->getUniform("LP"), 1, GL_FALSE, value_ptr(ortho));
 		return ortho;
 	}
@@ -765,7 +769,8 @@ public:
 			Model->loadIdentity();
 			//Model->rotate(rotate, vec3(0, 1, 0));
 			for (shared_ptr<Entity> entity : entities) {
-				if (fabs(entity->position.y - bird->position.y) < 300) {
+				float difference = bird->position.y - entity->position.y;
+				if (!entity->moving && (difference < -EDGE_BOT && difference > -20)) {
 					entity->draw(Model, DepthProg);
 				}
 			}
@@ -875,7 +880,7 @@ public:
 		mScene->fetchResults();
 		updateEntities();
 		updateCamera(bird);
-		light = bird->position + vec3(100, 100, 100);
+		light = bird->position + vec3(50, 50, 50);
 		//cout << bird->position.y << endl;
 	}
 };
