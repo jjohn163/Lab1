@@ -126,6 +126,7 @@ void ProgramManager::init() {
 	initMesh("/spheresmooth.obj", mesh_sphere);
 	initMesh("/squareRock.obj", mesh_rock);
 	initMesh("/rockyCliff_uv_smooth.obj", mesh_wall);
+	initMesh("/Eagle02_sale.obj", mesh_hawk);
 }
 
 void ProgramManager::setModel(std::shared_ptr<MatrixStack>M, shared_ptr<Program> shader) {
@@ -221,6 +222,9 @@ void ProgramManager::drawMesh(Mesh i, shared_ptr<Program> shader) {
 		break;
 	case WALL_MESH:
 		mesh_wall->draw(shader);
+		break;
+	case HAWK_MESH:
+		mesh_hawk->draw(shader);
 		break;
 	}
 }

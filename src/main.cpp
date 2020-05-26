@@ -149,6 +149,7 @@ public:
 	};
 	vector<shared_ptr<CollectionSphere>> collectionSpheres;
 	shared_ptr<Entity> bird;
+	shared_ptr<Entity> hawk;
 	vector<shared_ptr<Entity>> entities;
 	vector<vec3> rockPositions{};
 
@@ -571,6 +572,8 @@ public:
 		initRockEntities(resourceDirectory);
 		initSound(resourceDirectory);
 
+		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 100, 0), vec3(0.2f, 0.2f, 0.2f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::YELLOW);
+		entities.push_back(hawk);
 		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
@@ -727,6 +730,10 @@ public:
 			soundEngine->play2D(impactSound);
 		}
 		lastSpeed = speed;
+
+		vec3 target = bird->position;
+		hawk->position += ((target - hawk->position) * deltaTime * 3.f);
+
 	}
 
 	void render() {
