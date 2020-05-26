@@ -574,7 +574,8 @@ public:
 
 		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 100, 0), vec3(0.2f, 0.2f, 0.2f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::YELLOW);
 		entities.push_back(hawk);
-		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL);
+		physx::PxRigidDynamic* placeholder = NULL;
+		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL, placeholder, 1000.f);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
 
@@ -755,7 +756,6 @@ public:
 		l = length(n);
 		planes[0] = Left / l;
 		Left = planes[0];
-		cout << "Left' " << Left.x << " " << Left.y << " " << Left.z << " " << Left.w << endl;
 
 		Right.x = comp[0][3] - comp[0][0];
 		Right.y = comp[1][3] - comp[1][0];
@@ -765,7 +765,6 @@ public:
 		l = length(n);
 		planes[1] = Right / l;
 		Right = planes[1];
-		cout << "Right " << Right.x << " " << Right.y << " " << Right.z << " " << Right.w << endl;
 
 		Bottom.x = comp[0][3] + comp[0][1];
 		Bottom.y = comp[1][3] + comp[1][1];
@@ -775,7 +774,6 @@ public:
 		l = length(n);
 		planes[2] = Bottom / l;
 		Bottom = planes[2];
-		cout << "Bottom " << Bottom.x << " " << Bottom.y << " " << Bottom.z << " " << Bottom.w << endl;
 
 		Top.x = comp[0][3] - comp[0][1];
 		Top.y = comp[1][3] - comp[1][1];
@@ -784,7 +782,6 @@ public:
 		n = vec3(Top.x, Top.y, Top.z);
 		l = length(n);
 		planes[3] = Top / l;
-		cout << "Top " << Top.x << " " << Top.y << " " << Top.z << " " << Top.w << endl;
 
 		Near.x = comp[0][3] + comp[0][2]; //m14 + m11
 		Near.y = comp[1][3] + comp[1][2]; //m24 + m21
@@ -793,7 +790,6 @@ public:
 		n = vec3(Near.x, Near.y, Near.z);
 		l = length(n);
 		planes[4] = Near / l;
-		cout << "Near " << Near.x << " " << Near.y << " " << Near.z << " " << Near.w << endl;
 
 		Far.x = comp[0][3] - comp[0][0];
 		Far.y = comp[1][3] - comp[1][0];
@@ -803,7 +799,6 @@ public:
 		l = length(n);
 		planes[5] = Far / l;
 		Far = planes[5];
-		cout << "Far " << Far.x << " " << Far.y << " " << Far.z << " " << Far.w << endl;
 	}
 
 
