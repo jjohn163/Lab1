@@ -1020,7 +1020,18 @@ public:
 			physx::PxVec3 velocity = bird->body->getLinearVelocity();
 			
 			float unblurredRadius = abs(blurVelocityRequirement / velocity.y);
+
+			// This facilitates a very smooth transition to showing the blur without making the blur show too early.
+			if (unblurredRadius > 1)
+			{
+				unblurredRadius = pow(unblurredRadius, 16);
+			}
+
+			cout << "unblurredRadius: " << "(" << unblurredRadius << ")" << endl;
+
+			// The blur starts to show when the velocity.y > 125, but 150 is when it's really honed in on the bird
 			motionBlur(gColorSpec, 0, 6, unblurredRadius);
+
 			///* now draw the actual output */
 			//glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
