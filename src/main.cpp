@@ -731,6 +731,7 @@ public:
 		blur_prog->setShaderNames(resourceDirectory + "/blur_vert.glsl", resourceDirectory + "/blur_frag.glsl");
 		blur_prog->init();
 		blur_prog->addUniform("texBuf");
+		blur_prog->addUniform("unblurredRadius");
 		blur_prog->addUniform("fTime");
 		blur_prog->addAttribute("vertPos");
 
@@ -838,31 +839,45 @@ public:
 		}
 	}
 
-	void motionBlur(GLuint texImageToBlur, GLuint targetFrameBuf, GLuint motionBlurIterations)
+	/*Motion blurs the texture texImageToBlur and outputs the result to targetFrameBuf.
+	The larger the motionBlurIterations, the stronger the blurring effect.
+	*/
+	void motionBlur(GLuint texImageToBlur, GLuint targetFrameBuf, GLuint motionBlurIterations, float unblurredRadius)
 	{
-		if (motionBlurIterations == 0) return;
-
-		CHECKED_GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBuf[0]));
-		CHECKED_GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-		ProcessDrawTex(texImageToBlur);
-
-		for (int i = 0; i < motionBlurIterations - 1; i++)
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, frameBuf[(i + 1) % 2]);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			ProcessDrawTex(texBuf[i % 2]);
-		}
-
-		//regardless NOW set up to render to the screen = 0
 		CHECKED_GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, targetFrameBuf));
 		CHECKED_GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-		/* now draw the actual output  to the default framebuffer - ie display */
-		/* note the current base code is just using one FBO and texture - will need
-		  to change that  - we pass in texBuf[0] right now */
-		ProcessDrawTex(texBuf[motionBlurIterations % 2]);
+		if (motionBlurIterations == 0)
+		{
+			ProcessDrawTex(texImageToBlur, INFINITY);
+		}
+		else if (motionBlurIterations == 1)
+		{
+			ProcessDrawTex(texImageToBlur, unblurredRadius);
+		}
+		else 
+		{
+			CHECKED_GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBuf[0]));
+			CHECKED_GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+			ProcessDrawTex(texImageToBlur, unblurredRadius);
+
+			for (int i = 0; i < motionBlurIterations - 2; i++)
+			{
+				glBindFramebuffer(GL_FRAMEBUFFER, frameBuf[(i + 1) % 2]);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				ProcessDrawTex(texBuf[i % 2], unblurredRadius);
+			}
+
+			//regardless NOW set up to render to the screen = 0
+			CHECKED_GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, targetFrameBuf));
+			CHECKED_GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+			/* now draw the actual output  to the default framebuffer - ie display */
+			/* note the current base code is just using one FBO and texture - will need
+			  to change that  - we pass in texBuf[0] right now */
+			ProcessDrawTex(texBuf[motionBlurIterations % 2], unblurredRadius);
+		}
 	}
 
-	void ProcessDrawTex(GLuint inTex) {
+	void ProcessDrawTex(GLuint inTex, float unblurredRadius) {
 
 		//set up inTex as my input texture
 		CHECKED_GL_CALL(glActiveTexture(GL_TEXTURE0));
@@ -871,6 +886,7 @@ public:
 		//this shader just draws right now
 		blur_prog->bind();
 		CHECKED_GL_CALL(glUniform1i(blur_prog->getUniform("texBuf"), 0));
+		CHECKED_GL_CALL(glUniform1f(blur_prog->getUniform("unblurredRadius"), unblurredRadius));
 		CHECKED_GL_CALL(glUniform1f(blur_prog->getUniform("fTime"), glfwGetTime()));
 		CHECKED_GL_CALL(glEnableVertexAttribArray(0));
 		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer));
@@ -999,8 +1015,12 @@ public:
 		ProgramManager::Instance()->progMat->unbind();
 		
 		if (Defer) {
-			motionBlur(gColorSpec, 0, 6);
+			float blurVelocityRequirement = 150;
 
+			physx::PxVec3 velocity = bird->body->getLinearVelocity();
+			
+			float unblurredRadius = abs(blurVelocityRequirement / velocity.y);
+			motionBlur(gColorSpec, 0, 6, unblurredRadius);
 			///* now draw the actual output */
 			//glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
