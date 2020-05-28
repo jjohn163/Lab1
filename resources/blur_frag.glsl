@@ -1,7 +1,7 @@
 #version 330 core
-layout (location = 1) out vec4 blurBuf;
+
 in vec2 texCoord;
-//out vec4 color;
+out vec4 color;
 uniform sampler2D texBuf;
 
 uniform float fTime;
@@ -18,13 +18,13 @@ void main(){
 
 	float middleness = clamp(pow(8*texCoord.x - 4, 2) + pow(8 * texCoord.y - 4, 2) - unblurred, 0, 1);
 
-	blurBuf = vec4(texColor, 1) * (1 - middleness);
+	color = vec4(texColor, 1) * (1 - middleness);
 
-	blurBuf += vec4(texColor*weight[0], 1) * middleness;
+	color += vec4(texColor*weight[0], 1) * middleness;
 
 	for (int i=1; i <5; i ++) 
 	{
-		blurBuf += vec4(texture( texBuf, texCoord + vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
-		blurBuf += vec4(texture( texBuf, texCoord - vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
+		color += vec4(texture( texBuf, texCoord + vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
+		color += vec4(texture( texBuf, texCoord - vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
 	}
 }

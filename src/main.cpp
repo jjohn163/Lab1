@@ -1218,7 +1218,7 @@ public:
 
 
 		if (Defer) {
-			float blurVelocityRequirement = 150;
+			float blurVelocityRequirement = 75;
 
 			physx::PxVec3 velocity = bird->body->getLinearVelocity();
 			
@@ -1231,6 +1231,9 @@ public:
 			}
 
 			//cout << "unblurredRadius: " << "(" << unblurredRadius << ")" << endl;
+
+			// The blur starts to show when the velocity.y > 125, but 150 is when it's really honed in on the bird
+			motionBlur(gColorSpec, 0, 6, unblurredRadius);
 
 		
 
@@ -1246,7 +1249,7 @@ public:
 				glActiveTexture(GL_TEXTURE0 + 1);
 				glBindTexture(GL_TEXTURE_2D, gNormal);
 				glActiveTexture(GL_TEXTURE0 + 2);
-				glBindTexture(GL_TEXTURE_2D, gColorSpec);
+				glBindTexture(GL_TEXTURE_2D, texBuf[1]);
 				glActiveTexture(GL_TEXTURE0 + 3);
 				glBindTexture(GL_TEXTURE_2D, LtexBuf);
 
@@ -1264,6 +1267,8 @@ public:
 
 			if (FirstTime)
 			{
+				assert(GLTextureWriter::WriteImage(texBuf[0], "blur1.png"));
+				assert(GLTextureWriter::WriteImage(texBuf[1], "blur2.png"));
 				assert(GLTextureWriter::WriteImage(gBuffer, "gBuf.png"));
 				assert(GLTextureWriter::WriteImage(gPosition, "gPos.png"));
 				assert(GLTextureWriter::WriteImage(gNormal, "gNorm.png"));
