@@ -53,15 +53,17 @@ public:
 	physx::PxScene* mScene;
 	physx::PxMaterial* mMaterial;
 	float lastSpeed = 0.f;
-	const float MIN_SPEED_CHANGE = 3.f;
+	const float MIN_SPEED_CHANGE = 7.f;
 	vec3 startPosition;
 	shared_ptr<Ragdoll> ragdoll;
 
 	//IRRKLANG
 	irrklang::ISoundEngine* soundEngine = irrklang::createIrrKlangDevice();
 	irrklang::ISoundSource* impactSound;
+	irrklang::ISoundSource* music;
 	const std::string IMPACT_SOUND_FILE = "/impact.wav";
 	const std::string BACKGROUND_MUSIC_FILE = "/bensound-buddy.mp3";
+	int FREE_FRAMES = 10;
 
 	//SHADOWS
 	GLuint depthMapFBO;
@@ -78,7 +80,12 @@ public:
 	float EDGE = 500;
 	float EDGE_BOT = -1.5f * EDGE;
 	float EDGE_TOP = 0.5f * EDGE;
-	float TOP_EDGE = -20.0f;
+	float TOP_EDGE = -30.0f;
+
+
+	//GAME MANAGING
+	bool GAME_OVER = false;
+	float HEALTH = 500.0;
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -462,8 +469,9 @@ public:
 		rock->colliders.push_back(make_shared<OBBCollider>(rock->position, u, e));
 		entities.push_back(rock);
 		physx::PxRigidStatic* pxRock = physx::PxCreateStatic(*mPhysics,
-			physx::PxTransform(physx::PxVec3(rock->position.x, rock->position.y, rock->position.z)),
+			physx::PxTransform(physx::PxVec3(rock->position.x, rock->position.y, rock->position.z), physx::PxQuat(0,physx::PxVec3(0,1,0))),
 			physx::PxBoxGeometry(e[0], e[1], e[2]), *mMaterial);
+		
 		mScene->addActor(*pxRock);
 
 	}
@@ -598,9 +606,9 @@ public:
 		impactSound->setDefaultVolume(2.0);
 
 		std::string backgroundMusic = (resourceDirectory + BACKGROUND_MUSIC_FILE).c_str();
-		irrklang::ISoundSource* music = soundEngine->addSoundSourceFromFile(backgroundMusic.c_str());
+		music = soundEngine->addSoundSourceFromFile(backgroundMusic.c_str());
 		music->setDefaultVolume(0.1);
-		soundEngine->play2D(music, true);
+		
 	}
 
 	void makeSphere(const std::string& resourceDirectory)
@@ -628,19 +636,19 @@ public:
 		GLSL::checkVersion();
 
 		vec3 rockStart = lineEquation(START_HEIGHT);
-		startPosition = vec3(rockStart.x, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE);
+		startPosition = vec3(rockStart.x, rockStart.y+3, rockStart.z);
 		
 		ragdoll = make_shared<Ragdoll>(mPhysics, mScene, mMaterial);
 		bird = Ragdoll::createBirdRagdoll(startPosition, entities, ragdoll, resourceDirectory);
-		lookAtPoint = startPosition;
-		eye = startPosition + vec3(0, 25, 0);
+		eye = bird->position + vec3(0, 10, 0);
+		lookAtPoint = bird->position;
 
 
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
-		initSound(resourceDirectory);
+		
 
-		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 100, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::YELLOW);
+		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 200, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::YELLOW);
 		entities.push_back(hawk);
 		physx::PxRigidDynamic* placeholder = NULL;
 		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL, placeholder, 1000.f);
@@ -769,7 +777,6 @@ public:
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
 		initShadow();
-		eye = bird->position + vec3(0, 10, 0);
 
 
 		//set up the shaders to blur the FBO just a placeholder pass thru now
@@ -835,6 +842,7 @@ public:
 		//create one FBO
 		createFBO(frameBuf[0], texBuf[0]);
 		createFBO(frameBuf[1], texBuf[1]);
+		initSound(resourceDirectory);
 	}
 
 	mat4 SetOrthoMatrix(shared_ptr<Program> curShade) {
@@ -988,18 +996,27 @@ public:
 		}
 		physx::PxVec3 velocity = bird->body->getLinearVelocity();
 		float speed = velocity.magnitude();
-		if (lastSpeed - speed > MIN_SPEED_CHANGE) {
+		if (lastSpeed - speed > MIN_SPEED_CHANGE && FREE_FRAMES < 0) {
 			featherParticle();
 			soundEngine->play2D(impactSound);
+			FREE_FRAMES = 3;
+			HEALTH -= fabs(lastSpeed - speed);
 		}
+		if (HEALTH <= 0 || length(bird->position - hawk->position) < 5) {
+			GAME_OVER = true;
+		}
+		FREE_FRAMES--;
 		lastSpeed = speed;
-		/*
-		float HAWK_SPEED = 10.0f;
-		vec3 target = bird->position;
-		vec3 direction = target - hawk->position;
+		
+		float HAWK_MIN_SPEED = 30.0f;
+		float HAWK_MAX_SPEED = 75.0f;
+		vec3 direction = bird->position - hawk->position;
+		if (length(direction) > 15) {
+			direction = bird->position + vec3(0, 0, 15) - hawk->position;
+		}
 		float alternative = 0.5f * length(direction);
-		hawk->position += normalize(direction) * fmax(HAWK_SPEED, alternative) * deltaTime;
-		*/
+		hawk->position += normalize(direction) * fmin(fmax(HAWK_MIN_SPEED, alternative), HAWK_MAX_SPEED) * deltaTime;
+		
 	}
 
 	/* VFC code starts here TODO - start here and fill in these functions!!!*/
@@ -1092,7 +1109,13 @@ public:
 	void render() {
 		TimeManager::Instance()->Update();
 		deltaTime = TimeManager::Instance()->DeltaTime();
-		mScene->simulate(deltaTime);
+		if (FIRST) {
+			FIRST = false;
+			soundEngine->play2D(music, true);
+		}
+		if (!GAME_OVER) {
+			mScene->simulate(deltaTime);
+		}
 
 		// Get current frame buffer size.
 		int width, height;
@@ -1185,47 +1208,6 @@ public:
 		glEnable(GL_DEPTH_TEST);
 		
 		psky->unbind();
-		/*
-		if (DEBUG) {
-			DepthProgDebug->bind();
-			//render scene from light's point of view
-			SetOrthoMatrix(DepthProgDebug);
-			SetLightView(DepthProgDebug, light, lightLA, lightUp);
-			Model->pushMatrix();
-			Model->loadIdentity();
-			for (shared_ptr<Entity> entity : entities) {
-				entity->draw(Model, DepthProgDebug);
-			}
-			Model->popMatrix();
-			//drawScene(DepthProgDebug, ShadowProg->getUniform("Texture0"), 0);
-			DepthProgDebug->unbind();
-		}
-		else {
-			// Draw a stack of cubes with indiviudal transforms
-			shared_ptr<Program> prog = ProgramManager::Instance()->progMat;
-			prog->bind();
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, depthMap);
-			glUniform1i(prog->getUniform("shadowDepth"), 1);
-			glUniformMatrix4fv(prog->getUniform("LS"), 1, GL_FALSE, value_ptr(LS));
-			glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-			glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-			glUniform3f(prog->getUniform("lightDir"), light.x, light.y, light.z);
-			ExtractVFPlanes(Projection->topMatrix(), View);
-			Model->pushMatrix();
-			Model->loadIdentity();
-			//Model->rotate(rotate, vec3(0, 1, 0));
-			for (shared_ptr<Entity> entity : entities) {
-				float difference = bird->position.y - entity->position.y;
-
-				if (!ViewFrustCull(entity->position, entity->cullRadius) && (entity->isPlane || (difference < 1500 && difference > -100))) {
-					entity->draw(Model);
-				}
-			}
-			Model->popMatrix();
-			prog->unbind();
-		}
-		*/
 
 		// Begin rendering objects in the scene
 		// Bind to the gbuffer or to the screen (0)
@@ -1321,11 +1303,12 @@ public:
 		// Pop matrix stacks.
 		Projection->popMatrix();
 		//View->popMatrix();
-		mScene->fetchResults();
-		updateEntities();
-		updateCamera(bird);
-		light = bird->position + vec3(50, 50, 50);
-		//cout << bird->position.y << endl;
+		if (!GAME_OVER) {
+			mScene->fetchResults();
+			updateEntities();
+			updateCamera(bird);
+			light = bird->position + vec3(50, 50, 50);
+		}
 	}
 };
 
