@@ -148,9 +148,7 @@ public:
 
 	// Deferred stuff 
 	std::shared_ptr<Program> mergeProg;
-	std::shared_ptr<Program> norProg;
 	std::shared_ptr<Program> blur_prog;
-	//std::shared_ptr<Program> norProg;
 
 	//reference to texture FBO
 	GLuint gBuffer;
@@ -707,23 +705,6 @@ public:
 		mergeProg->addAttribute("vertPos");
 		mergeProg->addUniform("Ldir");
 
-		// Initialize the GLSL program.
-		norProg = make_shared<Program>();
-		norProg->setVerbose(true);
-		norProg->setShaderNames(
-			resourceDirectory + "/simple_vert.glsl",
-			resourceDirectory + "/nor_frag.glsl");
-		if (!norProg->init())
-		{
-			std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
-			exit(1);
-		}
-		norProg->addUniform("P");
-		norProg->addUniform("M");
-		norProg->addUniform("V");
-		norProg->addAttribute("vertPos");
-		norProg->addAttribute("vertNor");
-
 		//set up the shaders to blur the FBO decomposed just a placeholder pass thru now
 		//TODO - modify and possibly add other shaders to complete blur
 		blur_prog = make_shared<Program>();
@@ -972,25 +953,6 @@ public:
 		glEnable(GL_DEPTH_TEST);
 		
 		psky->unbind();
-
-
-
-		// Draw some light objects
-		norProg->bind();
-		glUniformMatrix4fv(norProg->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-		glUniformMatrix4fv(norProg->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-		Model->pushMatrix();
-		Model->loadIdentity();
-			Model->translate(campos);
-			meshsphere->draw(norProg);
-		Model->popMatrix();
-		norProg->unbind();
-		//Debug
-		if (FirstTime) {
-			assert(GLTextureWriter::WriteImage(LtexBuf, "light.png"));
-		}
-
-
 
 		// Begin rendering objects in the scene
 		// Bind to the gbuffer or to the screen (0)
