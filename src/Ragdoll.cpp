@@ -2,6 +2,12 @@
 
 void Ragdoll::setVelocity(vec3 vel)
 {
+	if (vel.y == 0) {
+		body->setAngularVelocity(physx::PxVec3(vel.x, vel.y, vel.z));
+		for (physx::PxRigidDynamic* limb : limbs) {
+			limb->setAngularVelocity(physx::PxVec3(vel.x, vel.y, vel.z));
+		}
+	}
 	body->setLinearVelocity(physx::PxVec3(vel.x, vel.y, vel.z));
 	for (physx::PxRigidDynamic* limb : limbs) {
 		limb->setLinearVelocity(physx::PxVec3(vel.x, vel.y, vel.z));
