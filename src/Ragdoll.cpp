@@ -74,11 +74,3 @@ void Ragdoll::setPosition(vec3 pos)
 		limb->setGlobalPose(physx::PxTransform(physx::PxVec3(pos.x, pos.y, pos.z)));
 	}
 }
-
-void Ragdoll::setVelocity(vec3 vel)
-{
-	body->setLinearVelocity(physx::PxVec3(vel.x, vel.y, vel.z));
-	for (physx::PxRigidDynamic* limb : limbs) {
-		limb->setLinearVelocity(physx::PxVec3(vel.x, vel.y, vel.z));
-	}
-}

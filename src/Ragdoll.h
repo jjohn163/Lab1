@@ -13,7 +13,6 @@ using namespace glm;
 class Ragdoll
 {
 public:
-	void setVelocity(vec3 vel);
 	Ragdoll(physx::PxPhysics* &physics, physx::PxScene* &scene, physx::PxMaterial* &material);
 	physx::PxPhysics* mPhysics;
 	physx::PxScene* mScene;
