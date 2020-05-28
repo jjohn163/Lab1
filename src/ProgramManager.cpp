@@ -118,6 +118,12 @@ void ProgramManager::init() {
 	tex_orange->setUnit(0);
 	tex_orange->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
+	tex_hawk = new Texture();
+	tex_hawk->setFilename(resourceDirectory + "/hawk_feathers.jpg");
+	tex_hawk->init();
+	tex_hawk->setUnit(0);
+	tex_hawk->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
 	initMesh("/cube.obj", mesh_cube);
 	initMesh("/spheresmooth.obj", mesh_sphere);
 	initMesh("/squareRock.obj", mesh_rock);
@@ -199,6 +205,9 @@ void ProgramManager::setTexture(CustomTextures i) {
 		break;
 	case ORANGE:
 		tex_orange->bind(progMat->getUniform("Texture0"));
+		break;
+	case HAWK:
+		tex_hawk->bind(progMat->getUniform("Texture0"));
 		break;
 	case DEFAULT:
 		tex_sample->bind(progMat->getUniform("Texture0"));

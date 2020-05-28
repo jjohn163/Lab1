@@ -63,7 +63,7 @@ public:
 	irrklang::ISoundSource* music;
 	const std::string IMPACT_SOUND_FILE = "/impact.wav";
 	const std::string BACKGROUND_MUSIC_FILE = "/bensound-buddy.mp3";
-	int FREE_FRAMES = 10;
+	
 
 	//SHADOWS
 	GLuint depthMapFBO;
@@ -85,7 +85,10 @@ public:
 
 	//GAME MANAGING
 	bool GAME_OVER = false;
+	float MAX_HEALTH = 500.0;
 	float HEALTH = 500.0;
+	bool CAUGHT = false;
+	int FREE_FRAMES = 10;
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -326,8 +329,7 @@ public:
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
 		if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
-			featherParticle();
-			DEBUG = !DEBUG;
+			resetGame();
 		}
 		if (key == GLFW_KEY_P && action == GLFW_PRESS) {
 			Defer = !Defer;
@@ -630,6 +632,23 @@ public:
 		}
 	}
 
+	void resetGame() {
+		GAME_OVER = false;
+		CAUGHT = false;
+		HEALTH = MAX_HEALTH;
+		ragdoll->setPosition(startPosition);
+		ragdoll->setVelocity(vec3(0, 0, 0));
+		for (shared_ptr<Entity> entity : entities) {
+			if (entity->body) {
+				Ragdoll::updateOrientation(entity);
+			}
+		}
+		hawk->position = startPosition + vec3(0, 600, 0);
+		eye = startPosition + vec3(0, 10, 0);
+		lookAtPoint = startPosition;
+		FREE_FRAMES = 10;
+	}
+
 	void init(const std::string& resourceDirectory)
 	{
 		//ProgramManager::init();
@@ -648,7 +667,7 @@ public:
 		initRockEntities(resourceDirectory);
 		
 
-		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 200, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::YELLOW);
+		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 600, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::HAWK);
 		entities.push_back(hawk);
 		physx::PxRigidDynamic* placeholder = NULL;
 		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL, placeholder, 1000.f);
@@ -994,6 +1013,19 @@ public:
 				Ragdoll::updateOrientation(entity);
 			}
 		}
+		if (GAME_OVER) {
+			if (CAUGHT) {
+				//ragdoll->setPosition(bird->position + vec3(0, 5.0f, 25.0f) * deltaTime);
+				hawk->position += vec3(0, 5.0f, 25.0f) * deltaTime;
+				//for (shared_ptr<Entity> entity : entities) {
+				//	if (entity->body) {
+				//		Ragdoll::updateOrientation(entity);
+				//	}
+				//}
+			}
+			return;
+		}
+
 		physx::PxVec3 velocity = bird->body->getLinearVelocity();
 		float speed = velocity.magnitude();
 		if (lastSpeed - speed > MIN_SPEED_CHANGE && FREE_FRAMES < 0) {
@@ -1003,6 +1035,9 @@ public:
 			HEALTH -= fabs(lastSpeed - speed);
 		}
 		if (HEALTH <= 0 || length(bird->position - hawk->position) < 5) {
+			if (length(bird->position - hawk->position) < 5) {
+				CAUGHT = true;
+			}
 			GAME_OVER = true;
 		}
 		FREE_FRAMES--;
