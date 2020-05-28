@@ -29,6 +29,7 @@ public:
 	void addUniform(const std::string &name);
 	GLint getAttribute(const std::string &name) const;
 	GLint getUniform(const std::string &name) const;
+	GLuint getPID() { return pid; }
 
 protected:
 
