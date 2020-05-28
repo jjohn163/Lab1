@@ -2,7 +2,7 @@
 
 in vec2 texCoord;
 out vec4 color;
-uniform sampler2D gBuf;
+uniform sampler2D posBuf;
 uniform sampler2D norBuf;
 uniform sampler2D colorBuf;
 uniform sampler2D lightBuf;
@@ -11,7 +11,7 @@ uniform vec3 Ldir;
 
 /* just pass through the texture color we will add to this next lab */
 void main(){
-   vec3 geom = texture( gBuf, texCoord ).rgb;
+   vec3 geom = texture( posBuf, texCoord ).rgb;
    vec3 nor = texture(norBuf, texCoord).rgb;
    vec3 kd = texture(colorBuf, texCoord).rgb;
    vec3 lightN = 2.0 * (texture(lightBuf, texCoord).rgb) + vec3(-1);
