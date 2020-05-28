@@ -71,13 +71,15 @@ void ProgramManager::init() {
 	progMat->setVerbose(true);
 	progMat->setShaderNames(resourceDirectory + "/simple_vert.glsl", resourceDirectory + "/gbuf_frag.glsl");
 	progMat->init();
-	progMat->addUniform("P");
-	progMat->addUniform("V");
-	progMat->addUniform("M");
+	progMat->addUniform("P");//
+	progMat->addUniform("V");//
+	progMat->addUniform("M");//
+	progMat->addUniform("MatSpec");
+	progMat->addUniform("shine");
 	progMat->addUniform("LightPos");
 	progMat->addUniform("Texture0");
 	progMat->addUniform("shadowDepth");
-	progMat->addUniform("LS");
+	progMat->addUniform("LS");//
 	progMat->addAttribute("vertPos");
 	progMat->addAttribute("vertNor");
 	progMat->addAttribute("vertTex");

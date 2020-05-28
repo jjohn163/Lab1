@@ -14,11 +14,11 @@ using namespace std;
 class ProgramManager
 {
 public:
-	
+
 	static const std::string resourceDirectory;
 	static ProgramManager* Instance();
 	static enum Material { BLUE_PLASTIC, FLAT_GREY, BRASS, GREEN_PLASTIC, LIGHT_BLUE, PURPLE, RED, DIRT };
-	static enum Mesh { CUBE_MESH, SPHERE_MESH, ROCK_MESH, WALL_MESH , HAWK_MESH };
+	static enum Mesh { CUBE_MESH, SPHERE_MESH, ROCK_MESH, WALL_MESH, HAWK_MESH };
 	static enum CustomTextures { CHICK, ROCK, WALL, YELLOW, ORANGE, DEFAULT };
 	void init();
 	void setMaterial(Material i);
@@ -28,24 +28,24 @@ public:
 
 	std::shared_ptr<Program> progMat;
 	std::shared_ptr<Program> prog;
-	
 
-private: 
+
+private:
 	ProgramManager() {};
 	~ProgramManager();
 	static ProgramManager* sInstance;
-	Texture * tex_sample;
-	Texture * tex_chick;
-	Texture * tex_rock;
-	Texture * tex_wall;
+	Texture* tex_sample;
+	Texture* tex_chick;
+	Texture* tex_rock;
+	Texture* tex_wall;
 	Texture* tex_yellow;
 	Texture* tex_orange;
-	
-	Shape * mesh_cube;
-	Shape * mesh_sphere;
-	Shape * mesh_rock;
-	Shape * mesh_wall;
-	Shape * mesh_hawk;
+
+	Shape* mesh_cube;
+	Shape* mesh_sphere;
+	Shape* mesh_rock;
+	Shape* mesh_wall;
+	Shape* mesh_hawk;
 
 	//std::shared_ptr<Program> progMat;
 

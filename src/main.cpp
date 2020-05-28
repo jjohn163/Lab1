@@ -994,6 +994,7 @@ public:
 		float speed = velocity.magnitude();
 		if (lastSpeed - speed > MIN_SPEED_CHANGE) {
 			featherParticle();
+			cout << "new particle" << endl;
 			soundEngine->play2D(impactSound);
 		}
 		lastSpeed = speed;
@@ -1276,34 +1277,34 @@ public:
 			//cout << "unblurredRadius: " << "(" << unblurredRadius << ")" << endl;
 
 			// The blur starts to show when the velocity.y > 125, but 150 is when it's really honed in on the bird
-			motionBlur(gColorSpec, 0, 6, unblurredRadius);
+			//motionBlur(gColorSpec, 0, 6, unblurredRadius);
 
-			///* now draw the actual output */
-			//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			/* now draw the actual output */
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-			//// example applying of 'drawing' the FBO texture - change shaders
-			//mergeProg->bind();
-			//glActiveTexture(GL_TEXTURE0);
-			//glBindTexture(GL_TEXTURE_2D, gPosition);
-			//glActiveTexture(GL_TEXTURE0 + 1);
-			//glBindTexture(GL_TEXTURE_2D, gNormal);
-			//glActiveTexture(GL_TEXTURE0 + 2);
-			//glBindTexture(GL_TEXTURE_2D, gColorSpec);
-			//glActiveTexture(GL_TEXTURE0 + 3);
-			//glBindTexture(GL_TEXTURE_2D, LtexBuf);
-			//glUniform1i(mergeProg->getUniform("gBuf"), 0);
-			//glUniform1i(mergeProg->getUniform("norBuf"), 1);
-			//glUniform1i(mergeProg->getUniform("colorBuf"), 2);
-			//glUniform1i(mergeProg->getUniform("lightBuf"), 3);
-			////glUniform3f(texProg->getUniform("Ldir"), g_light.x, g_light.y, g_light.z);
-			//glEnableVertexAttribArray(0);
-			//glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
-			//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-			//glDrawArrays(GL_TRIANGLES, 0, 6);
-			//glDisableVertexAttribArray(0);
-			//mergeProg->unbind();
+			// example applying of 'drawing' the FBO texture - change shaders
+			mergeProg->bind();
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, gPosition);
+			glActiveTexture(GL_TEXTURE0 + 1);
+			glBindTexture(GL_TEXTURE_2D, gNormal);
+			glActiveTexture(GL_TEXTURE0 + 2);
+			glBindTexture(GL_TEXTURE_2D, gColorSpec);
+			glActiveTexture(GL_TEXTURE0 + 3);
+			glBindTexture(GL_TEXTURE_2D, LtexBuf);
+			glUniform1i(mergeProg->getUniform("gBuf"), 0);
+			glUniform1i(mergeProg->getUniform("norBuf"), 1);
+			glUniform1i(mergeProg->getUniform("colorBuf"), 2);
+			glUniform1i(mergeProg->getUniform("lightBuf"), 3);
+			//glUniform3f(texProg->getUniform("Ldir"), g_light.x, g_light.y, g_light.z);
+			glEnableVertexAttribArray(0);
+			glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+			glDisableVertexAttribArray(0);
+			mergeProg->unbind();
 
 			if (FirstTime)
 			{
@@ -1315,13 +1316,17 @@ public:
 			}
 		}
 
+		// Finally render to screen
+		//CHECKED_GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+		//CHECKED_GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
 		particleSystem->render(deltaTime, View, eye);
 		
 
-		billboardUI->setProjection(Projection->topMatrix());
-		billboardUI->render(deltaTime, View, eye);
+	//	billboardUI->setProjection(Projection->topMatrix());
+	//	billboardUI->render(deltaTime, View, eye);
 
 		//animation update example
 		sTheta = sin(glfwGetTime());
