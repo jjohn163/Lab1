@@ -40,7 +40,7 @@ public:
 	float rotationDegrees;
 	ProgramManager::Material material;
 	vector<shared_ptr<Collider>> colliders;
-	bool moving;
+	bool isPlane;
 	ProgramManager::Mesh mesh;
 	//shared_ptr<Shape> mesh;
 	string objDirectory;

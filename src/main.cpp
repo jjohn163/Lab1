@@ -77,7 +77,7 @@ public:
 	float EDGE = 500;
 	float EDGE_BOT = -1.5f * EDGE;
 	float EDGE_TOP = 0.5f * EDGE;
-
+	float TOP_EDGE = -20.0f;
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -572,7 +572,7 @@ public:
 		initRockEntities(resourceDirectory);
 		initSound(resourceDirectory);
 
-		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 100, 0), vec3(0.2f, 0.2f, 0.2f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::YELLOW);
+		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 100, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::YELLOW);
 		entities.push_back(hawk);
 		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
@@ -700,6 +700,7 @@ public:
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
 		initShadow();
+		eye = bird->position + vec3(0, 10, 0);
 	}
 
 	mat4 SetOrthoMatrix(shared_ptr<Program> curShade) {
@@ -730,10 +731,13 @@ public:
 			soundEngine->play2D(impactSound);
 		}
 		lastSpeed = speed;
-
+		/*
+		float HAWK_SPEED = 10.0f;
 		vec3 target = bird->position;
-		hawk->position += ((target - hawk->position) * deltaTime * 3.f);
-
+		vec3 direction = target - hawk->position;
+		float alternative = 0.5f * length(direction);
+		hawk->position += normalize(direction) * fmax(HAWK_SPEED, alternative) * deltaTime;
+		*/
 	}
 
 	void render() {
@@ -752,10 +756,8 @@ public:
 
 		vec3 lightLA = bird->position;
 		vec3 lightUp = vec3(0, 1, 0);
-		//mat4 LP, LV, LS;
 		
-		if (FIRST) {
-			//FIRST = false;
+		if (SHADOW) {
 			//set up light's depth map
 			glViewport(0, 0, S_WIDTH, S_HEIGHT);
 
@@ -776,7 +778,7 @@ public:
 			//Model->rotate(rotate, vec3(0, 1, 0));
 			for (shared_ptr<Entity> entity : entities) {
 				float difference = bird->position.y - entity->position.y;
-				if (!entity->moving && (difference < -EDGE_BOT && difference > -20)) {
+				if (!entity->isPlane && (difference < -EDGE_BOT && difference > TOP_EDGE)) {
 					entity->draw(Model, DepthProg);
 				}
 			}
@@ -864,7 +866,7 @@ public:
 			//Model->rotate(rotate, vec3(0, 1, 0));
 			for (shared_ptr<Entity> entity : entities) {
 				float difference = bird->position.y - entity->position.y;
-				if (entity->moving || (difference < 1500 && difference > -100)) {
+				if (entity->isPlane || (difference < 1500 && difference > -100)) {
 					entity->draw(Model);
 				}
 			}
