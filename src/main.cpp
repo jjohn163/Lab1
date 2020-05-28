@@ -85,8 +85,8 @@ public:
 
 	//GAME MANAGING
 	bool GAME_OVER = false;
-	float MAX_HEALTH = 500.0;
-	float HEALTH = 500.0;
+	float MAX_HEALTH = 250.0;
+	float HEALTH = 250.0;
 	bool CAUGHT = false;
 	int FREE_FRAMES = 10;
 
@@ -1276,7 +1276,7 @@ public:
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		//glEnable(GL_DEPTH_TEST);
 		//glDisable(GL_BLEND);
-
+		float damage = (MAX_HEALTH - HEALTH) / MAX_HEALTH;
 		ProgramManager::Instance()->progMat->bind();
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -1285,6 +1285,7 @@ public:
 		glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
 		glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
 		glUniform3f(ProgramManager::Instance()->progMat->getUniform("LightPos"), light.x, light.y, light.z);
+		glUniform3f(ProgramManager::Instance()->progMat->getUniform("Damage"), damage, 0.0f, 0.0f);
 		Model->pushMatrix();
 		Model->loadIdentity();
 		//Model->rotate(rotate, vec3(0, 1, 0));

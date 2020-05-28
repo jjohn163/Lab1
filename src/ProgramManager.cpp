@@ -79,6 +79,7 @@ void ProgramManager::init() {
 	progMat->addUniform("Texture0");
 	progMat->addUniform("shadowDepth");
 	progMat->addUniform("LS");
+	progMat->addUniform("Damage");
 	progMat->addAttribute("vertPos");
 	progMat->addAttribute("vertNor");
 	progMat->addAttribute("vertTex");
