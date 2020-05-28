@@ -152,6 +152,7 @@ public:
 	shared_ptr<Entity> bird;
 	shared_ptr<Entity> hawk;
 	vector<shared_ptr<Entity>> entities;
+	vector<shared_ptr<Entity>> branches;
 	vector<vec3> rockPositions{};
 
 	vector<std::string> faces{
@@ -227,16 +228,37 @@ public:
 			bird->body->addForce(physx::PxVec3(-100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingUp) {
-			/*vec3 direction = lookAtPoint - entity->position;
-			vec3 w = normalize(direction);
-			vec3 u = normalize(cross(up, w));*/
 			entity->velocity += deltaTime * (up * vec3(40));
 		}
 
-		//"tweening" from the juice video
 		vec3 target = lookAtPoint + vec3(0, 25, 0);
 		eye += ((target - eye) * deltaTime * 3.f);
 	} 
+	void checkIfBranchCollision(shared_ptr<Entity> entity) {
+		
+		cout << "Size of branches: " << branches.size() << endl;
+		for (int i = 0; i < branches.size(); i++)
+		{
+			int xRange =  10;
+			int yRange = 5;
+			int zRange = 20;
+			shared_ptr<Entity> branch = branches[i];
+
+			if (!(branch->position.x - xRange < bird->position.x && branch->position.x + xRange > bird->position.x
+				&& branch->position.y - yRange < bird->position.y && branch->position.y + yRange > bird->position.y 
+				&& branch->position.z - zRange < bird->position.z && branch->position.z + zRange > bird->position.z))
+			{
+				continue;
+			}
+
+			physx::PxVec3 velocity = bird->body->getLinearVelocity();
+			vec3 velocityGlm = vec3(velocity.x, velocity.y, velocity.z);
+			ragdoll->setVelocity(velocityGlm * 0.3f);
+			branches.erase(branches.begin() + i);
+			branchParticle();
+			break;
+		}
+	}
 
 	void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
 	{
@@ -247,6 +269,9 @@ public:
 		if (key == GLFW_KEY_W && action == GLFW_PRESS) {
 			bird->body->addForce(physx::PxVec3(0, 0, 100), physx::PxForceMode::eACCELERATION);
 			movingForward = true;
+		}
+		if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
+			bird->body->addForce(physx::PxVec3(0, 500, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (key == GLFW_KEY_W && action == GLFW_RELEASE) {
 			movingForward = false;
@@ -302,7 +327,7 @@ public:
 	}
 
 	void branchParticle() {
-		int limit = rand() % 4 + 2;
+		int limit = rand() % 4 + 6;
 		for (int i = 0; i < limit; i++) {
 			float rrotx = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;
 			float rroty = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;
@@ -313,10 +338,10 @@ public:
 			vec3 particle_pos = bird->position + vec3(0, 2, 0);
 			float random_rotation = (rand() % 4) - 2;
 			vec3 velocity = vec4(bird->velocity, 1) * rotx * roty;
-			float gravity_effect = 5;
+			float gravity_effect = 20;
 			float life_length = rand() % 3 + 2.0f;
-			float scale = 0.5f;
-			particleSystem->addNewParticle(branch_name, "Feather", particle_pos, random_rotation, velocity, gravity_effect, life_length, scale);
+			float scale = ((rand() % 10 - 5) / 20) + 0.5f;
+			particleSystem->addNewParticle(branch_name, "Branches", particle_pos, random_rotation, velocity, gravity_effect, life_length, scale);
 		}
 	}
 
@@ -355,8 +380,7 @@ public:
 				std::pair<bool, vec3> result = bird->colliders[0]->isColliding(collider.get(), bird->velocity);
 				if (result.first) {
 					bird->velocity = result.second;
-					//featherParticle();
-					branchParticle();
+					featherParticle();
 				}
 			}
 		}
@@ -442,17 +466,18 @@ public:
 	}
 
 	void addBranch(shared_ptr<Entity> branch) {
-		const float bb_adjust_x = .75;
-		const float bb_adjust_z = .65;
+		//const float bb_adjust_x = .75;
+		//const float bb_adjust_z = .65;
 
-		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
-		float e[3] = { branch->scale.x * GRID_SCALE * bb_adjust_x, branch->scale.y * GRID_SCALE, branch->scale.z * GRID_SCALE * bb_adjust_z };
-		branch->colliders.push_back(make_shared<OBBCollider>(branch->position, u, e));
+		//vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
+		//float e[3] = { branch->scale.x * GRID_SCALE * bb_adjust_x, branch->scale.y * GRID_SCALE, branch->scale.z * GRID_SCALE * bb_adjust_z };
+		//branch->colliders.push_back(make_shared<OBBCollider>(branch->position, u, e));
 		entities.push_back(branch);
-		physx::PxRigidStatic* pxRock = physx::PxCreateStatic(*mPhysics,
-			physx::PxTransform(physx::PxVec3(branch->position.x, branch->position.y, branch->position.z)),
-			physx::PxBoxGeometry(e[0], e[1], e[2]), *mMaterial);
-		mScene->addActor(*pxRock);
+		branches.push_back(branch);
+		//physx::PxRigidStatic* pxRock = physx::PxCreateStatic(*mPhysics,
+		//	physx::PxTransform(physx::PxVec3(branch->position.x, branch->position.y, branch->position.z)),
+		//	physx::PxBoxGeometry(e[0], e[1], e[2]), *mMaterial);
+		//mScene->addActor(*pxRock);
 
 	}
 
@@ -464,7 +489,7 @@ public:
 
 	//Gets random number between +- offesetBounds
 	float randOffset(float offsetBounds) {
-		float numer =(rand() % 100); 
+		float numer = (rand() % 100); 
 		return numer / (100.0 / (2 * offsetBounds)) - offsetBounds;
 	}
 
@@ -809,8 +834,7 @@ public:
 		physx::PxVec3 velocity = bird->body->getLinearVelocity();
 		float speed = velocity.magnitude();
 		if (lastSpeed - speed > MIN_SPEED_CHANGE) {
-			//featherParticle();
-			branchParticle();
+			featherParticle();
 			soundEngine->play2D(impactSound);
 		}
 		lastSpeed = speed;
@@ -1058,6 +1082,7 @@ public:
 		mScene->fetchResults();
 		updateEntities();
 		updateCamera(bird);
+		checkIfBranchCollision(bird);
 		light = bird->position + vec3(50, 50, 50);
 		//cout << bird->position.y << endl;
 	}
