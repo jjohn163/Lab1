@@ -25,7 +25,7 @@ Entity::Entity(
 	scale = scl;
 	rotation = rot;
 	velocity = vec3(0.0, 0.0, 0.0);
-	moving = mov;
+	isPlane = mov;
 	rotationDegrees = rotDeg;
 	material = mat;
 	this->texture = texture;
