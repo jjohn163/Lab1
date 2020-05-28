@@ -159,7 +159,7 @@ public:
 	};
 	vector<shared_ptr<CollectionSphere>> collectionSpheres;
 	shared_ptr<Entity> bird;
-	shared_ptr<Entity> hawk;
+	shared_ptr<Entity> eagle;
 	vector<shared_ptr<Entity>> entities;
 	vector<shared_ptr<Entity>> branches;
 	vector<vec3> rockPositions{};
@@ -766,7 +766,7 @@ public:
 				Ragdoll::updateOrientation(entity);
 			}
 		}
-		hawk->position = startPosition + vec3(0, 600, 0);
+		eagle->position = startPosition + vec3(0, 600, 0);
 		eye = startPosition + vec3(0, 10, 0);
 		lookAtPoint = startPosition;
 		FREE_FRAMES = 10;
@@ -790,8 +790,8 @@ public:
 		initRockEntities(resourceDirectory);
 		//initBranchEntities(resourceDirectory);
 
-		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 600, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::HAWK);
-		entities.push_back(hawk);
+		eagle = make_shared<Entity>(ProgramManager::EAGLE_MESH, bird->position + vec3(0, 600, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::EAGLE);
+		entities.push_back(eagle);
 		physx::PxRigidDynamic* placeholder = NULL;
 		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL, placeholder, 1000.f);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
@@ -1140,7 +1140,7 @@ public:
 		if (GAME_OVER) {
 			if (CAUGHT) {
 				//ragdoll->setPosition(bird->position + vec3(0, 5.0f, 25.0f) * deltaTime);
-				hawk->position += vec3(0, 5.0f, 25.0f) * deltaTime;
+				eagle->position += vec3(0, 5.0f, 25.0f) * deltaTime;
 				//for (shared_ptr<Entity> entity : entities) {
 				//	if (entity->body) {
 				//		Ragdoll::updateOrientation(entity);
@@ -1158,8 +1158,8 @@ public:
 			FREE_FRAMES = 3;
 			HEALTH -= fabs(lastSpeed - speed);
 		}
-		if (HEALTH <= 0 || length(bird->position - hawk->position) < 5) {
-			if (length(bird->position - hawk->position) < 5) {
+		if (HEALTH <= 0 || length(bird->position - eagle->position) < 5) {
+			if (length(bird->position - eagle->position) < 5) {
 				CAUGHT = true;
 			}
 			GAME_OVER = true;
@@ -1167,14 +1167,14 @@ public:
 		FREE_FRAMES--;
 		lastSpeed = speed;
 		
-		float HAWK_MIN_SPEED = 30.0f;
-		float HAWK_MAX_SPEED = 75.0f;
-		vec3 direction = bird->position - hawk->position;
+		float EAGLE_MIN_SPEED = 30.0f;
+		float EAGLE_MAX_SPEED = 75.0f;
+		vec3 direction = bird->position - eagle->position;
 		if (length(direction) > 15) {
-			direction = bird->position + vec3(0, 0, 15) - hawk->position;
+			direction = bird->position + vec3(0, 0, 15) - eagle->position;
 		}
 		float alternative = 0.5f * length(direction);
-		hawk->position += normalize(direction) * fmin(fmax(HAWK_MIN_SPEED, alternative), HAWK_MAX_SPEED) * deltaTime;
+		eagle->position += normalize(direction) * fmin(fmax(EAGLE_MIN_SPEED, alternative), EAGLE_MAX_SPEED) * deltaTime;
 		
 	}
 

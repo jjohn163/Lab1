@@ -119,17 +119,17 @@ void ProgramManager::init() {
 	tex_orange->setUnit(0);
 	tex_orange->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
-	tex_hawk = new Texture();
-	tex_hawk->setFilename(resourceDirectory + "/hawk_feathers.jpg");
-	tex_hawk->init();
-	tex_hawk->setUnit(0);
-	tex_hawk->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+	tex_eagle = new Texture();
+	tex_eagle->setFilename(resourceDirectory + "/TalonedEagle.jpg");
+	tex_eagle->init();
+	tex_eagle->setUnit(0);
+	tex_eagle->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
 	initMesh("/cube.obj", mesh_cube);
 	initMesh("/spheresmooth.obj", mesh_sphere);
 	initMesh("/squareRock.obj", mesh_rock);
 	initMesh("/rockyCliff_uv_smooth.obj", mesh_wall);
-	initMesh("/Eagle02_sale.obj", mesh_hawk);
+	initMesh("/TalonedEagle.obj", mesh_eagle);
 	initMesh("/tree.obj", mesh_branch);
 }
 
@@ -207,8 +207,8 @@ void ProgramManager::setTexture(CustomTextures i) {
 	case ORANGE:
 		tex_orange->bind(progMat->getUniform("Texture0"));
 		break;
-	case HAWK:
-		tex_hawk->bind(progMat->getUniform("Texture0"));
+	case EAGLE:
+		tex_eagle->bind(progMat->getUniform("Texture0"));
 		break;
 	case DEFAULT:
 		tex_sample->bind(progMat->getUniform("Texture0"));
@@ -230,8 +230,8 @@ void ProgramManager::drawMesh(Mesh i, shared_ptr<Program> shader) {
 	case WALL_MESH:
 		mesh_wall->draw(shader);
 		break;
-	case HAWK_MESH:
-		mesh_hawk->draw(shader);
+	case EAGLE_MESH:
+		mesh_eagle->draw(shader);
 		break;
 	case BRANCH_MESH:
 		mesh_branch->draw(shader);
