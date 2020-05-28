@@ -24,7 +24,7 @@ public:
 		glm::vec3 pos,
 		glm::vec3 scale, 
 		glm::vec3 rot, 
-		bool mov, 
+		bool isPlane, 
 		ProgramManager::Material mat, 
 		float rotDeg = 0,
 		ProgramManager::CustomTextures texture = ProgramManager::DEFAULT,

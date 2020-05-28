@@ -12,7 +12,7 @@ Entity::Entity(
 	glm::vec3 pos, 
 	glm::vec3 scl, 
 	glm::vec3 rot, 
-	bool mov, 
+	bool isPlane, 
 	ProgramManager::Material mat, 
 	float rotDeg,
 	ProgramManager::CustomTextures texture,
@@ -25,7 +25,7 @@ Entity::Entity(
 	scale = scl;
 	rotation = rot;
 	velocity = vec3(0.0, 0.0, 0.0);
-	isPlane = mov;
+	this->isPlane = isPlane;
 	rotationDegrees = rotDeg;
 	material = mat;
 	this->texture = texture;

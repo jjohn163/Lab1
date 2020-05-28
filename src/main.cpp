@@ -785,8 +785,7 @@ public:
 			Model->loadIdentity();
 			//Model->rotate(rotate, vec3(0, 1, 0));
 			for (shared_ptr<Entity> entity : entities) {
-				float difference = bird->position.y - entity->position.y;
-				if (!entity->isPlane && (difference < -EDGE_BOT && difference > TOP_EDGE)) {
+				if (!entity->isPlane && !shouldCull(entity->position, entity->cullRadius)) {
 					entity->draw(Model, DepthProg);
 				}
 			}
