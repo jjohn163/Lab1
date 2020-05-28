@@ -39,6 +39,7 @@ const string ProgramManager::resourceDirectory = "../resources";
 //const std::shared_ptr<Program> ProgramManager::progMat = make_shared<Program>();
  
 void initMesh(const string file, Shape* &mesh) {
+	cout << file << endl;
 	string objDirectory = ProgramManager::resourceDirectory + file;
 	string errStr;
 	vector<tinyobj::shape_t> TOshapesObject;
@@ -118,12 +119,18 @@ void ProgramManager::init() {
 	tex_orange->setUnit(0);
 	tex_orange->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
+	tex_hawk = new Texture();
+	tex_hawk->setFilename(resourceDirectory + "/hawk_feathers.jpg");
+	tex_hawk->init();
+	tex_hawk->setUnit(0);
+	tex_hawk->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
 	initMesh("/cube.obj", mesh_cube);
 	initMesh("/spheresmooth.obj", mesh_sphere);
 	initMesh("/squareRock.obj", mesh_rock);
 	initMesh("/rockyCliff_uv_smooth.obj", mesh_wall);
 	initMesh("/Eagle02_sale.obj", mesh_hawk);
-
+	initMesh("/tree.obj", mesh_branch);
 }
 
 void ProgramManager::setModel(std::shared_ptr<MatrixStack>M, shared_ptr<Program> shader) {
@@ -200,10 +207,13 @@ void ProgramManager::setTexture(CustomTextures i) {
 	case ORANGE:
 		tex_orange->bind(progMat->getUniform("Texture0"));
 		break;
+	case HAWK:
+		tex_hawk->bind(progMat->getUniform("Texture0"));
+		break;
 	case DEFAULT:
 		tex_sample->bind(progMat->getUniform("Texture0"));
 		break;
-	}
+	}	
 }
 
 void ProgramManager::drawMesh(Mesh i, shared_ptr<Program> shader) {
@@ -222,6 +232,9 @@ void ProgramManager::drawMesh(Mesh i, shared_ptr<Program> shader) {
 		break;
 	case HAWK_MESH:
 		mesh_hawk->draw(shader);
+		break;
+	case BRANCH_MESH:
+		mesh_branch->draw(shader);
 		break;
 	}
 }

@@ -23,6 +23,7 @@ public:
 	void addBody(physx::PxRigidDynamic* physicsBody);
 	void addLimb(physx::PxRigidDynamic* limb, vec3 localLimb, vec3 localBody);
 	void setPosition(vec3 pos);
+	void setVelocity(vec3 vel);
 	static void updateOrientation(shared_ptr<Entity> entity) {
 		//update position information
 		physx::PxVec3 pos = entity->body->getGlobalPose().p;
