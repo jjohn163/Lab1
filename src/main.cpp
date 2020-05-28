@@ -594,9 +594,14 @@ public:
 		const vec3 ROCK_SCALE = vec3(.65, .2, 1.5);
 		const vec3 ROT_AXIS = vec3(0, 1, 0);
 		const float MAX_ROT_ANGLE = 2*PI;
+		const float BRANCH_ROT_ANGLE = 90;
 		const ProgramManager::Material ROCK_MAT = ProgramManager::BRASS;
 		const int OFFSET_X = 12*GRID_SCALE / 2; // Sum of widths at grid scale/2
 		const int OFFSET_Z = -10;
+
+		//Branch constants
+		const vec3 BRANCH_SCALE = vec3(0.5, 1, 4);
+		const vec3 BRANCH_ROT = vec3(1, 0, 0);
 
 		
 		vec3 curPos, rotAxis = vec3(0, 0, 0);
@@ -621,8 +626,15 @@ public:
 				if (widthNdx != omitRand) {
 					rotation = randOffset(1.f / 7.f)*PI;
 					rotAxis[rand() % 3] = 1; //Set a random axis to rotate
-					addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), rotAxis, false, ROCK_MAT, rotation, ProgramManager::ROCK));
+					addRock(make_shared<Entity>(
+						ProgramManager::ROCK_MESH, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), 
+						rotAxis, false, ROCK_MAT, rotation, ProgramManager::ROCK));
 					rotAxis = vec3(0, 0, 0);
+				}
+				else {
+					addBranch(make_shared<Entity>(
+						ProgramManager::BRANCH_MESH, curPos+vec3(0, 0, OFFSET_Z), BRANCH_SCALE * vec3(widths[widthNdx], 1, 1), 
+						BRANCH_ROT, false, ROCK_MAT, BRANCH_ROT_ANGLE, ProgramManager::ORANGE));
 				}
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 			}
@@ -776,7 +788,7 @@ public:
 
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
-		initBranchEntities(resourceDirectory);
+		//initBranchEntities(resourceDirectory);
 
 		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 600, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::HAWK);
 		entities.push_back(hawk);
