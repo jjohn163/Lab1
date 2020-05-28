@@ -505,23 +505,6 @@ public:
 	float BIRD_RADIUS = 3.5f;
 	float MAP_WIDTH = 60.0f;
 
-
-	void addRock(shared_ptr<Entity> rock) {
-		const float bb_adjust_x = .75;
-		const float bb_adjust_z = .65;
-
-		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
-		float e[3] = { rock->scale.x * GRID_SCALE * bb_adjust_x, rock->scale.y * GRID_SCALE, rock->scale.z * GRID_SCALE * bb_adjust_z };
-		rock->colliders.push_back(make_shared<OBBCollider>(rock->position, u, e));
-		entities.push_back(rock);
-		physx::PxRigidStatic* pxRock = physx::PxCreateStatic(*mPhysics,
-			physx::PxTransform(physx::PxVec3(rock->position.x, rock->position.y, rock->position.z), physx::PxQuat(0,physx::PxVec3(0,1,0))),
-			physx::PxBoxGeometry(e[0], e[1], e[2]), *mMaterial);
-		
-		mScene->addActor(*pxRock);
-
-	}
-
 	void addBranch(shared_ptr<Entity> branch) {
 		//const float bb_adjust_x = .75;
 		//const float bb_adjust_z = .65;
@@ -608,23 +591,26 @@ public:
 
 		//const string OBJ_DIR = resourceDirectory + "/squareRock.obj";
 		const vec3 ROCK_POS = lineEquation(START_HEIGHT);
-		const vec3 ROCK_SCALE = vec3(.65, .2, 1);
-		const vec3 ROT_AXIS = vec3(1, 0, 0);
-		const float ROT_ANGLE = 0;
+		const vec3 ROCK_SCALE = vec3(.65, .2, 1.5);
+		const vec3 ROT_AXIS = vec3(0, 1, 0);
+		const float MAX_ROT_ANGLE = 2*PI;
 		const ProgramManager::Material ROCK_MAT = ProgramManager::BRASS;
-		const int OFFSET_LEFT = 12*GRID_SCALE / 2; // Sum of widths at grid scale/2
+		const int OFFSET_X = 12*GRID_SCALE / 2; // Sum of widths at grid scale/2
+		const int OFFSET_Z = -10;
+
 		
-		vec3 curPos;
+		vec3 curPos, rotAxis = vec3(0, 0, 0);
 		int omitRand;
+		float rotation;
 		vector<int> widths{ 1, 2, 2, 3, 4 };
 		int lastOmitted = widths.size()/2;
 
 
 		//Starting rock
-		addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
+		addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, 0, ProgramManager::ROCK));
 
 		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
-			curPos = lineEquation(i) - vec3(OFFSET_LEFT, 0, 0);
+			curPos = lineEquation(i) - vec3(OFFSET_X, 0, OFFSET_Z);
 			random_shuffle(widths.begin(), widths.end());
 			do {
 				omitRand = rand() % widths.size();
@@ -633,7 +619,10 @@ public:
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 				lastOmitted = omitRand;
 				if (widthNdx != omitRand) {
-					addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ROCK));
+					rotation = randOffset(1.f / 7.f)*PI;
+					rotAxis[rand() % 3] = 1; //Set a random axis to rotate
+					addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), rotAxis, false, ROCK_MAT, rotation, ProgramManager::ROCK));
+					rotAxis = vec3(0, 0, 0);
 				}
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 			}
@@ -677,6 +666,24 @@ public:
 		}
 	}
 
+
+	void addRock(shared_ptr<Entity> rock) {
+		const float bb_adjust_x = .75;
+		const float bb_adjust_z = .55;
+
+		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
+		float e[3] = { rock->scale.x * GRID_SCALE * bb_adjust_x, rock->scale.y * GRID_SCALE, rock->scale.z * GRID_SCALE * bb_adjust_z };
+		rock->colliders.push_back(make_shared<OBBCollider>(rock->position, u, e));
+		entities.push_back(rock);
+		physx::PxRigidStatic* pxRock = physx::PxCreateStatic(*mPhysics,
+			physx::PxTransform(
+				physx::PxVec3(rock->position.x, rock->position.y, rock->position.z),
+				physx::PxQuat(rock->rotationDegrees, physx::PxVec3(rock->rotation.x, rock->rotation.y, rock->rotation.z))),
+			physx::PxBoxGeometry(e[0], e[1], e[2]), *mMaterial);
+
+		mScene->addActor(*pxRock);
+
+	}
 
 	/* set up the FBO for storing the light's depth */
 	void initShadow() {
