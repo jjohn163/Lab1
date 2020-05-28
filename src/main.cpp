@@ -136,6 +136,7 @@ public:
 
 	float SPHERE_RADIUS = 1.0;
 	float EYE_RADIUS = 2.0;
+	const string branch = "branch1";
 	const string feathers[9] = {
 		"feather1",
 		"feather2",
@@ -300,7 +301,27 @@ public:
 		}
 	}
 
+	void branchParticle() {
+		int limit = rand() % 4 + 2;
+		for (int i = 0; i < limit; i++) {
+			float rrotx = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;
+			float rroty = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;
+			mat4 rotx = glm::rotate(mat4(1), glm::radians(rrotx), vec3(1, 0, 0));
+			mat4 roty = glm::rotate(mat4(1), glm::radians(rroty), vec3(0, 1, 0));
+
+			string branch_name = branch;
+			vec3 particle_pos = bird->position + vec3(0, 2, 0);
+			float random_rotation = (rand() % 4) - 2;
+			vec3 velocity = vec4(bird->velocity, 1) * rotx * roty;
+			float gravity_effect = 5;
+			float life_length = rand() % 3 + 2.0f;
+			float scale = 0.5f;
+			particleSystem->addNewParticle(branch_name, "Feather", particle_pos, random_rotation, velocity, gravity_effect, life_length, scale);
+		}
+	}
+
 	void featherParticle() {
+		return;
 		int limit = rand() % 10 + 15;
 		for (int i = 0; i < limit; i++) {
 			float rrotx = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;
@@ -334,7 +355,8 @@ public:
 				std::pair<bool, vec3> result = bird->colliders[0]->isColliding(collider.get(), bird->velocity);
 				if (result.first) {
 					bird->velocity = result.second;
-					featherParticle();
+					//featherParticle();
+					branchParticle();
 				}
 			}
 		}
@@ -417,6 +439,27 @@ public:
 			physx::PxBoxGeometry(e[0], e[1], e[2]), *mMaterial);
 		mScene->addActor(*pxRock);
 
+	}
+
+	void addBranch(shared_ptr<Entity> branch) {
+		const float bb_adjust_x = .75;
+		const float bb_adjust_z = .65;
+
+		vec3 u[3] = { vec3(1,0,0), vec3(0,1,0), vec3(0,0,1) };
+		float e[3] = { branch->scale.x * GRID_SCALE * bb_adjust_x, branch->scale.y * GRID_SCALE, branch->scale.z * GRID_SCALE * bb_adjust_z };
+		branch->colliders.push_back(make_shared<OBBCollider>(branch->position, u, e));
+		entities.push_back(branch);
+		physx::PxRigidStatic* pxRock = physx::PxCreateStatic(*mPhysics,
+			physx::PxTransform(physx::PxVec3(branch->position.x, branch->position.y, branch->position.z)),
+			physx::PxBoxGeometry(e[0], e[1], e[2]), *mMaterial);
+		mScene->addActor(*pxRock);
+
+	}
+
+	void collidedWithBranch()
+	{
+		bird->velocity = bird->velocity * 0.5f;
+		
 	}
 
 	//Gets random number between +- offesetBounds
@@ -515,6 +558,44 @@ public:
 		}
 	}
 
+	void initBranchEntities(string resourceDirectory) {
+		const float SPACE_BETWEEN_ROCKS = GRID_SCALE * 3;
+
+		//const string OBJ_DIR = resourceDirectory + "/squareRock.obj";
+		const vec3 ROCK_POS = lineEquation(START_HEIGHT) + vec3(0,0,0);
+		const vec3 ROCK_SCALE = vec3(0.5, 1, 4);
+		const vec3 ROT_AXIS = vec3(1, 0, 0);
+		const float ROT_ANGLE = 90;
+		const ProgramManager::Material ROCK_MAT = ProgramManager::BRASS;
+		const int OFFSET_LEFT = 12 * GRID_SCALE / 2; // Sum of widths at grid scale/2
+
+		vec3 curPos;
+		int omitRand;
+		vector<int> widths{ 1, 2, 2, 3, 4 };
+		int lastOmitted = widths.size() / 2;
+
+
+		//Starting rock
+		addBranch(make_shared<Entity>(ProgramManager::BRANCH_MESH, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ORANGE));
+
+		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
+			curPos = lineEquation(i) - vec3(OFFSET_LEFT, 0, 0);
+			random_shuffle(widths.begin(), widths.end());
+			do {
+				omitRand = rand() % widths.size();
+			} while (abs(lastOmitted - omitRand) > 1);
+			for (int widthNdx = 0; widthNdx < widths.size(); widthNdx++) {
+				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
+				lastOmitted = omitRand;
+				if (widthNdx != omitRand) {
+					addBranch(make_shared<Entity>(ProgramManager::BRANCH_MESH, curPos, ROCK_SCALE * vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ORANGE));
+				}
+				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
+			}
+		}
+	}
+
+
 	/* set up the FBO for storing the light's depth */
 	void initShadow() {
 
@@ -570,6 +651,7 @@ public:
 
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
+		initBranchEntities(resourceDirectory);
 		initSound(resourceDirectory);
 
 		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 100, 0), vec3(0.2f, 0.2f, 0.2f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::YELLOW);
@@ -727,7 +809,8 @@ public:
 		physx::PxVec3 velocity = bird->body->getLinearVelocity();
 		float speed = velocity.magnitude();
 		if (lastSpeed - speed > MIN_SPEED_CHANGE) {
-			featherParticle();
+			//featherParticle();
+			branchParticle();
 			soundEngine->play2D(impactSound);
 		}
 		lastSpeed = speed;
