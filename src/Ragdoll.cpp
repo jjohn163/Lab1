@@ -1,5 +1,13 @@
 #include "Ragdoll.h"
 
+void Ragdoll::setVelocity(vec3 vel)
+{
+	body->setLinearVelocity(physx::PxVec3(vel.x, vel.y, vel.z));
+	for (physx::PxRigidDynamic* limb : limbs) {
+		limb->setLinearVelocity(physx::PxVec3(vel.x, vel.y, vel.z));
+	}
+}
+
 Ragdoll::Ragdoll(physx::PxPhysics* &physics, physx::PxScene* &scene, physx::PxMaterial* &material)
 {
 	//initialize physx
