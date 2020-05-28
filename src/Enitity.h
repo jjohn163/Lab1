@@ -28,9 +28,9 @@ public:
 		ProgramManager::Material mat, 
 		float rotDeg = 0,
 		ProgramManager::CustomTextures texture = ProgramManager::DEFAULT,
-		physx::PxRigidDynamic* collider = NULL);
+		physx::PxRigidDynamic* collider = NULL,
+		float cullRad = 50);
 	~Entity();
-	//void initMesh();
 	void draw(shared_ptr<MatrixStack> Model, shared_ptr<Program> shader=NULL);
 	void updatePosition(float deltaTime);
 	glm::vec3 position;
@@ -42,9 +42,9 @@ public:
 	vector<shared_ptr<Collider>> colliders;
 	bool isPlane;
 	ProgramManager::Mesh mesh;
-	//shared_ptr<Shape> mesh;
 	string objDirectory;
 	physx::PxRigidDynamic* body;
+	float cullRadius;
 
 	ProgramManager::CustomTextures texture;
 };

@@ -574,7 +574,8 @@ public:
 
 		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 100, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::YELLOW);
 		entities.push_back(hawk);
-		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL);
+		physx::PxRigidDynamic* placeholder = NULL;
+		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL, placeholder, 1000.f);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
 		entities.push_back(ground);
 
@@ -740,6 +741,93 @@ public:
 		*/
 	}
 
+	/* VFC code starts here TODO - start here and fill in these functions!!!*/
+	vec4 Left, Right, Bottom, Top, Near, Far;
+	vec4 planes[6];
+
+	void ExtractVFPlanes(mat4 P, mat4 V) {
+
+		/* composite matrix */
+		mat4 comp = P * V;
+		vec3 n; //use to pull out normal
+		float l; //length of normal for plane normalization
+
+		Left.x = comp[0][3] + comp[0][0]; //m14 + m11
+		Left.y = comp[1][3] + comp[1][0]; //m24 + m21
+		Left.z = comp[2][3] + comp[2][0]; //m34 + m31
+		Left.w = comp[3][3] + comp[3][0]; //m44 + m41
+		n = vec3(Left.x, Left.y, Left.z);
+		l = length(n);
+		planes[0] = Left / l;
+		Left = planes[0];
+
+		Right.x = comp[0][3] - comp[0][0];
+		Right.y = comp[1][3] - comp[1][0];
+		Right.z = comp[2][3] - comp[2][0];
+		Right.w = comp[3][3] - comp[3][0];
+		n = vec3(Right.x, Right.y, Right.z);
+		l = length(n);
+		planes[1] = Right / l;
+		Right = planes[1];
+
+		Bottom.x = comp[0][3] + comp[0][1];
+		Bottom.y = comp[1][3] + comp[1][1];
+		Bottom.z = comp[2][3] + comp[2][1];
+		Bottom.w = comp[3][3] + comp[3][1];
+		n = vec3(Bottom.x, Bottom.y, Bottom.z);
+		l = length(n);
+		planes[2] = Bottom / l;
+		Bottom = planes[2];
+
+		Top.x = comp[0][3] - comp[0][1];
+		Top.y = comp[1][3] - comp[1][1];
+		Top.z = comp[2][3] - comp[2][1];
+		Top.w = comp[3][3] - comp[3][1];
+		n = vec3(Top.x, Top.y, Top.z);
+		l = length(n);
+		planes[3] = Top / l;
+
+		Near.x = comp[0][3] + comp[0][2]; //m14 + m11
+		Near.y = comp[1][3] + comp[1][2]; //m24 + m21
+		Near.z = comp[2][3] + comp[2][2]; //m34 + m31
+		Near.w = comp[3][3] + comp[3][2]; //m44 + m41
+		n = vec3(Near.x, Near.y, Near.z);
+		l = length(n);
+		planes[4] = Near / l;
+
+		Far.x = comp[0][3] - comp[0][0];
+		Far.y = comp[1][3] - comp[1][0];
+		Far.z = comp[2][3] - comp[2][0];
+		Far.w = comp[3][3] - comp[3][0];
+		n = vec3(Far.x, Far.y, Far.z);
+		l = length(n);
+		planes[5] = Far / l;
+		Far = planes[5];
+	}
+
+
+	/* helper function to compute distance to the plane */
+	/* TODO: fill in */
+	float DistToPlane(float A, float B, float C, float D, vec3 point) {
+		return A * point.x + B * point.y + C * point.z + D;
+	}
+
+	/* Actual cull on planes */
+	//returns 1 to CULL
+	int ViewFrustCull(vec3 center, float radius) {
+
+		float dist;
+		//cout << "testing against all planes" << endl;
+		for (int i = 0; i < 6; i++) {
+			dist = DistToPlane(planes[i].x, planes[i].y, planes[i].z, planes[i].w, center);
+			//test against each plane
+			if (dist < (-1) * radius) {
+				return 1;
+			}
+		}
+		return 0;
+	}
+
 	void render() {
 		TimeManager::Instance()->Update();
 		deltaTime = TimeManager::Instance()->DeltaTime();
@@ -861,12 +949,14 @@ public:
 			glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
 			glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(View));
 			glUniform3f(prog->getUniform("lightDir"), light.x, light.y, light.z);
+			ExtractVFPlanes(Projection->topMatrix(), View);
 			Model->pushMatrix();
 			Model->loadIdentity();
 			//Model->rotate(rotate, vec3(0, 1, 0));
 			for (shared_ptr<Entity> entity : entities) {
 				float difference = bird->position.y - entity->position.y;
-				if (entity->isPlane || (difference < 1500 && difference > -100)) {
+
+				if (!ViewFrustCull(entity->position, entity->cullRadius) && (entity->isPlane || (difference < 1500 && difference > -100))) {
 					entity->draw(Model);
 				}
 			}

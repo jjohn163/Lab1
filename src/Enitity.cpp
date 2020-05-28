@@ -16,7 +16,8 @@ Entity::Entity(
 	ProgramManager::Material mat, 
 	float rotDeg,
 	ProgramManager::CustomTextures texture,
-	physx::PxRigidDynamic* collider)
+	physx::PxRigidDynamic* collider,
+	float cullRad)
 {
 	//objDirectory = objDir;
 	mesh = mes;
@@ -29,6 +30,7 @@ Entity::Entity(
 	material = mat;
 	this->texture = texture;
 	body = collider;
+	cullRadius = cullRad;
 	//initMesh();
 }
 /*
