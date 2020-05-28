@@ -9,8 +9,6 @@ in vec2 vTex;
 in vec3 fPos;
 in vec4 fPosLS;
 
-uniform vec3 MatAmb;
-uniform vec3 MatDif;
 uniform sampler2D Texture0;
 uniform sampler2D shadowDepth;
 uniform vec3 LightPos;
@@ -50,7 +48,7 @@ void main()
     Shade = TestShadow(fPosLS);
 
 
-    vec4 texColor = texture(Texture0, vTex)
+    vec4 texColor = texture(Texture0, vTex);
     // store the fragment position vector in the first gbuffer texture
     gPosition = fragPos;
     // also store the per-fragment normals into the gbuffer

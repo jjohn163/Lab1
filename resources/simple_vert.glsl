@@ -21,6 +21,6 @@ void main()
 	fragNor = (V* M * vec4(vertNor, 0.0)).xyz;
 	fragPos = vec3(V* M*vertPos);
 	vTex = vertTex;
-    fPos = (M*vec4(vertPos, 1.0)).xyz;
+    fPos = (M*vertPos).xyz;
     fPosLS = LS * M * vec4(vertPos.xyz, 1.0);
 }

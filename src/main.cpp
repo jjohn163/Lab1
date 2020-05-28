@@ -179,7 +179,7 @@ public:
 	GLuint texBuf[2];
 
 	bool FirstTime = true;
-	bool Defer = false;
+	bool Defer = true;
 
 	//geometry for texture render
 	GLuint quad_VertexArrayID;
@@ -807,8 +807,8 @@ public:
 		initBuffers();
 
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
-		//glGenFramebuffers(1, &LframeBuf);
-		//glGenTextures(1, &LtexBuf);
+		glGenFramebuffers(1, &LframeBuf);
+		glGenTextures(1, &LtexBuf);
 		glGenRenderbuffers(1, &depthBuf);
 		createFBO(LframeBuf, LtexBuf);
 
@@ -1269,7 +1269,7 @@ public:
 				unblurredRadius = pow(unblurredRadius, 16);
 			}
 
-			cout << "unblurredRadius: " << "(" << unblurredRadius << ")" << endl;
+			//cout << "unblurredRadius: " << "(" << unblurredRadius << ")" << endl;
 
 			// The blur starts to show when the velocity.y > 125, but 150 is when it's really honed in on the bird
 			motionBlur(gColorSpec, 0, 6, unblurredRadius);
