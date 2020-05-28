@@ -859,7 +859,7 @@ public:
 		int width, height, channels;
 		char filepath[1000];
 
-		string str = resourceDirectory + "/arcticpolished.jpg";
+		string str = resourceDirectory + "/kiara_1_dawn_1k.jpg";
 		strcpy(filepath, str.c_str());
 		unsigned char* data = stbi_load(filepath, &width, &height, &channels, 4);
 
@@ -1390,7 +1390,12 @@ public:
 			P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f);
 			vec3 campos = eye;
 			glm::mat4 sc = scale(glm::mat4(1.0), glm::vec3(50, 50, 50));
-			M = M * sc;
+			static float w = 0;
+			w += deltaTime;
+			cout << w << endl;
+			glm::mat4 rotX = glm::rotate(glm::mat4(1.0), 9.0f, vec3(1, 0, 0));
+			
+			M = M * rotX * sc;
 
 			//send the matrices to the shaders
 			glUniformMatrix4fv(psky->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
@@ -1404,10 +1409,10 @@ public:
 			meshSkybox->draw(psky);
 		psky->unbind();
 
-
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
 		particleSystem->render(deltaTime, View, eye);
+
 		
 		//animation update example
 		sTheta = sin(glfwGetTime());
