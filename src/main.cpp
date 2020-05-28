@@ -407,7 +407,7 @@ public:
 	}
 
 	void featherParticle() {
-		return;
+		//return;
 		int limit = rand() % 10 + 15;
 		for (int i = 0; i < limit; i++) {
 			float rrotx = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 180 - 90;

@@ -121,7 +121,7 @@ void ProgramManager::init() {
 	tex_orange->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
 	tex_eagle = new Texture();
-	tex_eagle->setFilename(resourceDirectory + "/TalonedEagle.jpg");
+	tex_eagle->setFilename(resourceDirectory + "/TalonedEagle.bmp");
 	tex_eagle->init();
 	tex_eagle->setUnit(0);
 	tex_eagle->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
@@ -136,7 +136,7 @@ void ProgramManager::init() {
 	initMesh("/spheresmooth.obj", mesh_sphere);
 	initMesh("/squareRock.obj", mesh_rock);
 	initMesh("/rockyCliff_uv_smooth.obj", mesh_wall);
-	initMesh("/TalonedEagle.obj", mesh_eagle);
+	initMesh("/TalonedEagle_fix.obj", mesh_eagle);
 	initMesh("/tree.obj", mesh_branch);
 }
 
