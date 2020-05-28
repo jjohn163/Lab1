@@ -69,23 +69,19 @@ ProgramManager* ProgramManager::Instance()
 void ProgramManager::init() {
 	progMat = make_shared<Program>();
 	progMat->setVerbose(true);
-	progMat->setShaderNames(resourceDirectory + "/shadow_vert.glsl", resourceDirectory + "/shadow_frag.glsl");
+	progMat->setShaderNames(resourceDirectory + "/simple_vert.glsl", resourceDirectory + "/gbuf_frag.glsl");
 	progMat->init();
 	progMat->addUniform("P");
 	progMat->addUniform("V");
 	progMat->addUniform("M");
-	//progMat->addUniform("MatDif");
-	//progMat->addUniform("MatAmb");
-	//progMat->addUniform("MatSpec");
-	//progMat->addUniform("shine");
-	progMat->addUniform("lightDir");
+	progMat->addUniform("LightPos");
 	progMat->addUniform("Texture0");
 	progMat->addUniform("shadowDepth");
 	progMat->addUniform("LS");
 	progMat->addAttribute("vertPos");
 	progMat->addAttribute("vertNor");
 	progMat->addAttribute("vertTex");
-
+	cout << "progMat " << progMat->getPID() << endl;
 	tex_sample = new Texture();
 	tex_sample->setFilename(resourceDirectory + "/crate.jpg");
 	tex_sample->init();
@@ -127,6 +123,7 @@ void ProgramManager::init() {
 	initMesh("/squareRock.obj", mesh_rock);
 	initMesh("/rockyCliff_uv_smooth.obj", mesh_wall);
 	initMesh("/Eagle02_sale.obj", mesh_hawk);
+
 }
 
 void ProgramManager::setModel(std::shared_ptr<MatrixStack>M, shared_ptr<Program> shader) {

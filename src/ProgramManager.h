@@ -27,6 +27,7 @@ public:
 	void drawMesh(Mesh i, shared_ptr<Program> shader);
 
 	std::shared_ptr<Program> progMat;
+	std::shared_ptr<Program> prog;
 	
 
 private: 

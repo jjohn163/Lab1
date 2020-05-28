@@ -24,6 +24,7 @@
 #include "physx/PxPhysicsAPI.h"
 #include "Ragdoll.h"
 #include "irrKlang.h"
+#include "GLTextureWriter.h"
 //#include "physx/extensions/PxExtensionsAPI.h"
 //#include "physx/common/PxTolerancesScale.h"
 
@@ -50,15 +51,17 @@ public:
 	physx::PxScene* mScene;
 	physx::PxMaterial* mMaterial;
 	float lastSpeed = 0.f;
-	const float MIN_SPEED_CHANGE = 3.f;
+	const float MIN_SPEED_CHANGE = 7.f;
 	vec3 startPosition;
 	shared_ptr<Ragdoll> ragdoll;
 
 	//IRRKLANG
 	irrklang::ISoundEngine* soundEngine = irrklang::createIrrKlangDevice();
 	irrklang::ISoundSource* impactSound;
+	irrklang::ISoundSource* music;
 	const std::string IMPACT_SOUND_FILE = "/impact.wav";
 	const std::string BACKGROUND_MUSIC_FILE = "/bensound-buddy.mp3";
+	int FREE_FRAMES = 10;
 
 	//SHADOWS
 	GLuint depthMapFBO;
@@ -75,22 +78,27 @@ public:
 	float EDGE = 500;
 	float EDGE_BOT = -1.5f * EDGE;
 	float EDGE_TOP = 0.5f * EDGE;
-	float TOP_EDGE = -20.0f;
+	float TOP_EDGE = -30.0f;
+
+
+	//GAME MANAGING
+	bool GAME_OVER = false;
+	float HEALTH = 500.0;
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
 
 	//std::shared_ptr<Program> cubeProg;
 	// Shape to be used (from  file) - modify to support multiple
+	
 	shared_ptr<Shape> meshfloor;
 	shared_ptr<Shape> meshsphere;
 	shared_ptr<Shape> meshwall;
 	shared_ptr<Shape> meshrock1;
 	shared_ptr<Shape> meshChick;
 	shared_ptr<Shape> meshPillar;
-	shared_ptr<Program> psky;
-
 	shared_ptr<Shape> meshSkybox;
+	shared_ptr<Program> psky;
 
 	ParticleSystem * particleSystem;
 
@@ -159,6 +167,29 @@ public:
 		"iceflow_ft.tga",
 		"iceflow_bk.tga"
 	};
+
+	// Deferred stuff 
+	std::shared_ptr<Program> mergeProg;
+	std::shared_ptr<Program> blur_prog;
+
+	//reference to texture FBO
+	GLuint gBuffer;
+	GLuint gPosition, gNormal, gColorSpec;
+	GLuint depthBuf;
+
+	GLuint LframeBuf;
+	GLuint LtexBuf;
+
+	GLuint frameBuf[2];
+	GLuint texBuf[2];
+
+	bool FirstTime = true;
+	bool Defer = true;
+
+	//geometry for texture render
+	GLuint quad_VertexArrayID;
+	GLuint quad_vertexbuffer;
+
 
 	physx::PxVec3 vec3GLMtoPhysx(vec3 vector)
 	{
@@ -296,6 +327,31 @@ public:
 			featherParticle();
 			DEBUG = !DEBUG;
 		}
+		if (key == GLFW_KEY_P && action == GLFW_PRESS) {
+			Defer = !Defer;
+		}
+	}
+
+
+	/**** geometry set up for a quad *****/
+	void initQuad() {
+		//now set up a simple quad for rendering FBO
+		glGenVertexArrays(1, &quad_VertexArrayID);
+		glBindVertexArray(quad_VertexArrayID);
+
+		static const GLfloat g_quad_vertex_buffer_data[] =
+		{
+			-1.0f, -1.0f, 0.0f,
+			1.0f, -1.0f, 0.0f,
+			-1.0f,  1.0f, 0.0f,
+			-1.0f,  1.0f, 0.0f,
+			1.0f, -1.0f, 0.0f,
+			1.0f,  1.0f, 0.0f,
+		};
+
+		glGenBuffers(1, &quad_vertexbuffer);
+		glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
 	}
 
 	void featherParticle() {
@@ -411,8 +467,9 @@ public:
 		rock->colliders.push_back(make_shared<OBBCollider>(rock->position, u, e));
 		entities.push_back(rock);
 		physx::PxRigidStatic* pxRock = physx::PxCreateStatic(*mPhysics,
-			physx::PxTransform(physx::PxVec3(rock->position.x, rock->position.y, rock->position.z)),
+			physx::PxTransform(physx::PxVec3(rock->position.x, rock->position.y, rock->position.z), physx::PxQuat(0,physx::PxVec3(0,1,0))),
 			physx::PxBoxGeometry(e[0], e[1], e[2]), *mMaterial);
+		
 		mScene->addActor(*pxRock);
 
 	}
@@ -547,9 +604,28 @@ public:
 		impactSound->setDefaultVolume(2.0);
 
 		std::string backgroundMusic = (resourceDirectory + BACKGROUND_MUSIC_FILE).c_str();
-		irrklang::ISoundSource* music = soundEngine->addSoundSourceFromFile(backgroundMusic.c_str());
+		music = soundEngine->addSoundSourceFromFile(backgroundMusic.c_str());
 		music->setDefaultVolume(0.1);
-		soundEngine->play2D(music, true);
+		
+	}
+
+	void makeSphere(const std::string& resourceDirectory)
+	{
+		// Initialize the obj mesh VBOs etc
+		meshsphere = make_shared<Shape>();
+		string errStr;
+		vector<tinyobj::shape_t> TOshapesObject;
+		vector<tinyobj::material_t> objMaterialsObject;
+		bool rc = tinyobj::LoadObj(TOshapesObject, objMaterialsObject, errStr, (resourceDirectory + "/sphere.obj").c_str());
+		if (!rc) {
+			cerr << errStr << endl;
+		}
+		else {
+			meshsphere = make_shared<Shape>();
+			meshsphere->createShape(TOshapesObject[0]);
+			meshsphere->measure();
+			meshsphere->init();
+		}
 	}
 
 	void init(const std::string& resourceDirectory)
@@ -558,19 +634,19 @@ public:
 		GLSL::checkVersion();
 
 		vec3 rockStart = lineEquation(START_HEIGHT);
-		startPosition = vec3(rockStart.x, rockStart.y + GRID_SCALE, rockStart.z + GRID_SCALE);
+		startPosition = vec3(rockStart.x, rockStart.y+3, rockStart.z);
 		
 		ragdoll = make_shared<Ragdoll>(mPhysics, mScene, mMaterial);
 		bird = Ragdoll::createBirdRagdoll(startPosition, entities, ragdoll, resourceDirectory);
-		lookAtPoint = startPosition;
-		eye = startPosition + vec3(0, 25, 0);
+		eye = bird->position + vec3(0, 10, 0);
+		lookAtPoint = bird->position;
 
 
 		initWallEntities(resourceDirectory);
 		initRockEntities(resourceDirectory);
-		initSound(resourceDirectory);
+		
 
-		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 100, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::YELLOW);
+		hawk = make_shared<Entity>(ProgramManager::HAWK_MESH, bird->position + vec3(0, 200, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::YELLOW);
 		entities.push_back(hawk);
 		physx::PxRigidDynamic* placeholder = NULL;
 		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL, placeholder, 1000.f);
@@ -699,7 +775,72 @@ public:
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
 		initShadow();
-		eye = bird->position + vec3(0, 10, 0);
+
+
+		//set up the shaders to blur the FBO just a placeholder pass thru now
+		//next lab modify and possibly add other shaders to complete blur
+		mergeProg = make_shared<Program>();
+		mergeProg->setVerbose(true);
+		mergeProg->setShaderNames(
+			resourceDirectory + "/pass_vert.glsl",
+			resourceDirectory + "/tex_frag.glsl");
+		if (!mergeProg->init()) {
+			std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
+			exit(1);
+		}
+		mergeProg->addUniform("gBuf");
+		mergeProg->addUniform("colorBuf");
+		mergeProg->addUniform("norBuf");
+		mergeProg->addUniform("lightBuf");
+		mergeProg->addAttribute("vertPos");
+		mergeProg->addUniform("Ldir");
+
+		cout << "mergeprog " << mergeProg->getPID() << endl;
+
+		//set up the shaders to blur the FBO decomposed just a placeholder pass thru now
+		//TODO - modify and possibly add other shaders to complete blur
+		blur_prog = make_shared<Program>();
+		blur_prog->setVerbose(true);
+		blur_prog->setShaderNames(resourceDirectory + "/blur_vert.glsl", resourceDirectory + "/blur_frag.glsl");
+		blur_prog->init();
+		blur_prog->addUniform("texBuf");
+		blur_prog->addUniform("unblurredRadius");
+		blur_prog->addUniform("fTime");
+		blur_prog->addAttribute("vertPos");
+
+
+		initBuffers();
+
+		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
+		glGenFramebuffers(1, &LframeBuf);
+		glGenTextures(1, &LtexBuf);
+		glGenRenderbuffers(1, &depthBuf);
+		createFBO(LframeBuf, LtexBuf);
+
+		//set up depth necessary since we are rendering a mesh that needs depth test
+		glBindRenderbuffer(GL_RENDERBUFFER, depthBuf);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT,
+			width, height);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER,
+			GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuf);
+
+		//more FBO set up
+		GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+		glDrawBuffers(1, DrawBuffers);
+
+		//Initialize the geometry to render a quad to the screen
+		initQuad();
+
+		glGenFramebuffers(2, frameBuf);
+		glGenTextures(2, texBuf);
+		glGenFramebuffers(2, frameBuf);
+		glGenTextures(2, texBuf);
+		glGenRenderbuffers(1, &depthBuf);
+
+		//create one FBO
+		createFBO(frameBuf[0], texBuf[0]);
+		createFBO(frameBuf[1], texBuf[1]);
+		initSound(resourceDirectory);
 	}
 
 	mat4 SetOrthoMatrix(shared_ptr<Program> curShade) {
@@ -717,6 +858,134 @@ public:
 		return Cam;
 	}
 
+
+	void initBuffers() {
+		int width, height;
+		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
+
+		//initialize the buffers -- from learnopengl.com
+		glGenFramebuffers(1, &gBuffer);
+		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+
+		// - position color buffer
+		glGenTextures(1, &gPosition);
+		glBindTexture(GL_TEXTURE_2D, gPosition);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+
+		// - normal color buffer
+		glGenTextures(1, &gNormal);
+		glBindTexture(GL_TEXTURE_2D, gNormal);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+
+		// - color + specular color buffer
+		glGenTextures(1, &gColorSpec);
+		glBindTexture(GL_TEXTURE_2D, gColorSpec);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gColorSpec, 0);
+
+		glGenRenderbuffers(1, &depthBuf);
+		//set up depth necessary as rendering a mesh that needs depth test
+		glBindRenderbuffer(GL_RENDERBUFFER, depthBuf);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuf);
+
+		//more FBO set up
+		GLenum DrawBuffers[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+		glDrawBuffers(3, DrawBuffers);
+
+	}
+
+	void createFBO(GLuint& fb, GLuint& tex) {
+		//initialize FBO
+		int width, height;
+		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
+
+		//set up framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, fb);
+		//set up texture
+		glBindTexture(GL_TEXTURE_2D, tex);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		{
+			cout << "Error setting up frame buffer - exiting" << endl;
+			exit(0);
+		}
+	}
+
+	/*Motion blurs the texture texImageToBlur and outputs the result to targetFrameBuf.
+	The larger the motionBlurIterations, the stronger the blurring effect.
+	*/
+	void motionBlur(GLuint texImageToBlur, GLuint targetFrameBuf, GLuint motionBlurIterations, float unblurredRadius)
+	{
+		CHECKED_GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, targetFrameBuf));
+		CHECKED_GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+		if (motionBlurIterations == 0)
+		{
+			ProcessDrawTex(texImageToBlur, INFINITY);
+		}
+		else if (motionBlurIterations == 1)
+		{
+			ProcessDrawTex(texImageToBlur, unblurredRadius);
+		}
+		else 
+		{
+			CHECKED_GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBuf[0]));
+			CHECKED_GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+			ProcessDrawTex(texImageToBlur, unblurredRadius);
+
+			for (int i = 0; i < motionBlurIterations - 2; i++)
+			{
+				glBindFramebuffer(GL_FRAMEBUFFER, frameBuf[(i + 1) % 2]);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				ProcessDrawTex(texBuf[i % 2], unblurredRadius);
+			}
+
+			//regardless NOW set up to render to the screen = 0
+			CHECKED_GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, targetFrameBuf));
+			CHECKED_GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+			/* now draw the actual output  to the default framebuffer - ie display */
+			/* note the current base code is just using one FBO and texture - will need
+			  to change that  - we pass in texBuf[0] right now */
+			ProcessDrawTex(texBuf[motionBlurIterations % 2], unblurredRadius);
+		}
+	}
+
+	void ProcessDrawTex(GLuint inTex, float unblurredRadius) {
+
+		//set up inTex as my input texture
+		CHECKED_GL_CALL(glActiveTexture(GL_TEXTURE0));
+		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, inTex));
+		//example applying of 'drawing' the FBO texture
+		//this shader just draws right now
+		blur_prog->bind();
+		CHECKED_GL_CALL(glUniform1i(blur_prog->getUniform("texBuf"), 0));
+		CHECKED_GL_CALL(glUniform1f(blur_prog->getUniform("unblurredRadius"), unblurredRadius));
+		CHECKED_GL_CALL(glUniform1f(blur_prog->getUniform("fTime"), glfwGetTime()));
+		CHECKED_GL_CALL(glEnableVertexAttribArray(0));
+		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer));
+		CHECKED_GL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0));
+		CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
+		CHECKED_GL_CALL(glDisableVertexAttribArray(0));
+		blur_prog->unbind();
+
+	}
+
 	void updateEntities() {
 		for (shared_ptr<Entity> entity : entities) {
 			if (entity->body) {
@@ -725,18 +994,27 @@ public:
 		}
 		physx::PxVec3 velocity = bird->body->getLinearVelocity();
 		float speed = velocity.magnitude();
-		if (lastSpeed - speed > MIN_SPEED_CHANGE) {
+		if (lastSpeed - speed > MIN_SPEED_CHANGE && FREE_FRAMES < 0) {
 			featherParticle();
 			soundEngine->play2D(impactSound);
+			FREE_FRAMES = 3;
+			HEALTH -= fabs(lastSpeed - speed);
 		}
+		if (HEALTH <= 0 || length(bird->position - hawk->position) < 5) {
+			GAME_OVER = true;
+		}
+		FREE_FRAMES--;
 		lastSpeed = speed;
-		/*
-		float HAWK_SPEED = 10.0f;
-		vec3 target = bird->position;
-		vec3 direction = target - hawk->position;
+		
+		float HAWK_MIN_SPEED = 30.0f;
+		float HAWK_MAX_SPEED = 75.0f;
+		vec3 direction = bird->position - hawk->position;
+		if (length(direction) > 15) {
+			direction = bird->position + vec3(0, 0, 15) - hawk->position;
+		}
 		float alternative = 0.5f * length(direction);
-		hawk->position += normalize(direction) * fmax(HAWK_SPEED, alternative) * deltaTime;
-		*/
+		hawk->position += normalize(direction) * fmin(fmax(HAWK_MIN_SPEED, alternative), HAWK_MAX_SPEED) * deltaTime;
+		
 	}
 
 	/* Actual cull on planes */
@@ -751,7 +1029,13 @@ public:
 	void render() {
 		TimeManager::Instance()->Update();
 		deltaTime = TimeManager::Instance()->DeltaTime();
-		mScene->simulate(deltaTime);
+		if (FIRST) {
+			FIRST = false;
+			soundEngine->play2D(music, true);
+		}
+		if (!GAME_OVER) {
+			mScene->simulate(deltaTime);
+		}
 
 		// Get current frame buffer size.
 		int width, height;
@@ -843,43 +1127,89 @@ public:
 		glEnable(GL_DEPTH_TEST);
 		
 		psky->unbind();
-		if (DEBUG) {
-			DepthProgDebug->bind();
-			//render scene from light's point of view
-			SetOrthoMatrix(DepthProgDebug);
-			SetLightView(DepthProgDebug, light, lightLA, lightUp);
-			Model->pushMatrix();
-			Model->loadIdentity();
-			for (shared_ptr<Entity> entity : entities) {
-				entity->draw(Model, DepthProgDebug);
+
+		// Begin rendering objects in the scene
+		// Bind to the gbuffer or to the screen (0)
+		if (Defer) glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+		else glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		// Clear framebuffer.
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		ProgramManager::Instance()->progMat->bind();
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, depthMap);
+		glUniform1i(ProgramManager::Instance()->progMat->getUniform("shadowDepth"), 1);
+		glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("LS"), 1, GL_FALSE, value_ptr(LS));
+		glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+		glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+		glUniform3f(ProgramManager::Instance()->progMat->getUniform("LightPos"), light.x, light.y, light.z);
+		Model->pushMatrix();
+		Model->loadIdentity();
+		//Model->rotate(rotate, vec3(0, 1, 0));
+		for (shared_ptr<Entity> entity : entities) {
+			if (!shouldCull(entity->position, entity->cullRadius)) {
+				entity->draw(Model);
 			}
-			Model->popMatrix();
-			//drawScene(DepthProgDebug, ShadowProg->getUniform("Texture0"), 0);
-			DepthProgDebug->unbind();
 		}
-		else {
-			// Draw a stack of cubes with indiviudal transforms
-			shared_ptr<Program> prog = ProgramManager::Instance()->progMat;
-			prog->bind();
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, depthMap);
-			glUniform1i(prog->getUniform("shadowDepth"), 1);
-			glUniformMatrix4fv(prog->getUniform("LS"), 1, GL_FALSE, value_ptr(LS));
-			glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-			glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-			glUniform3f(prog->getUniform("lightDir"), light.x, light.y, light.z);
-			Model->pushMatrix();
-			Model->loadIdentity();
-			//Model->rotate(rotate, vec3(0, 1, 0));
-			for (shared_ptr<Entity> entity : entities) {
-				if (!shouldCull(entity->position, entity->cullRadius)) {
-					entity->draw(Model);
-				}
-			}
-			Model->popMatrix();
-			prog->unbind();
-		}
+
+		Model->popMatrix();
+		ProgramManager::Instance()->progMat->unbind();
 		
+		if (Defer) {
+			float blurVelocityRequirement = 150;
+
+			physx::PxVec3 velocity = bird->body->getLinearVelocity();
+			
+			float unblurredRadius = abs(blurVelocityRequirement / velocity.y);
+
+			// This facilitates a very smooth transition to showing the blur without making the blur show too early.
+			if (unblurredRadius > 1)
+			{
+				unblurredRadius = pow(unblurredRadius, 16);
+			}
+
+			//cout << "unblurredRadius: " << "(" << unblurredRadius << ")" << endl;
+
+			// The blur starts to show when the velocity.y > 125, but 150 is when it's really honed in on the bird
+			motionBlur(gColorSpec, 0, 6, unblurredRadius);
+
+			///* now draw the actual output */
+			//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+			//// example applying of 'drawing' the FBO texture - change shaders
+			//mergeProg->bind();
+			//glActiveTexture(GL_TEXTURE0);
+			//glBindTexture(GL_TEXTURE_2D, gPosition);
+			//glActiveTexture(GL_TEXTURE0 + 1);
+			//glBindTexture(GL_TEXTURE_2D, gNormal);
+			//glActiveTexture(GL_TEXTURE0 + 2);
+			//glBindTexture(GL_TEXTURE_2D, gColorSpec);
+			//glActiveTexture(GL_TEXTURE0 + 3);
+			//glBindTexture(GL_TEXTURE_2D, LtexBuf);
+			//glUniform1i(mergeProg->getUniform("gBuf"), 0);
+			//glUniform1i(mergeProg->getUniform("norBuf"), 1);
+			//glUniform1i(mergeProg->getUniform("colorBuf"), 2);
+			//glUniform1i(mergeProg->getUniform("lightBuf"), 3);
+			////glUniform3f(texProg->getUniform("Ldir"), g_light.x, g_light.y, g_light.z);
+			//glEnableVertexAttribArray(0);
+			//glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+			//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+			//glDrawArrays(GL_TRIANGLES, 0, 6);
+			//glDisableVertexAttribArray(0);
+			//mergeProg->unbind();
+
+			if (FirstTime)
+			{
+				assert(GLTextureWriter::WriteImage(gBuffer, "gBuf.png"));
+				assert(GLTextureWriter::WriteImage(gPosition, "gPos.png"));
+				assert(GLTextureWriter::WriteImage(gNormal, "gNorm.png"));
+				assert(GLTextureWriter::WriteImage(gColorSpec, "gColorSpec.png"));
+				FirstTime = false;
+			}
+		}
 
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
@@ -891,11 +1221,12 @@ public:
 		// Pop matrix stacks.
 		Projection->popMatrix();
 		//View->popMatrix();
-		mScene->fetchResults();
-		updateEntities();
-		updateCamera(bird);
-		light = bird->position + vec3(50, 50, 50);
-		//cout << bird->position.y << endl;
+		if (!GAME_OVER) {
+			mScene->fetchResults();
+			updateEntities();
+			updateCamera(bird);
+			light = bird->position + vec3(50, 50, 50);
+		}
 	}
 };
 
