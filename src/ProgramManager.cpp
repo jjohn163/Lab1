@@ -121,7 +121,7 @@ void ProgramManager::init() {
 	tex_orange->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
 	tex_eagle = new Texture();
-	tex_eagle->setFilename(resourceDirectory + "/TalonedEagle.jpg");
+	tex_eagle->setFilename(resourceDirectory + "/TalonedEagle.bmp");
 	tex_eagle->init();
 	tex_eagle->setUnit(0);
 	tex_eagle->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
