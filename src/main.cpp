@@ -59,8 +59,10 @@ public:
 	irrklang::ISoundEngine* soundEngine = irrklang::createIrrKlangDevice();
 	irrklang::ISoundSource* impactSound;
 	irrklang::ISoundSource* music;
+	irrklang::ISoundSource* branchCrackSound;
 	const std::string IMPACT_SOUND_FILE = "/impact.wav";
 	const std::string BACKGROUND_MUSIC_FILE = "/bensound-buddy.mp3";
+	const std::string BRANCH_CRACK_SOUND_FILE = "/branch_crack.wav";
 	
 
 	//SHADOWS
@@ -83,8 +85,8 @@ public:
 
 	//GAME MANAGING
 	bool GAME_OVER = false;
-	float MAX_HEALTH = 500.0;
-	float HEALTH = 500.0;
+	float MAX_HEALTH = 250.0;
+	float HEALTH = 250.0;
 	bool CAUGHT = false;
 	int FREE_FRAMES = 10;
 
@@ -268,15 +270,15 @@ public:
 	} 
 	void checkIfBranchCollision(shared_ptr<Entity> entity) {
 		
-		cout << "Size of branches: " << branches.size() << endl;
+		//cout << "Size of branches: " << branches.size() << endl;
 		for (int i = 0; i < branches.size(); i++)
 		{
 			int xRange =  10;
 			int yRange = 5;
 			int zRange = 20;
 			shared_ptr<Entity> branch = branches[i];
-
-			if (!(branch->position.x - xRange < bird->position.x && branch->position.x + xRange > bird->position.x
+			//using mat to dtermine if was already hit
+			if (branch->material != ProgramManager::BRASS || !(branch->position.x - xRange < bird->position.x && branch->position.x + xRange > bird->position.x
 				&& branch->position.y - yRange < bird->position.y && branch->position.y + yRange > bird->position.y 
 				&& branch->position.z - zRange < bird->position.z && branch->position.z + zRange > bird->position.z))
 			{
@@ -286,8 +288,11 @@ public:
 			physx::PxVec3 velocity = bird->body->getLinearVelocity();
 			vec3 velocityGlm = vec3(velocity.x, velocity.y, velocity.z);
 			ragdoll->setVelocity(velocityGlm * 0.3f);
-			branches.erase(branches.begin() + i);
+			//branches.erase(branches.begin() + i);
+			branch->material = ProgramManager::BLUE_PLASTIC;
 			branchParticle();
+			FREE_FRAMES = 3;
+			soundEngine->play2D(branchCrackSound);
 			break;
 		}
 	}
@@ -634,7 +639,7 @@ public:
 				else {
 					addBranch(make_shared<Entity>(
 						ProgramManager::BRANCH_MESH, curPos+vec3(0, 0, OFFSET_Z), BRANCH_SCALE * vec3(widths[widthNdx], 1, 1), 
-						BRANCH_ROT, false, ROCK_MAT, BRANCH_ROT_ANGLE, ProgramManager::ORANGE));
+						BRANCH_ROT, false, ROCK_MAT, BRANCH_ROT_ANGLE, ProgramManager::BRANCH));
 				}
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 			}
@@ -659,7 +664,7 @@ public:
 
 
 		//Starting rock
-		addBranch(make_shared<Entity>(ProgramManager::BRANCH_MESH, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ORANGE));
+		addBranch(make_shared<Entity>(ProgramManager::BRANCH_MESH, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::BRANCH));
 
 		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
 			curPos = lineEquation(i) - vec3(OFFSET_LEFT, 0, 0);
@@ -671,7 +676,7 @@ public:
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 				lastOmitted = omitRand;
 				if (widthNdx != omitRand) {
-					addBranch(make_shared<Entity>(ProgramManager::BRANCH_MESH, curPos, ROCK_SCALE * vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::ORANGE));
+					addBranch(make_shared<Entity>(ProgramManager::BRANCH_MESH, curPos, ROCK_SCALE * vec3(widths[widthNdx], 1, 1), ROT_AXIS, false, ROCK_MAT, ROT_ANGLE, ProgramManager::BRANCH));
 				}
 				curPos += vec3(widths[widthNdx] * GRID_SCALE / 2, 0, 0);
 			}
@@ -730,6 +735,10 @@ public:
 		impactSound = soundEngine->addSoundSourceFromFile(impactFile.c_str());
 		impactSound->setDefaultVolume(2.0);
 
+		std::string branchCrackFile = (resourceDirectory + BRANCH_CRACK_SOUND_FILE).c_str();
+		branchCrackSound = soundEngine->addSoundSourceFromFile(branchCrackFile.c_str());
+		branchCrackSound->setDefaultVolume(2.0);
+
 		std::string backgroundMusic = (resourceDirectory + BACKGROUND_MUSIC_FILE).c_str();
 		music = soundEngine->addSoundSourceFromFile(backgroundMusic.c_str());
 		music->setDefaultVolume(0.1);
@@ -766,7 +775,13 @@ public:
 				Ragdoll::updateOrientation(entity);
 			}
 		}
-		eagle->position = startPosition + vec3(0, 600, 0);
+
+		for (shared_ptr<Entity> branch : branches) {
+			branch->material = ProgramManager::BRASS;
+		}
+
+		eagle->position = startPosition + vec3(0, 1000, 0);
+
 		eye = startPosition + vec3(0, 10, 0);
 		lookAtPoint = startPosition;
 		FREE_FRAMES = 10;
@@ -790,8 +805,9 @@ public:
 		initRockEntities(resourceDirectory);
 		//initBranchEntities(resourceDirectory);
 
-		eagle = make_shared<Entity>(ProgramManager::EAGLE_MESH, bird->position + vec3(0, 600, 0), vec3(1.0f, 1.0f, 1.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::EAGLE);
+		eagle = make_shared<Entity>(ProgramManager::EAGLE_MESH, bird->position + vec3(0, 600, 0), vec3(4.0f, 4.0f, 4.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::EAGLE);
 		entities.push_back(eagle);
+
 		physx::PxRigidDynamic* placeholder = NULL;
 		shared_ptr<Entity> ground = make_shared<Entity>(ProgramManager::WALL_MESH, lineEquation(0), vec3(5, 5, 1), vec3(1, 0, 0), true, ProgramManager::LIGHT_BLUE, PI / 2, ProgramManager::WALL, placeholder, 1000.f);
 		ground->colliders.push_back(make_shared<PlaneCollider>(vec3(0, ground->position.y, 1), vec3(1, ground->position.y, 0), vec3(-1, ground->position.y, 0)));
@@ -847,7 +863,7 @@ public:
 		int width, height, channels;
 		char filepath[1000];
 
-		string str = resourceDirectory + "/arcticpolished.jpg";
+		string str = resourceDirectory + "/kiara_1_dawn_1k.jpg";
 		strcpy(filepath, str.c_str());
 		unsigned char* data = stbi_load(filepath, &width, &height, &channels, 4);
 
@@ -1264,7 +1280,7 @@ public:
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		//glEnable(GL_DEPTH_TEST);
 		//glDisable(GL_BLEND);
-
+		float damage = (MAX_HEALTH - HEALTH) / MAX_HEALTH;
 		ProgramManager::Instance()->progMat->bind();
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -1273,6 +1289,7 @@ public:
 		glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
 		glUniformMatrix4fv(ProgramManager::Instance()->progMat->getUniform("V"), 1, GL_FALSE, value_ptr(View));
 		glUniform3f(ProgramManager::Instance()->progMat->getUniform("LightPos"), light.x, light.y, light.z);
+		glUniform3f(ProgramManager::Instance()->progMat->getUniform("Damage"), damage, 0.0f, 0.0f);
 		Model->pushMatrix();
 		Model->loadIdentity();
 		//Model->rotate(rotate, vec3(0, 1, 0));
@@ -1377,7 +1394,12 @@ public:
 			P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f);
 			vec3 campos = eye;
 			glm::mat4 sc = scale(glm::mat4(1.0), glm::vec3(50, 50, 50));
-			M = M * sc;
+			static float w = 0;
+			w += deltaTime;
+			cout << w << endl;
+			glm::mat4 rotX = glm::rotate(glm::mat4(1.0), 9.0f, vec3(1, 0, 0));
+			
+			M = M * rotX * sc;
 
 			//send the matrices to the shaders
 			glUniformMatrix4fv(psky->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
@@ -1391,10 +1413,10 @@ public:
 			meshSkybox->draw(psky);
 		psky->unbind();
 
-
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
 		particleSystem->render(deltaTime, View, eye);
+
 		
 		//animation update example
 		sTheta = sin(glfwGetTime());

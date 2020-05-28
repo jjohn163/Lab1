@@ -12,6 +12,7 @@ in vec4 fPosLS;
 uniform sampler2D Texture0;
 uniform sampler2D shadowDepth;
 uniform vec3 LightPos;
+uniform vec3 Damage;
 
 
 float TestShadow(vec4 LSfPos) {
@@ -54,6 +55,6 @@ void main()
     // also store the per-fragment normals into the gbuffer
     gNormal = normalize(fragNor);
 
-    gColorSpec = amb*(texColor) + (1.0-Shade)*texColor;
+    gColorSpec = amb*(texColor) + (1.0-Shade)*texColor + vec4(Damage.xyz, 0.0);
 
 } 

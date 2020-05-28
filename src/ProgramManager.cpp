@@ -79,6 +79,7 @@ void ProgramManager::init() {
 	progMat->addUniform("Texture0");
 	progMat->addUniform("shadowDepth");
 	progMat->addUniform("LS");
+	progMat->addUniform("Damage");
 	progMat->addAttribute("vertPos");
 	progMat->addAttribute("vertNor");
 	progMat->addAttribute("vertTex");
@@ -124,6 +125,12 @@ void ProgramManager::init() {
 	tex_eagle->init();
 	tex_eagle->setUnit(0);
 	tex_eagle->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+	tex_branch = new Texture();
+	tex_branch->setFilename(resourceDirectory + "/branch_texture.jpg");
+	tex_branch->init();
+	tex_branch->setUnit(0);
+	tex_branch->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
 	initMesh("/cube.obj", mesh_cube);
 	initMesh("/spheresmooth.obj", mesh_sphere);
@@ -209,6 +216,9 @@ void ProgramManager::setTexture(CustomTextures i) {
 		break;
 	case EAGLE:
 		tex_eagle->bind(progMat->getUniform("Texture0"));
+		break;
+	case BRANCH:
+		tex_branch->bind(progMat->getUniform("Texture0"));
 		break;
 	case DEFAULT:
 		tex_sample->bind(progMat->getUniform("Texture0"));

@@ -18,8 +18,9 @@ public:
 	static const std::string resourceDirectory;
 	static ProgramManager* Instance();
 	static enum Material { BLUE_PLASTIC, FLAT_GREY, BRASS, GREEN_PLASTIC, LIGHT_BLUE, PURPLE, RED, DIRT };
+
 	static enum Mesh { CUBE_MESH, SPHERE_MESH, ROCK_MESH, WALL_MESH , EAGLE_MESH, BRANCH_MESH };
-	static enum CustomTextures { CHICK, ROCK, WALL, YELLOW, ORANGE, EAGLE, DEFAULT };
+	static enum CustomTextures { CHICK, ROCK, WALL, YELLOW, ORANGE, EAGLE, BRANCH, DEFAULT };
 	void init();
 	void setMaterial(Material i);
 	void setTexture(CustomTextures i);
@@ -41,6 +42,7 @@ private:
 	Texture* tex_yellow;
 	Texture* tex_orange;
 	Texture* tex_eagle;
+	Texture* tex_branch;
 	
 	Shape * mesh_cube;
 	Shape * mesh_sphere;
