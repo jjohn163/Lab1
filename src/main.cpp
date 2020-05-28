@@ -25,6 +25,7 @@
 #include "Ragdoll.h"
 #include "irrKlang.h"
 #include "GLTextureWriter.h"
+#include "Billboard.h"
 //#include "physx/extensions/PxExtensionsAPI.h"
 //#include "physx/common/PxTolerancesScale.h"
 
@@ -96,6 +97,7 @@ public:
 	shared_ptr<Program> psky;
 
 	ParticleSystem * particleSystem;
+	Billboard* billboardUI;
 
 	// Contains vertex information for OpenGL
 	GLuint VertexArrayID;
@@ -835,6 +837,8 @@ public:
 		//create one FBO
 		createFBO(frameBuf[0], texBuf[0]);
 		createFBO(frameBuf[1], texBuf[1]);
+
+		billboardUI = new Billboard(resourceDirectory, "/feather1.png", "/particle_vert.glsl", "/particle_frag.glsl");
 	}
 
 	mat4 SetOrthoMatrix(shared_ptr<Program> curShade) {
@@ -1315,6 +1319,10 @@ public:
 		particleSystem->updateParticles(deltaTime);
 		particleSystem->render(deltaTime, View, eye);
 		
+
+		billboardUI->setProjection(Projection->topMatrix());
+		billboardUI->render(deltaTime, View, eye);
+
 		//animation update example
 		sTheta = sin(glfwGetTime());
 
