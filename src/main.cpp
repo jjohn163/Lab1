@@ -421,7 +421,7 @@ public:
 			vec3 velocity = vec4(bird->velocity, 1) * rotx * roty;
 			float gravity_effect = 1;
 			float life_length = rand() % 3 + 2.0f;
-			float scale = 0.125f;
+			float scale = 0.25f;
 			particleSystem->addNewParticle(feather_name, "Feather", particle_pos, random_rotation, velocity, gravity_effect, life_length, scale);
 		}
 	}
