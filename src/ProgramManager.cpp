@@ -136,7 +136,7 @@ void ProgramManager::init() {
 	initMesh("/spheresmooth.obj", mesh_sphere);
 	initMesh("/squareRock.obj", mesh_rock);
 	initMesh("/rockyCliff_uv_smooth.obj", mesh_wall);
-	initMesh("/TalonedEagle_fix.obj", mesh_eagle);
+	initMesh("/TalonedEagle.obj", mesh_eagle);
 	initMesh("/tree.obj", mesh_branch);
 }
 
