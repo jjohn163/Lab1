@@ -1393,10 +1393,7 @@ public:
 			M = glm::translate(glm::mat4(1.0f), eye + vec3(0, -1, 0)) * RotateXSky;
 			P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f);
 			vec3 campos = eye;
-			glm::mat4 sc = scale(glm::mat4(1.0), glm::vec3(50, 50, 50));
-			static float w = 0;
-			w += deltaTime;
-			cout << w << endl;
+			glm::mat4 sc = scale(glm::mat4(1.0), glm::vec3(50, 50, 50));			
 			glm::mat4 rotX = glm::rotate(glm::mat4(1.0), 9.0f, vec3(1, 0, 0));
 			
 			M = M * rotX * sc;
