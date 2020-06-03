@@ -416,7 +416,8 @@ public:
 		string fileName = "/gui/default.png";
 		GuiTexture * tex = new GuiTexture();
 		tex->loadTexture(resourceDirectory + fileName);
-		tex->setScale(vec2(0.01f, 0.01f));
+		//tex->setScale(vec2(0.01f, 0.01f));
+		tex->setScale(vec2(0.05f, 0.05f));
 		tex->setPosition(vec2(0.01f, 0.9f));		// between 0 to 1
 		guiTextures.push_back(tex);
 
@@ -1436,6 +1437,7 @@ public:
 		particleSystem->updateParticles(deltaTime);
 		particleSystem->render(deltaTime, View, eye);
 
+		//vec3 gui_pos = vec3(bird->position.x, eye.y, bird->position.z);
 		guiSystem->render(guiTextures, deltaTime, View, Projection->topMatrix(), eye);
 
 

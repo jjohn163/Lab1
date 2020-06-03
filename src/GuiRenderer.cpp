@@ -61,7 +61,8 @@ void GuiRenderer::render(vector<GuiTexture*> guis, float delta_frame, mat4 V, ma
 
 	// move gui in front of the camera
 	vec3 gui_pos = camera;
-	gui_pos.y -= 0.1f;
+	gui_pos.y -= 0.3f;
+	gui_pos.x += 0.1f;
 	
 	// Draw the gui textures
 	for (int i = 0; i < guis.size(); i++) {
