@@ -25,6 +25,8 @@
 #include "Ragdoll.h"
 #include "irrKlang.h"
 #include "GLTextureWriter.h"
+#include "GuiRenderer.h"
+#include "GuiTexture.h"
 //#include "physx/extensions/PxExtensionsAPI.h"
 //#include "physx/common/PxTolerancesScale.h"
 
@@ -106,6 +108,9 @@ public:
 	shared_ptr<Program> psky;
 
 	ParticleSystem * particleSystem;
+
+	GuiRenderer* guiSystem;
+	vector<GuiTexture*> guiTextures;
 
 	// Contains vertex information for OpenGL
 	GLuint VertexArrayID;
@@ -404,6 +409,17 @@ public:
 		glGenBuffers(1, &quad_vertexbuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+	}
+
+	void initGUI(const std::string& resourceDirectory) {
+
+		string fileName = "/gui/default.png";
+		GuiTexture * tex = new GuiTexture();
+		tex->loadTexture(resourceDirectory + fileName);
+		tex->setScale(vec2(0.01f, 0.01f));
+		tex->setPosition(vec2(0.01f, 0.9f));		// between 0 to 1
+		guiTextures.push_back(tex);
+
 	}
 
 	void featherParticle() {
@@ -935,6 +951,12 @@ public:
 
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
+
+		// GUI Stuff
+		guiSystem = new GuiRenderer(resourceDirectory, "/gui_vert.glsl", "/gui_frag.glsl");
+		guiSystem->init();
+		initGUI(resourceDirectory);
+
 		initShadow();
 
 
@@ -1414,6 +1436,9 @@ public:
 		particleSystem->updateParticles(deltaTime);
 		particleSystem->render(deltaTime, View, eye);
 
+		guiSystem->render(guiTextures, deltaTime, View, Projection->topMatrix(), eye);
+
+
 		
 		//animation update example
 		sTheta = sin(glfwGetTime());
@@ -1470,3 +1495,4 @@ int main(int argc, char *argv[])
 	windowManager->shutdown();
 	return 0;
 }
+
