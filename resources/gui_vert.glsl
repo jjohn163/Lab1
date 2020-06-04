@@ -24,4 +24,5 @@ void main()
 
 	vec4 pos = M * vec4(vec3(vpos, 0.0), 1.0);
     gl_Position = P * V * pos;
+    //gl_Position = vertPos;
 }

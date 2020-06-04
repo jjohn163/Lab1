@@ -5,13 +5,13 @@ void GuiRenderer::init() {
 	// Create VAO object that contains the quad we draw into
 	unsigned int VBO;
 	float quad[] = {
-		0.0f, 1.0f, 0.0f, 1.0f,
-		1.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 0.0f,
+		-1.0, 1.0f, 0.0f, 1.0f,
+		1.0f, -1.0f, 1.0f, 0.0f,
+		-1.0f, -1.0f, 0.0f, 0.0f,
 
-		0.0f, 1.0f, 0.0f, 1.0f,
+		-1.0f, 1.0f, 0.0f, 1.0f,
 		1.0f, 1.0f, 1.0f, 1.0f,
-		1.0f, 0.0f, 1.0f, 0.0f
+		1.0f, -1.0f, 1.0f, 0.0f
 	};
 
 	CHECKED_GL_CALL(glGenVertexArrays(1, &this->quadVAO));
@@ -66,21 +66,41 @@ void GuiRenderer::render(vector<GuiTexture*> guis, float delta_frame, mat4 V, ma
 	
 	// Draw the gui textures
 	for (int i = 0; i < guis.size(); i++) {
-		mat4 M = mat4(1);
+		//mat4 M = mat4(1);
 
-		mat4 trans = glm::translate(mat4(1), gui_pos);					// position in front of camera
-		//trans += glm::translate(mat4(1), vec3(guis[i]->getPosition().x, guis[i]->getPosition().y, 0));					// position in front of camera
-		//trans *= glm::translate(mat4(1), vec3(-0.5, 0, 0));					// position in front of camera
-		cout << guis[i]->getScale().x << " , " << guis[i]->getScale().y << endl;
-		//mat4 scale = glm::scale(mat4(1.0), vec3(guis[i]->getScale().x, guis[i]->getScale().y, 0));
-		M *= trans;
-		M = faceCamera(M, V);
+		//mat4 trans = glm::translate(mat4(1), gui_pos);					// position in front of camera
+		////trans += glm::translate(mat4(1), vec3(guis[i]->getPosition().x, guis[i]->getPosition().y, 0));					// position in front of camera
+		////trans *= glm::translate(mat4(1), vec3(-0.5, 0, 0));					// position in front of camera
+		//cout << guis[i]->getScale().x << " , " << guis[i]->getScale().y << endl;
+		////mat4 scale = glm::scale(mat4(1.0), vec3(guis[i]->getScale().x, guis[i]->getScale().y, 0));
+		//M *= trans;
+		//M = faceCamera(M, V);
 
-		CHECKED_GL_CALL(glUniform2f(prog->getUniform("scale"), guis[i]->getScale().x, guis[i]->getScale().y));
-		//CHECKED_GL_CALL(glUniform2f(prog->getUniform("offset"), guis[i]->getPosition().x, guis[i]->getPosition().y));
-		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M)));
+		//CHECKED_GL_CALL(glUniform2f(prog->getUniform("scale"), guis[i]->getScale().x, guis[i]->getScale().y));
+		////CHECKED_GL_CALL(glUniform2f(prog->getUniform("offset"), guis[i]->getPosition().x, guis[i]->getPosition().y));
+		//CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M)));
+		//CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, guis[i]->getTexID()));
+		//CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
+
+		vec2 position = vec2(0.0f, 0.0f);
+		vec2 size = vec2(1.0f, 1.0f);
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(position, 0.0f));
+
+		model = glm::translate(model, glm::vec3(0.5f * size.x, 0.5f * size.y, 0.0f));
+		//model = glm::rotate(model, glm::radians(rotate), glm::vec3(0.0f, 0.0f, 1.0f));
+		model = glm::translate(model, glm::vec3(-0.5f * size.x, -0.5f * size.y, 0.0f));
+
+		model = glm::scale(model, glm::vec3(size, 1.0f));
+
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindVertexArray(this->quadVAO);
+		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(model)));
 		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, guis[i]->getTexID()));
 		CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
+		
+		
 	}
 
 	// cleanup
