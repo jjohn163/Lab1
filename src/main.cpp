@@ -187,6 +187,10 @@ public:
 	GLuint LframeBuf;
 	GLuint LtexBuf;
 
+	GLuint genericBuf;
+	GLuint genericTex;
+	GLuint genericDepth;
+
 	GLuint frameBuf[2];
 	GLuint texBuf[2];
 
@@ -989,6 +993,22 @@ public:
 		GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
 		glDrawBuffers(1, DrawBuffers);
 
+		glGenFramebuffers(1, &genericBuf);
+		glGenTextures(1, &genericTex);
+		glGenRenderbuffers(1, &genericDepth);
+		createFBO(genericBuf, genericTex);
+
+		//set up depth necessary since we are rendering a mesh that needs depth test
+		glBindRenderbuffer(GL_RENDERBUFFER, genericDepth);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT,
+			width, height);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER,
+			GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, genericDepth);
+
+		//more FBO set up
+		GLenum DrawBuffers2[1] = { GL_COLOR_ATTACHMENT0 };
+		glDrawBuffers(1, DrawBuffers2);
+
 		//Initialize the geometry to render a quad to the screen
 		initQuad();
 
@@ -1061,7 +1081,6 @@ public:
 		//more FBO set up
 		GLenum DrawBuffers[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 		glDrawBuffers(3, DrawBuffers);
-
 	}
 
 	void createFBO(GLuint& fb, GLuint& tex) {
@@ -1278,6 +1297,32 @@ public:
 		// Clear framebuffer.
 		//glDepthMask(GL_TRUE);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		psky->bind();
+			float sangle = 3.1415926 / 2.;
+			glm::mat4 RotateXSky = glm::rotate(glm::mat4(1.0f), sangle, glm::vec3(-1.0f, 0.0f, 0.0f));
+			glm::mat4 V, M, P;
+			V = glm::mat4(1);
+			M = glm::translate(glm::mat4(1.0f), eye + vec3(0, -1, 0)) * RotateXSky;
+			P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f);
+			vec3 campos = eye;
+			glm::mat4 sc = scale(glm::mat4(1.0), glm::vec3(50, 50, 50));
+			glm::mat4 rotX = glm::rotate(glm::mat4(1.0), 9.0f, vec3(1, 0, 0));
+
+			M = M * rotX * sc;
+
+			//send the matrices to the shaders
+			glUniformMatrix4fv(psky->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+			glUniformMatrix4fv(psky->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+			glUniformMatrix4fv(psky->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+			glUniform3fv(psky->getUniform("campos"), 1, &campos[0]);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, Texture);
+
+			meshSkybox->draw(psky);
+		psky->unbind();
+
 		//glEnable(GL_DEPTH_TEST);
 		//glDisable(GL_BLEND);
 		float damage = (MAX_HEALTH - HEALTH) / MAX_HEALTH;
@@ -1299,8 +1344,8 @@ public:
 			}
 		}
 
-		Model->popMatrix();
-		ProgramManager::Instance()->progMat->unbind();
+		//Model->popMatrix();
+		//ProgramManager::Instance()->progMat->unbind();
 		
 		//glDepthMask(GL_FALSE);
 		//glDisable(GL_DEPTH_TEST);
@@ -1328,7 +1373,7 @@ public:
 			//cout << "unblurredRadius: " << "(" << unblurredRadius << ")" << endl;
 
 			// The blur starts to show when the velocity.y > 125, but 150 is when it's really honed in on the bird
-			motionBlur(gColorSpec, 0, 6, unblurredRadius);
+			// motionBlur(gColorSpec, 0, 6, unblurredRadius);
 
 		
 
@@ -1336,6 +1381,10 @@ public:
 			//glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, genericBuf); 
+			
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			// example applying of 'drawing' the FBO texture - change shaders
 			mergeProg->bind();
@@ -1344,7 +1393,7 @@ public:
 				glActiveTexture(GL_TEXTURE0 + 1);
 				glBindTexture(GL_TEXTURE_2D, gNormal);
 				glActiveTexture(GL_TEXTURE0 + 2);
-				glBindTexture(GL_TEXTURE_2D, texBuf[1]);
+				glBindTexture(GL_TEXTURE_2D, gColorSpec);
 				glActiveTexture(GL_TEXTURE0 + 3);
 				glBindTexture(GL_TEXTURE_2D, LtexBuf);
 
@@ -1360,6 +1409,8 @@ public:
 				glDisableVertexAttribArray(0);
 			mergeProg->unbind();
 
+			motionBlur(genericTex, 0, 6, unblurredRadius);
+
 			if (FirstTime)
 			{
 				assert(GLTextureWriter::WriteImage(texBuf[0], "blur1.png"));
@@ -1372,43 +1423,16 @@ public:
 			}
 		}
 
-
-		// ----------------------
-		// draw skybox
-		// ----------------------
 		glEnable(GL_DEPTH_TEST);
 
 		// Blitting lets us draw the stuff in the gbuffer, as well as the skybox
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+		/*glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-		glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		//Draw skybox
-		psky->bind();
-			float sangle = 3.1415926 / 2.;
-			glm::mat4 RotateXSky = glm::rotate(glm::mat4(1.0f), sangle, glm::vec3(-1.0f, 0.0f, 0.0f));
-			glm::mat4 V, M, P;
-			V = glm::mat4(1);
-			M = glm::translate(glm::mat4(1.0f), eye + vec3(0, -1, 0)) * RotateXSky;
-			P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f);
-			vec3 campos = eye;
-			glm::mat4 sc = scale(glm::mat4(1.0), glm::vec3(50, 50, 50));			
-			glm::mat4 rotX = glm::rotate(glm::mat4(1.0), 9.0f, vec3(1, 0, 0));
-			
-			M = M * rotX * sc;
+		glReadBuffer(GL_COLOR_ATTACHMENT2);
 
-			//send the matrices to the shaders
-			glUniformMatrix4fv(psky->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-			glUniformMatrix4fv(psky->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-			glUniformMatrix4fv(psky->getUniform("M"), 1, GL_FALSE, &M[0][0]);
-			glUniform3fv(psky->getUniform("campos"), 1, &campos[0]);
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, Texture);
-
-			meshSkybox->draw(psky);
-		psky->unbind();
+		glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
 
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
