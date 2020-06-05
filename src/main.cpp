@@ -76,6 +76,7 @@ public:
 	bool SHADOW = true;
 	bool DEBUG = false;
 	bool FIRST = true;
+	bool BLURRING = false;
 	mat4 LP, LV, LS;
 	float EDGE = 500;
 	float EDGE_BOT = -1.5f * EDGE;
@@ -89,6 +90,8 @@ public:
 	float HEALTH = 250.0;
 	bool CAUGHT = false;
 	int FREE_FRAMES = 10;
+	float startBlurTime = 0;
+	float alpha = 0.95;
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -177,7 +180,8 @@ public:
 
 	// Deferred stuff 
 	std::shared_ptr<Program> mergeProg;
-	std::shared_ptr<Program> blur_prog;
+	std::shared_ptr<Program> gaussblur_prog;
+	std::shared_ptr<Program> motion_prog;
 
 	//reference to texture FBO
 	GLuint gBuffer;
@@ -187,9 +191,17 @@ public:
 	GLuint LframeBuf;
 	GLuint LtexBuf;
 
+	GLuint motionBuf;
+	GLuint motionTex;
+
 	GLuint genericBuf;
 	GLuint genericTex;
-	GLuint genericDepth;
+
+	GLuint prevBuf;
+	GLuint prevTex;
+
+	GLuint prevprevBuf;
+	GLuint prevprevTex;
 
 	GLuint frameBuf[2];
 	GLuint texBuf[2];
@@ -964,15 +976,23 @@ public:
 
 		//set up the shaders to blur the FBO decomposed just a placeholder pass thru now
 		//TODO - modify and possibly add other shaders to complete blur
-		blur_prog = make_shared<Program>();
-		blur_prog->setVerbose(true);
-		blur_prog->setShaderNames(resourceDirectory + "/blur_vert.glsl", resourceDirectory + "/blur_frag.glsl");
-		blur_prog->init();
-		blur_prog->addUniform("texBuf");
-		blur_prog->addUniform("unblurredRadius");
-		blur_prog->addUniform("fTime");
-		blur_prog->addAttribute("vertPos");
+		gaussblur_prog = make_shared<Program>();
+		gaussblur_prog->setVerbose(true);
+		gaussblur_prog->setShaderNames(resourceDirectory + "/gaussblur_vert.glsl", resourceDirectory + "/gaussblur_frag.glsl");
+		gaussblur_prog->init();
+		gaussblur_prog->addUniform("texBuf");
+		gaussblur_prog->addUniform("unblurredRadius");
+		gaussblur_prog->addAttribute("vertPos");
 
+		motion_prog = make_shared<Program>();
+		motion_prog->setVerbose(true);
+		motion_prog->setShaderNames(resourceDirectory + "/motion_vert.glsl", resourceDirectory + "/motion_frag.glsl");
+		motion_prog->init();
+		motion_prog->addUniform("prevTex");
+		motion_prog->addUniform("genericTex");
+		motion_prog->addUniform("alpha");
+		motion_prog->addUniform("pushback");
+		motion_prog->addAttribute("vertPos");
 
 		initBuffers();
 
@@ -993,21 +1013,21 @@ public:
 		GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
 		glDrawBuffers(1, DrawBuffers);
 
+		glGenFramebuffers(1, &motionBuf);
+		glGenTextures(1, &motionTex);
+		createFBO(motionBuf, motionTex);
+
 		glGenFramebuffers(1, &genericBuf);
 		glGenTextures(1, &genericTex);
-		glGenRenderbuffers(1, &genericDepth);
 		createFBO(genericBuf, genericTex);
 
-		//set up depth necessary since we are rendering a mesh that needs depth test
-		glBindRenderbuffer(GL_RENDERBUFFER, genericDepth);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT,
-			width, height);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER,
-			GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, genericDepth);
+		glGenFramebuffers(1, &prevBuf);
+		glGenTextures(1, &prevTex);
+		createFBO(prevBuf, prevTex);
 
-		//more FBO set up
-		GLenum DrawBuffers2[1] = { GL_COLOR_ATTACHMENT0 };
-		glDrawBuffers(1, DrawBuffers2);
+		glGenFramebuffers(1, &prevprevBuf);
+		glGenTextures(1, &prevprevTex);
+		createFBO(prevprevBuf, prevprevTex);
 
 		//Initialize the geometry to render a quad to the screen
 		initQuad();
@@ -1153,16 +1173,16 @@ public:
 		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, inTex));
 		//example applying of 'drawing' the FBO texture
 		//this shader just draws right now
-		blur_prog->bind();
-		CHECKED_GL_CALL(glUniform1i(blur_prog->getUniform("texBuf"), 0));
-		CHECKED_GL_CALL(glUniform1f(blur_prog->getUniform("unblurredRadius"), unblurredRadius));
-		CHECKED_GL_CALL(glUniform1f(blur_prog->getUniform("fTime"), glfwGetTime()));
+		gaussblur_prog->bind();
+		CHECKED_GL_CALL(glUniform1i(gaussblur_prog->getUniform("texBuf"), 0));
+		CHECKED_GL_CALL(glUniform1f(gaussblur_prog->getUniform("unblurredRadius"), unblurredRadius));
+		CHECKED_GL_CALL(glUniform1f(gaussblur_prog->getUniform("fTime"), glfwGetTime()));
 		CHECKED_GL_CALL(glEnableVertexAttribArray(0));
 		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer));
 		CHECKED_GL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0));
 		CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
 		CHECKED_GL_CALL(glDisableVertexAttribArray(0));
-		blur_prog->unbind();
+		gaussblur_prog->unbind();
 
 	}
 
@@ -1220,6 +1240,11 @@ public:
 		float highestYVal = center.y + radius;
 
 		return (lowestYVal > eye.y || eye.y - highestYVal > 1500);
+	}
+
+	float lerp(float a, float b, float f)
+	{
+		return (a * (1.0 - f)) + (b * f);
 	}
 
 	void render() {
@@ -1358,18 +1383,6 @@ public:
 
 
 		if (Defer) {
-			float blurVelocityRequirement = 75;
-
-			physx::PxVec3 velocity = bird->body->getLinearVelocity();
-			
-			float unblurredRadius = abs(blurVelocityRequirement / velocity.y);
-
-			// This facilitates a very smooth transition to showing the blur without making the blur show too early.
-			if (unblurredRadius > 1)
-			{
-				unblurredRadius = pow(unblurredRadius, 16);
-			}
-
 			//cout << "unblurredRadius: " << "(" << unblurredRadius << ")" << endl;
 
 			// The blur starts to show when the velocity.y > 125, but 150 is when it's really honed in on the bird
@@ -1384,7 +1397,7 @@ public:
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, genericBuf); 
 			
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClear(GL_COLOR_BUFFER_BIT);
 
 			// example applying of 'drawing' the FBO texture - change shaders
 			mergeProg->bind();
@@ -1409,7 +1422,104 @@ public:
 				glDisableVertexAttribArray(0);
 			mergeProg->unbind();
 
-			motionBlur(genericTex, 0, 6, unblurredRadius);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, motionBuf);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, motionBuf);
+
+			float blurVelocityRequirement = 100;
+
+			physx::PxVec3 velocity = bird->body->getLinearVelocity();
+
+			float unblurredRadius = abs(blurVelocityRequirement / velocity.y);
+
+			// This facilitates a very smooth transition to showing the blur without making the blur show too early.
+			if (alpha > 0.65 && abs(velocity.y) > blurVelocityRequirement)
+			{
+				if (!BLURRING)
+				{
+					BLURRING = true;
+					startBlurTime = glfwGetTime();
+				}
+				alpha = lerp(0.95, 0.65, glfwGetTime() - startBlurTime);
+				cout << "Blurring... alpha: " << alpha << endl;
+				if (glfwGetTime() - startBlurTime > 1)
+				{
+					BLURRING = false;
+				}
+			}
+			else if (abs(velocity.y) < blurVelocityRequirement) {
+				BLURRING = false;
+				alpha = 0.95;
+			}
+
+			motion_prog->bind();
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, genericTex);
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(GL_TEXTURE_2D, prevTex);
+
+				glUniform1i(motion_prog->getUniform("prevTex"), 0);
+				glUniform1i(motion_prog->getUniform("genericTex"), 1);
+				glUniform1f(motion_prog->getUniform("alpha"), alpha);
+				glUniform1f(motion_prog->getUniform("pushback"), 0);
+
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+				glDisableVertexAttribArray(0);
+			motion_prog->unbind();
+
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+			motion_prog->bind();
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, motionTex);
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(GL_TEXTURE_2D, prevprevTex);
+
+				glUniform1i(motion_prog->getUniform("prevTex"), 0);
+				glUniform1i(motion_prog->getUniform("genericTex"), 1);
+				glUniform1f(motion_prog->getUniform("alpha"), alpha);
+				glUniform1f(motion_prog->getUniform("pushback"), 0);
+
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+				glDisableVertexAttribArray(0);
+			motion_prog->unbind();
+
+			//motion_prog->bind();
+			//	glActiveTexture(GL_TEXTURE0);
+			//	glBindTexture(GL_TEXTURE_2D, prevTex);
+
+			//	glUniform1i(motion_prog->getUniform("texBuf"), 0);
+			//	glUniform1f(motion_prog->getUniform("alpha"), 0.75);
+			//	glUniform1f(motion_prog->getUniform("pushback"), -5);
+
+			//	glEnableVertexAttribArray(0);
+			//	glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+			//	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+			//	glDrawArrays(GL_TRIANGLES, 0, 6);
+			//	glDisableVertexAttribArray(0);
+			//motion_prog->unbind();
+
+			//glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, prevBuf);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prevprevBuf);
+
+			glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, genericBuf);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prevBuf);
+
+			glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			/*motionBlur(genericTex, 0, 6, unblurredRadius);*/
 
 			if (FirstTime)
 			{
