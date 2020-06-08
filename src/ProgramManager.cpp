@@ -103,7 +103,7 @@ void ProgramManager::init() {
 	tex_rock->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
 	tex_wall = new Texture();
-	tex_wall->setFilename(resourceDirectory + "/cliff.jpg");
+	tex_wall->setFilename(resourceDirectory + "/sb_iceflow/iceflow_dn.jpg");
 	tex_wall->init();
 	tex_wall->setUnit(0);
 	tex_wall->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);

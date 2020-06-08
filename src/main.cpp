@@ -546,7 +546,7 @@ public:
 
 	void initWallEntities(string resourceDirectory) {
 
-		float WALL_HEIGHT = 4.9;
+		float WALL_HEIGHT = 4.5;
 		float WALL_WIDTH = 39;
 		int NUM_WALLS_WIDE = 10;
 
@@ -1277,6 +1277,7 @@ public:
 
 		// Clear framebuffer.
 		//glDepthMask(GL_TRUE);
+
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		//glEnable(GL_DEPTH_TEST);
 		//glDisable(GL_BLEND);

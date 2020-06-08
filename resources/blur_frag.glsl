@@ -25,31 +25,22 @@ uniform mat3 G[9] = mat3[](
 
 void main(){
 	mat3 I;
+	mat3 C;
 	float cnv[9];
+	vec3 avg;
 	vec3 sample;
 
 	vec3 texColor = texture( texBuf, texCoord ).rgb;	
-
-	float unblurred = abs(unblurredRadius);
-
-	float middleness = clamp(pow(8*texCoord.x - 4, 2) + pow(8 * texCoord.y - 4, 2) - unblurred, 0, 1);
-
-	color = vec4(texColor, 1) * (1 - middleness);
-
-	color += vec4(texColor*weight[0], 1) * middleness;
-
-	for (int i=1; i <5; i ++) 
-	{
-		color += vec4(texture( texBuf, texCoord + vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
-		color += vec4(texture( texBuf, texCoord - vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
-	}
+	texColor = texColor - mod(texColor, 0.2);
+	color = vec4(0);
 
 	
-	/* fetch the 3x3 neighbourhood and use the RGB vector's length as intensity value */
+			/* fetch the 3x3 neighbourhood and use the RGB vector's length as intensity value */
 	for (int i=0; i<3; i++)
 	for (int j=0; j<3; j++) {
 		sample = texelFetch( texBuf, ivec2(gl_FragCoord) + ivec2(i-1,j-1), 0 ).rgb;
-		I[i][j] = length(sample); 
+		I[i][j] = length(sample);
+		avg = sample+avg;
 	}
 	
 	/* calculate the convolution values for all the masks */
@@ -60,6 +51,22 @@ void main(){
 
 	float M = (cnv[0] + cnv[1]) + (cnv[2] + cnv[3]);
 	float S = (cnv[4] + cnv[5]) + (cnv[6] + cnv[7]) + (cnv[8] + M); 
-	
-	color = color+.8*vec4(sqrt(M/S));
+
+	if(sqrt(M/S) > .01) {
+		color += -.02*(vec4(vec3(sqrt(M/S)), 1));
+	}
+
+	float unblurred = abs(unblurredRadius);
+
+	float middleness = clamp(pow(8*texCoord.x - 4, 2) + pow(8 * texCoord.y - 4, 2) - unblurred, 0, 1);
+
+	color += vec4(texColor, 1) * (1 - middleness);
+
+	color += vec4(texColor*weight[0], 1) * middleness;
+
+	for (int i=1; i <5; i ++) 
+	{
+		color += vec4(texture( texBuf, texCoord + vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
+		color += vec4(texture( texBuf, texCoord - vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
+	}
 }
