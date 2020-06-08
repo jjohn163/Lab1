@@ -1425,21 +1425,21 @@ public:
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, motionBuf);
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, motionBuf);
 
-			float blurVelocityRequirement = 100;
+			float blurVelocityRequirement = 75;
 
 			physx::PxVec3 velocity = bird->body->getLinearVelocity();
 
 			float unblurredRadius = abs(blurVelocityRequirement / velocity.y);
 
 			// This facilitates a very smooth transition to showing the blur without making the blur show too early.
-			if (alpha > 0.65 && abs(velocity.y) > blurVelocityRequirement)
+			if (alpha > 0.55 && abs(velocity.y) > blurVelocityRequirement)
 			{
 				if (!BLURRING)
 				{
 					BLURRING = true;
 					startBlurTime = glfwGetTime();
 				}
-				alpha = lerp(0.95, 0.65, glfwGetTime() - startBlurTime);
+				alpha = lerp(0.95, 0.55, glfwGetTime() - startBlurTime);
 				cout << "Blurring... alpha: " << alpha << endl;
 				if (glfwGetTime() - startBlurTime > 1)
 				{
