@@ -52,7 +52,7 @@ void main(){
 	float M = (cnv[0] + cnv[1]) + (cnv[2] + cnv[3]);
 	float S = (cnv[4] + cnv[5]) + (cnv[6] + cnv[7]) + (cnv[8] + M); 
 
-	if(sqrt(M/S) > .01) {
+	if(sqrt(M/S) > .25) {
 		color += -.02*(vec4(vec3(sqrt(M/S)), 1));
 	}
 
