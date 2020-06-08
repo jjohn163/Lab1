@@ -61,11 +61,13 @@ public:
 	irrklang::ISoundSource* music;
 	irrklang::ISoundSource* branchCrackSound;
 	irrklang::ISoundSource* eagleSound;
+	irrklang::ISoundSource* gameoverSound;
 	const std::string IMPACT_SOUND_FILE = "/impact.wav";
 	const std::string BACKGROUND_MUSIC_FILE = "/bensound-buddy.mp3";
 	const std::string BRANCH_CRACK_SOUND_FILE = "/branch_crack.wav";
 	const std::string EAGLE_SOUND_FILE = "/hawk_screeching.wav";
-	
+	const std::string GAMEOVER_SOUND_FILE = "/gameover.mp3";
+
 
 	//SHADOWS
 	GLuint depthMapFBO;
@@ -736,6 +738,10 @@ public:
 		eagleSound = soundEngine->addSoundSourceFromFile(eagleFile.c_str());
 		eagleSound->setDefaultVolume(2.0);
 
+		std::string gameoverFile = (resourceDirectory + GAMEOVER_SOUND_FILE).c_str();
+		gameoverSound = soundEngine->addSoundSourceFromFile(gameoverFile.c_str());
+		gameoverSound->setDefaultVolume(2.0);
+
 		std::string backgroundMusic = (resourceDirectory + BACKGROUND_MUSIC_FILE).c_str();
 		music = soundEngine->addSoundSourceFromFile(backgroundMusic.c_str());
 		music->setDefaultVolume(0.1);
@@ -1194,6 +1200,7 @@ public:
 			if (length(bird->position - eagle->position) < 5) {
 				CAUGHT = true;
 			}
+			soundEngine->play2D(gameoverSound);
 			GAME_OVER = true;
 		}
 		FREE_FRAMES--;
@@ -1205,14 +1212,14 @@ public:
 		if (speed > 70.f || length(direction) > 75.0f) {
 			direction = bird->position + vec3(50,50,25) - eagle->position;
 		}
-		if (speed < EAGLE_MIN_SPEED - 10.f && LAST_SCREECH > 5) {
+		if (LAST_SCREECH > 5) {
 			soundEngine->play2D(eagleSound);
 			LAST_SCREECH = 0.f;
 		}
 		LAST_SCREECH += deltaTime;
 		float alternative = 0.5f * length(direction);
 		eagle->position += normalize(direction) * fmin(fmax(EAGLE_MIN_SPEED, alternative), EAGLE_MAX_SPEED) * deltaTime;
-		
+		eagleSound->setDefaultVolume(fmax(1.0f-(length(direction)/200.0f), 0.0f));
 	}
 
 	/* Actual cull on planes */
