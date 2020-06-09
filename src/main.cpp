@@ -82,6 +82,7 @@ public:
 	bool SHADOW = true;
 	bool DEBUG = false;
 	bool FIRST = true;
+	bool BLURRING = false;
 	mat4 LP, LV, LS;
 	float EDGE = 500;
 	float EDGE_BOT = -1.5f * EDGE;
@@ -98,6 +99,8 @@ public:
 	float HEALTH = 250.0;
 	bool CAUGHT = false;
 	int FREE_FRAMES = 10;
+	float startBlurTime = 0;
+	float alpha = 0.95;
 	vec3 CAM_OFFSET = vec3(0, 50, 10);
 	vec3 EAGLE_OFFSET = vec3(0, 1000, 0);
 	float MAX_EAGLE_SEPARATION = 50.f;
@@ -197,7 +200,8 @@ public:
 
 	// Deferred stuff 
 	std::shared_ptr<Program> mergeProg;
-	std::shared_ptr<Program> blur_prog;
+	std::shared_ptr<Program> gaussblur_prog;
+	std::shared_ptr<Program> motion_prog;
 
 	//reference to texture FBO
 	GLuint gBuffer;
@@ -206,6 +210,18 @@ public:
 
 	GLuint LframeBuf;
 	GLuint LtexBuf;
+
+	GLuint motionBuf;
+	GLuint motionTex;
+
+	GLuint genericBuf;
+	GLuint genericTex;
+
+	GLuint prevBuf;
+	GLuint prevTex;
+
+	GLuint prevprevBuf;
+	GLuint prevprevTex;
 
 	GLuint frameBuf[2];
 	GLuint texBuf[2];
@@ -989,15 +1005,23 @@ public:
 
 		//set up the shaders to blur the FBO decomposed just a placeholder pass thru now
 		//TODO - modify and possibly add other shaders to complete blur
-		blur_prog = make_shared<Program>();
-		blur_prog->setVerbose(true);
-		blur_prog->setShaderNames(resourceDirectory + "/blur_vert.glsl", resourceDirectory + "/blur_frag.glsl");
-		blur_prog->init();
-		blur_prog->addUniform("texBuf");
-		blur_prog->addUniform("unblurredRadius");
-		blur_prog->addUniform("fTime");
-		blur_prog->addAttribute("vertPos");
+		gaussblur_prog = make_shared<Program>();
+		gaussblur_prog->setVerbose(true);
+		gaussblur_prog->setShaderNames(resourceDirectory + "/gaussblur_vert.glsl", resourceDirectory + "/gaussblur_frag.glsl");
+		gaussblur_prog->init();
+		gaussblur_prog->addUniform("texBuf");
+		gaussblur_prog->addUniform("unblurredRadius");
+		gaussblur_prog->addAttribute("vertPos");
 
+		motion_prog = make_shared<Program>();
+		motion_prog->setVerbose(true);
+		motion_prog->setShaderNames(resourceDirectory + "/motion_vert.glsl", resourceDirectory + "/motion_frag.glsl");
+		motion_prog->init();
+		motion_prog->addUniform("prevTex");
+		motion_prog->addUniform("genericTex");
+		motion_prog->addUniform("alpha");
+		motion_prog->addUniform("pushback");
+		motion_prog->addAttribute("vertPos");
 
 		initBuffers();
 
@@ -1017,6 +1041,22 @@ public:
 		//more FBO set up
 		GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
 		glDrawBuffers(1, DrawBuffers);
+
+		glGenFramebuffers(1, &motionBuf);
+		glGenTextures(1, &motionTex);
+		createFBO(motionBuf, motionTex);
+
+		glGenFramebuffers(1, &genericBuf);
+		glGenTextures(1, &genericTex);
+		createFBO(genericBuf, genericTex);
+
+		glGenFramebuffers(1, &prevBuf);
+		glGenTextures(1, &prevTex);
+		createFBO(prevBuf, prevTex);
+
+		glGenFramebuffers(1, &prevprevBuf);
+		glGenTextures(1, &prevprevTex);
+		createFBO(prevprevBuf, prevprevTex);
 
 		//Initialize the geometry to render a quad to the screen
 		initQuad();
@@ -1091,7 +1131,6 @@ public:
 		//more FBO set up
 		GLenum DrawBuffers[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 		glDrawBuffers(3, DrawBuffers);
-
 	}
 
 	void createFBO(GLuint& fb, GLuint& tex) {
@@ -1164,16 +1203,16 @@ public:
 		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, inTex));
 		//example applying of 'drawing' the FBO texture
 		//this shader just draws right now
-		blur_prog->bind();
-		CHECKED_GL_CALL(glUniform1i(blur_prog->getUniform("texBuf"), 0));
-		CHECKED_GL_CALL(glUniform1f(blur_prog->getUniform("unblurredRadius"), unblurredRadius));
-		CHECKED_GL_CALL(glUniform1f(blur_prog->getUniform("fTime"), glfwGetTime()));
+		gaussblur_prog->bind();
+		CHECKED_GL_CALL(glUniform1i(gaussblur_prog->getUniform("texBuf"), 0));
+		CHECKED_GL_CALL(glUniform1f(gaussblur_prog->getUniform("unblurredRadius"), unblurredRadius));
+		CHECKED_GL_CALL(glUniform1f(gaussblur_prog->getUniform("fTime"), glfwGetTime()));
 		CHECKED_GL_CALL(glEnableVertexAttribArray(0));
 		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer));
 		CHECKED_GL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0));
 		CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
 		CHECKED_GL_CALL(glDisableVertexAttribArray(0));
-		blur_prog->unbind();
+		gaussblur_prog->unbind();
 
 	}
 
@@ -1254,6 +1293,11 @@ public:
 		return (lowestYVal > eye.y || eye.y - highestYVal > 1500);
 	}
 
+	float lerp(float a, float b, float f)
+	{
+		return (a * (1.0 - f)) + (b * f);
+	}
+
 	void render() {
 		TimeManager::Instance()->Update();
 		deltaTime = TimeManager::Instance()->DeltaTime();
@@ -1330,6 +1374,32 @@ public:
 		// Clear framebuffer.
 		//glDepthMask(GL_TRUE);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		psky->bind();
+			float sangle = 3.1415926 / 2.;
+			glm::mat4 RotateXSky = glm::rotate(glm::mat4(1.0f), sangle, glm::vec3(-1.0f, 0.0f, 0.0f));
+			glm::mat4 V, M, P;
+			V = glm::mat4(1);
+			M = glm::translate(glm::mat4(1.0f), eye + vec3(0, -1, 0)) * RotateXSky;
+			P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f);
+			vec3 campos = eye;
+			glm::mat4 sc = scale(glm::mat4(1.0), glm::vec3(50, 50, 50));
+			glm::mat4 rotX = glm::rotate(glm::mat4(1.0), 9.0f, vec3(1, 0, 0));
+
+			M = M * rotX * sc;
+
+			//send the matrices to the shaders
+			glUniformMatrix4fv(psky->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+			glUniformMatrix4fv(psky->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+			glUniformMatrix4fv(psky->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+			glUniform3fv(psky->getUniform("campos"), 1, &campos[0]);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, Texture);
+
+			meshSkybox->draw(psky);
+		psky->unbind();
+
 		//glEnable(GL_DEPTH_TEST);
 		//glDisable(GL_BLEND);
 		float damage = (MAX_HEALTH - HEALTH) / MAX_HEALTH;
@@ -1351,8 +1421,8 @@ public:
 			}
 		}
 
-		Model->popMatrix();
-		ProgramManager::Instance()->progMat->unbind();
+		//Model->popMatrix();
+		//ProgramManager::Instance()->progMat->unbind();
 		
 		//glDepthMask(GL_FALSE);
 		//glDisable(GL_DEPTH_TEST);
@@ -1365,22 +1435,10 @@ public:
 
 
 		if (Defer) {
-			float blurVelocityRequirement = 75;
-
-			physx::PxVec3 velocity = bird->body->getLinearVelocity();
-			
-			float unblurredRadius = abs(blurVelocityRequirement / velocity.y);
-
-			// This facilitates a very smooth transition to showing the blur without making the blur show too early.
-			if (unblurredRadius > 1)
-			{
-				unblurredRadius = pow(unblurredRadius, 16);
-			}
-
 			//cout << "unblurredRadius: " << "(" << unblurredRadius << ")" << endl;
 
 			// The blur starts to show when the velocity.y > 125, but 150 is when it's really honed in on the bird
-			motionBlur(gColorSpec, 0, 6, unblurredRadius);
+			// motionBlur(gColorSpec, 0, 6, unblurredRadius);
 
 		
 
@@ -1388,6 +1446,10 @@ public:
 			//glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, genericBuf); 
+			
+			glClear(GL_COLOR_BUFFER_BIT);
 
 			// example applying of 'drawing' the FBO texture - change shaders
 			mergeProg->bind();
@@ -1396,7 +1458,7 @@ public:
 				glActiveTexture(GL_TEXTURE0 + 1);
 				glBindTexture(GL_TEXTURE_2D, gNormal);
 				glActiveTexture(GL_TEXTURE0 + 2);
-				glBindTexture(GL_TEXTURE_2D, texBuf[1]);
+				glBindTexture(GL_TEXTURE_2D, gColorSpec);
 				glActiveTexture(GL_TEXTURE0 + 3);
 				glBindTexture(GL_TEXTURE_2D, LtexBuf);
 
@@ -1412,6 +1474,105 @@ public:
 				glDisableVertexAttribArray(0);
 			mergeProg->unbind();
 
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, motionBuf);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, motionBuf);
+
+			float blurVelocityRequirement = 75;
+
+			physx::PxVec3 velocity = bird->body->getLinearVelocity();
+
+			float unblurredRadius = abs(blurVelocityRequirement / velocity.y);
+
+			// This facilitates a very smooth transition to showing the blur without making the blur show too early.
+			if (alpha > 0.55 && abs(velocity.y) > blurVelocityRequirement)
+			{
+				if (!BLURRING)
+				{
+					BLURRING = true;
+					startBlurTime = glfwGetTime();
+				}
+				alpha = lerp(0.95, 0.55, glfwGetTime() - startBlurTime);
+				cout << "Blurring... alpha: " << alpha << endl;
+				if (glfwGetTime() - startBlurTime > 1)
+				{
+					BLURRING = false;
+				}
+			}
+			else if (abs(velocity.y) < blurVelocityRequirement) {
+				BLURRING = false;
+				alpha = 0.95;
+			}
+
+			motion_prog->bind();
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, genericTex);
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(GL_TEXTURE_2D, prevTex);
+
+				glUniform1i(motion_prog->getUniform("prevTex"), 0);
+				glUniform1i(motion_prog->getUniform("genericTex"), 1);
+				glUniform1f(motion_prog->getUniform("alpha"), alpha);
+				glUniform1f(motion_prog->getUniform("pushback"), 0);
+
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+				glDisableVertexAttribArray(0);
+			motion_prog->unbind();
+
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+			motion_prog->bind();
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, motionTex);
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(GL_TEXTURE_2D, prevprevTex);
+
+				glUniform1i(motion_prog->getUniform("prevTex"), 0);
+				glUniform1i(motion_prog->getUniform("genericTex"), 1);
+				glUniform1f(motion_prog->getUniform("alpha"), alpha);
+				glUniform1f(motion_prog->getUniform("pushback"), 0);
+
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+				glDisableVertexAttribArray(0);
+			motion_prog->unbind();
+
+			//motion_prog->bind();
+			//	glActiveTexture(GL_TEXTURE0);
+			//	glBindTexture(GL_TEXTURE_2D, prevTex);
+
+			//	glUniform1i(motion_prog->getUniform("texBuf"), 0);
+			//	glUniform1f(motion_prog->getUniform("alpha"), 0.75);
+			//	glUniform1f(motion_prog->getUniform("pushback"), -5);
+
+			//	glEnableVertexAttribArray(0);
+			//	glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+			//	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+			//	glDrawArrays(GL_TRIANGLES, 0, 6);
+			//	glDisableVertexAttribArray(0);
+			//motion_prog->unbind();
+
+			//glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, prevBuf);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prevprevBuf);
+
+			glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, genericBuf);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prevBuf);
+
+			glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			/*motionBlur(genericTex, 0, 6, unblurredRadius);*/
+
 			if (FirstTime)
 			{
 				assert(GLTextureWriter::WriteImage(texBuf[0], "blur1.png"));
@@ -1424,43 +1585,14 @@ public:
 			}
 		}
 
-
-		// ----------------------
-		// draw skybox
-		// ----------------------
 		glEnable(GL_DEPTH_TEST);
 
 		// Blitting lets us draw the stuff in the gbuffer, as well as the skybox
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
 		glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		//Draw skybox
-		psky->bind();
-			float sangle = 3.1415926 / 2.;
-			glm::mat4 RotateXSky = glm::rotate(glm::mat4(1.0f), sangle, glm::vec3(-1.0f, 0.0f, 0.0f));
-			glm::mat4 V, M, P;
-			V = glm::mat4(1);
-			M = glm::translate(glm::mat4(1.0f), eye + vec3(0, -1, 0)) * RotateXSky;
-			P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f);
-			vec3 campos = eye;
-			glm::mat4 sc = scale(glm::mat4(1.0), glm::vec3(50, 50, 50));			
-			glm::mat4 rotX = glm::rotate(glm::mat4(1.0), 9.0f, vec3(1, 0, 0));
-			
-			M = M * rotX * sc;
-
-			//send the matrices to the shaders
-			glUniformMatrix4fv(psky->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-			glUniformMatrix4fv(psky->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-			glUniformMatrix4fv(psky->getUniform("M"), 1, GL_FALSE, &M[0][0]);
-			glUniform3fv(psky->getUniform("campos"), 1, &campos[0]);
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, Texture);
-
-			meshSkybox->draw(psky);
-		psky->unbind();
 
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
