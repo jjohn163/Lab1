@@ -60,10 +60,14 @@ public:
 	irrklang::ISoundSource* impactSound;
 	irrklang::ISoundSource* music;
 	irrklang::ISoundSource* branchCrackSound;
+	irrklang::ISoundSource* eagleSound;
+	irrklang::ISoundSource* gameoverSound;
 	const std::string IMPACT_SOUND_FILE = "/impact.wav";
 	const std::string BACKGROUND_MUSIC_FILE = "/bensound-buddy.mp3";
 	const std::string BRANCH_CRACK_SOUND_FILE = "/branch_crack.wav";
-	
+	const std::string EAGLE_SOUND_FILE = "/hawk_screeching.wav";
+	const std::string GAMEOVER_SOUND_FILE = "/gameover.mp3";
+
 
 	//SHADOWS
 	GLuint depthMapFBO;
@@ -81,14 +85,25 @@ public:
 	float EDGE_BOT = -1.5f * EDGE;
 	float EDGE_TOP = 0.5f * EDGE;
 	float TOP_EDGE = -30.0f;
+	vec3 lightLA;
+	vec3 lightUp;
 
 
 	//GAME MANAGING
 	bool GAME_OVER = false;
+	bool WIN = false;
 	float MAX_HEALTH = 250.0;
 	float HEALTH = 250.0;
 	bool CAUGHT = false;
 	int FREE_FRAMES = 10;
+	vec3 CAM_OFFSET = vec3(0, 50, 10);
+	vec3 EAGLE_OFFSET = vec3(0, 1000, 0);
+	float MAX_EAGLE_SEPARATION = 50.f;
+	float EAGLE_SEPARATION = MAX_EAGLE_SEPARATION;
+	float LAST_SCREECH = 0;
+	float WIN_HEIGHT = 2410;
+	float WIN_TIME = 0.f;
+
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -204,31 +219,11 @@ public:
 	}
 
 	void updateLookAtPoint(shared_ptr<Entity> entity) {
-		if (phi > 1.5) {
-			phi = 1.6;
-		}
-		else if (phi < -1.5) {
-			phi = -1.6;
-		}
-
-		lookAtPoint.x = cos(phi) * cos(pheta) + entity->position.x;
-		lookAtPoint.y = sin(phi) + entity->position.y;
-		lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + entity->position.z;
+		vec3 target = entity->position;
+		lookAtPoint += ((target - lookAtPoint) * deltaTime * 4.f);
 	}
 
 	void updateCamera(shared_ptr<Entity> entity) {
-		//vec3 difference = entity->position - lastPosition;
-		//eye += difference;
-		//lastPosition = entity->position;
-		//double newX, newY;
-		//glfwGetCursorPos(window, &newX, &newY);
-		//if (cursorX >= 0 && cursorY >= 0) {
-		//	//phi += (cursorY - newY) / 100.0;
-		//	//pheta -= (cursorX - newX) / 100.0;
-		//	//updateLookAtPoint(entity);
-		//}		
-		//cursorX = newX;
-		//cursorY = newY;
 
 		updateLookAtPoint(entity);
 		if (movingForward) {
@@ -265,7 +260,7 @@ public:
 			entity->velocity += deltaTime * (up * vec3(40));
 		}
 
-		vec3 target = lookAtPoint + vec3(0, 25, 0);
+		vec3 target = lookAtPoint + CAM_OFFSET;
 		eye += ((target - eye) * deltaTime * 3.f);
 	} 
 	void checkIfBranchCollision(shared_ptr<Entity> entity) {
@@ -739,6 +734,14 @@ public:
 		branchCrackSound = soundEngine->addSoundSourceFromFile(branchCrackFile.c_str());
 		branchCrackSound->setDefaultVolume(2.0);
 
+		std::string eagleFile = (resourceDirectory + EAGLE_SOUND_FILE).c_str();
+		eagleSound = soundEngine->addSoundSourceFromFile(eagleFile.c_str());
+		eagleSound->setDefaultVolume(2.0);
+
+		std::string gameoverFile = (resourceDirectory + GAMEOVER_SOUND_FILE).c_str();
+		gameoverSound = soundEngine->addSoundSourceFromFile(gameoverFile.c_str());
+		gameoverSound->setDefaultVolume(2.0);
+
 		std::string backgroundMusic = (resourceDirectory + BACKGROUND_MUSIC_FILE).c_str();
 		music = soundEngine->addSoundSourceFromFile(backgroundMusic.c_str());
 		music->setDefaultVolume(0.1);
@@ -767,6 +770,8 @@ public:
 	void resetGame() {
 		GAME_OVER = false;
 		CAUGHT = false;
+		WIN = false;
+		WIN_TIME = 0.f;
 		HEALTH = MAX_HEALTH;
 		ragdoll->setPosition(startPosition);
 		ragdoll->setVelocity(vec3(0, 0, 0));
@@ -780,11 +785,12 @@ public:
 			branch->material = ProgramManager::BRASS;
 		}
 
-		eagle->position = startPosition + vec3(0, 1000, 0);
+		eagle->position = startPosition + EAGLE_OFFSET;
 
-		eye = startPosition + vec3(0, 10, 0);
+		eye = startPosition + CAM_OFFSET;
 		lookAtPoint = startPosition;
 		FREE_FRAMES = 10;
+		EAGLE_SEPARATION = MAX_EAGLE_SEPARATION;
 	}
 
 	void init(const std::string& resourceDirectory)
@@ -797,7 +803,7 @@ public:
 		
 		ragdoll = make_shared<Ragdoll>(mPhysics, mScene, mMaterial);
 		bird = Ragdoll::createBirdRagdoll(startPosition, entities, ragdoll, resourceDirectory);
-		eye = bird->position + vec3(0, 10, 0);
+		eye = bird->position + CAM_OFFSET;
 		lookAtPoint = bird->position;
 
 
@@ -805,7 +811,7 @@ public:
 		initRockEntities(resourceDirectory);
 		//initBranchEntities(resourceDirectory);
 
-		eagle = make_shared<Entity>(ProgramManager::EAGLE_MESH, bird->position + vec3(0, 600, 0), vec3(4.0f, 4.0f, 4.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::EAGLE);
+		eagle = make_shared<Entity>(ProgramManager::EAGLE_MESH, bird->position + EAGLE_OFFSET, vec3(4.0f, 4.0f, 4.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::EAGLE);
 		entities.push_back(eagle);
 
 		physx::PxRigidDynamic* placeholder = NULL;
@@ -1002,6 +1008,7 @@ public:
 		createFBO(frameBuf[0], texBuf[0]);
 		createFBO(frameBuf[1], texBuf[1]);
 		initSound(resourceDirectory);
+		featherParticle();
 	}
 
 	mat4 SetOrthoMatrix(shared_ptr<Program> curShade) {
@@ -1148,23 +1155,38 @@ public:
 	}
 
 	void updateEntities() {
+		if (GAME_OVER) {
+			if (CAUGHT) {
+				//ragdoll->setPosition(bird->position + vec3(0, 5.0f, 25.0f) * deltaTime);
+				eagle->position += vec3(0, 5.0f, 25.0f) * deltaTime;
+				for (shared_ptr<Entity> entity : entities) {
+					if (entity->body) {
+						entity->position += vec3(0, 5.0f, 25.0f) * deltaTime;
+						//Ragdoll::updateOrientation(entity);
+					}
+				}
+			}
+			else if (WIN) {
+				eagle->position += vec3(0, 5.0f, 25.0f) * deltaTime;
+				featherParticle();
+			}
+			return;
+		}
+		if (bird->position.y <= WIN_HEIGHT) {
+			if (WIN_TIME > 0.3f) {
+				WIN = true;
+				GAME_OVER = true;
+				return;
+			}
+			WIN_TIME += deltaTime;
+		}
+
 		for (shared_ptr<Entity> entity : entities) {
 			if (entity->body) {
 				Ragdoll::updateOrientation(entity);
 			}
 		}
-		if (GAME_OVER) {
-			if (CAUGHT) {
-				//ragdoll->setPosition(bird->position + vec3(0, 5.0f, 25.0f) * deltaTime);
-				eagle->position += vec3(0, 5.0f, 25.0f) * deltaTime;
-				//for (shared_ptr<Entity> entity : entities) {
-				//	if (entity->body) {
-				//		Ragdoll::updateOrientation(entity);
-				//	}
-				//}
-			}
-			return;
-		}
+		
 
 		physx::PxVec3 velocity = bird->body->getLinearVelocity();
 		float speed = velocity.magnitude();
@@ -1178,20 +1200,26 @@ public:
 			if (length(bird->position - eagle->position) < 5) {
 				CAUGHT = true;
 			}
+			soundEngine->play2D(gameoverSound);
 			GAME_OVER = true;
 		}
 		FREE_FRAMES--;
 		lastSpeed = speed;
-		
+
 		float EAGLE_MIN_SPEED = 30.0f;
 		float EAGLE_MAX_SPEED = 75.0f;
 		vec3 direction = bird->position - eagle->position;
-		if (length(direction) > 15) {
-			direction = bird->position + vec3(0, 0, 15) - eagle->position;
+		if (speed > 70.f || length(direction) > 75.0f) {
+			direction = bird->position + vec3(50,50,25) - eagle->position;
 		}
+		if (LAST_SCREECH > 5) {
+			soundEngine->play2D(eagleSound);
+			LAST_SCREECH = 0.f;
+		}
+		LAST_SCREECH += deltaTime;
 		float alternative = 0.5f * length(direction);
 		eagle->position += normalize(direction) * fmin(fmax(EAGLE_MIN_SPEED, alternative), EAGLE_MAX_SPEED) * deltaTime;
-		
+		eagleSound->setDefaultVolume(fmax(1.0f-(length(direction)/200.0f), 0.0f));
 	}
 
 	/* Actual cull on planes */
@@ -1212,6 +1240,8 @@ public:
 		}
 		if (!GAME_OVER) {
 			mScene->simulate(deltaTime);
+			lightLA = bird->position;
+			lightUp = vec3(0, 1, 0);
 		}
 
 		// Get current frame buffer size.
@@ -1223,8 +1253,7 @@ public:
 		mat4 View = glm::lookAt(eye, lookAtPoint, vec3(0, 0, 1));
 		auto Model = make_shared<MatrixStack>();
 
-		vec3 lightLA = bird->position;
-		vec3 lightUp = vec3(0, 1, 0);
+		
 		
 		if (SHADOW) {
 			//set up light's depth map
@@ -1423,11 +1452,11 @@ public:
 		//View->popMatrix();
 		if (!GAME_OVER) {
 			mScene->fetchResults();
-			updateEntities();
 			updateCamera(bird);
-			light = bird->position + vec3(50, 50, 50);
+			light = bird->position + vec3(75, 75, 75);
+			checkIfBranchCollision(bird);
 		}
-		checkIfBranchCollision(bird);
+		updateEntities();
 	}
 };
 
