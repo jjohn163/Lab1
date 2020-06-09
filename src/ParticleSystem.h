@@ -32,6 +32,7 @@ public:
 	void setProjection(mat4 P);
 
 	static vector<Particle*>& getParticles() { return particles; }
+	mat4 faceCamera(mat4 model, mat4 view);
 
 	//Particle * newParticle(string tex_file_path, vec3 position, float rotation, vec3 velocity, float gravityEffect, float lifeLength, float scale);
 
