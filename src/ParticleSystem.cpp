@@ -135,6 +135,7 @@ void ParticleSystem::render(float delta_frame, mat4 V, vec3 camera) {
 
 		//M = M * translate(mat4(1), -camera);
 
+		CHECKED_GL_CALL(glActiveTexture(GL_TEXTURE0));
 		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, particle_dictionary[name]));
 		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(V)));
 		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M)));
