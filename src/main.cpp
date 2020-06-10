@@ -408,14 +408,21 @@ public:
 
 	void initGUI(const std::string& resourceDirectory) {
 
-		string fileName = "/gui/default.png";
-		GuiTexture * tex = new GuiTexture();
-		tex->loadTexture(resourceDirectory + fileName);
+		string fileName = "/gui/red_health.png";
+		GuiTexture* red_health = new GuiTexture();
+		red_health->loadTexture(resourceDirectory + fileName);
 		//tex->setScale(vec2(0.01f, 0.01f));
-		tex->setScale(vec2(0.05f, 0.05f));
-		tex->setPosition(vec2(0.01f, 0.9f));		// between 0 to 1
-		guiTextures.push_back(tex);
+		red_health->setScale(vec2(10.0f, 1.0f));
+		red_health->setPosition(vec2(0.0f, 12.0f));			// between 0 to 1
+		guiTextures.push_back(red_health);
 
+		fileName = "/gui/green_health.png";
+		GuiTexture* green_health = new GuiTexture();
+		green_health->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		green_health->setScale(vec2(10.0f, 1.0f));
+		green_health->setPosition(vec2(0.0f, 12.0f));			// between 0 to 1
+		guiTextures.push_back(green_health);
 	}
 
 	void featherParticle() {
@@ -1466,9 +1473,16 @@ public:
 		particleSystem->updateParticles(deltaTime);
 		particleSystem->render(deltaTime, View, eye);
 
-		//vec3 gui_pos = vec3(bird->position.x, eye.y, bird->position.z);
-		guiSystem->render(guiTextures, deltaTime, View, Projection->topMatrix(), eye);
-
+		cout << "pos: " << guiTextures[1]->getPosition().x << ", " << guiTextures[1]->getPosition().y << endl;
+		cout << "scale: " << guiTextures[1]->getScale().x << ", " << guiTextures[1]->getScale().y << endl;
+		vec3 gui_pos = vec3(bird->position.x, eye.y, bird->position.z);
+		float health_frac = HEALTH / MAX_HEALTH;
+		vec2  scale_frac = guiTextures[0]->getScale() - guiTextures[1]->getScale();
+		cout << "scale_frac: " << scale_frac.x << ", " << scale_frac.y << endl;
+		guiTextures[1]->setScale(vec2(10.0f * health_frac, 1.0f));		// scale the green health bar
+		static vec2 orig_position = guiTextures[1]->getPosition();	
+		guiTextures[1]->setPosition(orig_position + scale_frac);		// scale the green health bar
+		guiSystem->render(guiTextures, deltaTime, View, Projection->topMatrix(), bird->position);
 
 		
 		//animation update example
