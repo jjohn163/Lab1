@@ -429,7 +429,7 @@ public:
 		red_health->loadTexture(resourceDirectory + fileName);
 		//tex->setScale(vec2(0.01f, 0.01f));
 		red_health->setScale(vec2(10.0f, 1.0f));
-		red_health->setPosition(vec2(0.0f, 12.0f));			// between 0 to 1
+		red_health->setPosition(vec2(0.0f, 12.0f));	
 		guiTextures.push_back(red_health);
 
 		fileName = "/gui/green_health.png";
@@ -437,8 +437,41 @@ public:
 		green_health->loadTexture(resourceDirectory + fileName);
 		//tex->setScale(vec2(0.01f, 0.01f));
 		green_health->setScale(vec2(10.0f, 1.0f));
-		green_health->setPosition(vec2(0.0f, 12.0f));			// between 0 to 1
+		green_health->setPosition(vec2(0.0f, 12.0f));		
 		guiTextures.push_back(green_health);
+
+		fileName = "/gui/rainbow_speed.png";
+		GuiTexture* rainbow_speed = new GuiTexture();
+		rainbow_speed->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		rainbow_speed->setScale(vec2(10.0f, 0.5f));
+		rainbow_speed->setPosition(vec2(0.0f, 15.0f));		
+		guiTextures.push_back(rainbow_speed);
+
+		fileName = "/gui/slow.png";
+		GuiTexture* slow_speed = new GuiTexture();
+		slow_speed->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		slow_speed->setScale(vec2(2, 2));
+		slow_speed->setPosition(vec2(10.0f, 15.0f));
+		guiTextures.push_back(slow_speed);
+
+		fileName = "/gui/fast.png";
+		GuiTexture* fast_speed = new GuiTexture();
+		fast_speed->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		fast_speed->setScale(vec2(3, 3));
+		fast_speed->setPosition(vec2(10.0f, 15.0f));
+		guiTextures.push_back(fast_speed);
+
+		fileName = "/gui/dead.png";
+		GuiTexture* dead_face = new GuiTexture();
+		dead_face->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		dead_face->setScale(vec2(3, 3));
+		dead_face->setPosition(vec2(10.0f, 15.0f));
+		dead_face->setActive(false);
+		guiTextures.push_back(dead_face);
 	}
 
 	void featherParticle() {
@@ -1225,6 +1258,9 @@ public:
 
 	void updateEntities() {
 		if (GAME_OVER) {
+			guiTextures[1]->setActive(false);		// hide the green health bar
+			guiTextures[2]->setActive(false);		// hide the speed bar
+
 			if (CAUGHT) {
 				//ragdoll->setPosition(bird->position + vec3(0, 5.0f, 25.0f) * deltaTime);
 				eagle->position += vec3(0, 5.0f, 25.0f) * deltaTime;
@@ -1234,10 +1270,25 @@ public:
 						//Ragdoll::updateOrientation(entity);
 					}
 				}
+				guiTextures[3]->setActive(false);		// use dead face
+				guiTextures[4]->setActive(false);		// use dead face
+				guiTextures[5]->setActive(true);		// use dead face
 			}
 			else if (WIN) {
+				guiTextures[3]->setActive(true);		// use happy face
+				guiTextures[3]->setScale(vec2(4,4));		// bigger happy face
+				guiTextures[4]->setActive(false);		// use happy face
+				guiTextures[0]->setActive(false);		// hide the health bar
+				guiTextures[1]->setActive(false);		// hide the health bar
+
 				eagle->position += vec3(0, 5.0f, 25.0f) * deltaTime;
 				featherParticle();
+			}
+			else {
+				guiTextures[3]->setActive(false);		// use dead face
+				guiTextures[4]->setActive(false);		// use dead face
+				guiTextures[5]->setActive(true);		// use dead face
+
 			}
 			return;
 		}
@@ -1254,6 +1305,15 @@ public:
 			if (entity->body) {
 				Ragdoll::updateOrientation(entity);
 			}
+		}
+
+		if (bird->body->getLinearVelocity().y < -50.0f) {
+			guiTextures[4]->setActive(true);		// fast face
+			guiTextures[3]->setActive(false);		// fast face
+		}
+		else {
+			guiTextures[3]->setActive(true);		// slow face
+			guiTextures[4]->setActive(false);		// fast face
 		}
 		
 
@@ -1605,15 +1665,18 @@ public:
 		particleSystem->updateParticles(deltaTime);
 		particleSystem->render(deltaTime, View, eye);
 
-		cout << "pos: " << guiTextures[1]->getPosition().x << ", " << guiTextures[1]->getPosition().y << endl;
-		cout << "scale: " << guiTextures[1]->getScale().x << ", " << guiTextures[1]->getScale().y << endl;
 		vec3 gui_pos = vec3(bird->position.x, eye.y, bird->position.z);
 		float health_frac = HEALTH / MAX_HEALTH;
 		vec2  scale_frac = guiTextures[0]->getScale() - guiTextures[1]->getScale();
-		cout << "scale_frac: " << scale_frac.x << ", " << scale_frac.y << endl;
 		guiTextures[1]->setScale(vec2(10.0f * health_frac, 1.0f));		// scale the green health bar
 		static vec2 orig_position = guiTextures[1]->getPosition();	
-		guiTextures[1]->setPosition(orig_position + scale_frac);		// scale the green health bar
+		guiTextures[1]->setPosition(orig_position + scale_frac);		// resposition bar so its right aligned
+		cout << "bird_velocity: " << bird->body->getLinearVelocity().y << endl;
+		static vec2 speed_orig_pos = guiTextures[3]->getPosition();
+		float max_speed_gui = std::max(bird->body->getLinearVelocity().y, -100.0f);
+		guiTextures[3]->setPosition(speed_orig_pos + vec2(max_speed_gui /5.0f, 0));		// resposition bar so its right aligned
+		guiTextures[4]->setPosition(speed_orig_pos + vec2(max_speed_gui / 5.0f, 0));		// resposition bar so its right aligned
+
 		guiSystem->render(guiTextures, deltaTime, View, Projection->topMatrix(), bird->position);
 
 		

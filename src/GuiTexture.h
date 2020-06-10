@@ -29,16 +29,20 @@ public:
 	GLuint getTexID() { return texID; }
 	vec2 getPosition() { return position; }
 	vec2 getScale() { return scale; }
+	bool getActive() { return active; }
 	void setPosition(vec2 newpos) { this->position = newpos; }
 	void setScale(vec2 newscale) { this->scale= newscale; }
+	void setActive(bool active) { this->active = active; }
 
 private:
 
 	GLuint texID;
 	vec2 position = vec2(0.0f, 0.0f);
 	vec2 scale = vec2(1.0f, 1.0f);
+	bool active = true;
 
 };
 
 
 #endif // !GUI_H
+

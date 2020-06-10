@@ -71,6 +71,9 @@ void GuiRenderer::render(vector<GuiTexture*> guis, float delta_frame, mat4 V, ma
 
 	// Draw the gui textures
 	for (int i = 0; i < guis.size(); i++) {
+		if (guis[i]->getActive() == false) {
+			continue;
+		}
 		gui_pos.x = camera.x + guis[i]->getPosition().x;
 		gui_pos.z = camera.z + guis[i]->getPosition().y;
 		
@@ -79,6 +82,7 @@ void GuiRenderer::render(vector<GuiTexture*> guis, float delta_frame, mat4 V, ma
 		M *= trans;
 		M = faceCamera(M, V);
 
+		CHECKED_GL_CALL(glActiveTexture(GL_TEXTURE0));
 		CHECKED_GL_CALL(glUniform2f(prog->getUniform("scale"), guis[i]->getScale().x, guis[i]->getScale().y));
 		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M)));
 		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, guis[i]->getTexID()));
