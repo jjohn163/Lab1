@@ -1,5 +1,6 @@
 #include "ParticleSystem.h"
 #include "FeatherParticle.h"
+#include "ConfettiParticle.h"
 #include <stdlib.h>
 
 vector<Particle*> ParticleSystem::particles;
@@ -71,7 +72,12 @@ Particle* ParticleSystem::addNewParticle(string particle_name, string particle_t
 		CHECKED_GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
 	}
 
-	if (particle_type == "Feather") {
+	if (particle_type == "Confetti") {
+		Particle* p = new ConfettiParticle(particle_name, position, rotation, velocity, gravityEffect, lifeLength, scale);
+		particles.push_back(p);
+		return p;
+	}
+	else if (particle_type == "Feather") {
 		Particle* p = new FeatherParticle(particle_name, position, rotation, velocity, gravityEffect, lifeLength, scale);
 		particles.push_back(p);
 		return p;
@@ -98,6 +104,22 @@ void ParticleSystem::updateParticles(float delta_frame) {
 	
 }	
 
+mat4 ParticleSystem::faceCamera(mat4 model, mat4 view) {
+	mat4 trans_model = model;
+
+	trans_model[0][0] = view[0][0];
+	trans_model[0][1] = view[1][0];
+	trans_model[0][2] = view[2][0];
+	trans_model[1][0] = view[0][1];
+	trans_model[1][1] = view[1][1];
+	trans_model[1][2] = view[2][1];
+	trans_model[2][0] = view[0][2];
+	trans_model[2][1] = view[1][2];
+	trans_model[2][2] = view[2][2];
+
+	return trans_model;
+}
+
 float theta = 0;
 void ParticleSystem::render(float delta_frame, mat4 V, vec3 camera) {
 
@@ -114,20 +136,11 @@ void ParticleSystem::render(float delta_frame, mat4 V, vec3 camera) {
 	for (i = 0; i < particles.size(); i++) {
 		mat4 M = mat4(1);
 		M = translate(mat4(1), particles.at(i)->position);
-
-		// M = T(V) --> models always facing direction of view
-		M[0][0] = V[0][0];
-		M[0][1] = V[1][0];
-		M[0][2] = V[2][0];
-		M[1][0] = V[0][1];
-		M[1][1] = V[1][1];
-		M[1][2] = V[2][1];
-		M[2][0] = V[0][2];
-		M[2][1] = V[1][2];
-		M[2][2] = V[2][2];
-		M *= rotate(mat4(1), particles.at(i)->rotation, vec3(0, 1, 0));
+		mat4 trans_M = faceCamera(M, V);
+		trans_M *= rotate(mat4(1), particles.at(i)->rotation, vec3(0, 1, 0));
 		mat4 sM = scale(mat4(1), vec3(particles.at(i)->scale, particles.at(i)->scale, particles.at(i)->scale));
-		M = M * sM;
+		//mat4 sM = scale(mat4(1), vec3(1.0f, 1.0f, 1.0f)); // debuggin remove later
+		trans_M *= sM;
 		//theta++;
 
 		Particle* particle = particles.at(i);
@@ -135,11 +148,11 @@ void ParticleSystem::render(float delta_frame, mat4 V, vec3 camera) {
 
 		//M = M * translate(mat4(1), -camera);
 
+		CHECKED_GL_CALL(glActiveTexture(GL_TEXTURE0));
 		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, particle_dictionary[name]));
 		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(V)));
-		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M)));
+		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(trans_M)));
 		CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
-
 	}
 
 	// cleanup

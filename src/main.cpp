@@ -25,6 +25,8 @@
 #include "Ragdoll.h"
 #include "irrKlang.h"
 #include "GLTextureWriter.h"
+#include "GuiRenderer.h"
+#include "GuiTexture.h"
 //#include "physx/extensions/PxExtensionsAPI.h"
 //#include "physx/common/PxTolerancesScale.h"
 
@@ -60,10 +62,14 @@ public:
 	irrklang::ISoundSource* impactSound;
 	irrklang::ISoundSource* music;
 	irrklang::ISoundSource* branchCrackSound;
+	irrklang::ISoundSource* eagleSound;
+	irrklang::ISoundSource* gameoverSound;
 	const std::string IMPACT_SOUND_FILE = "/impact.wav";
 	const std::string BACKGROUND_MUSIC_FILE = "/bensound-buddy.mp3";
 	const std::string BRANCH_CRACK_SOUND_FILE = "/branch_crack.wav";
-	
+	const std::string EAGLE_SOUND_FILE = "/hawk_screeching.wav";
+	const std::string GAMEOVER_SOUND_FILE = "/gameover.mp3";
+
 
 	//SHADOWS
 	GLuint depthMapFBO;
@@ -76,19 +82,33 @@ public:
 	bool SHADOW = true;
 	bool DEBUG = false;
 	bool FIRST = true;
+	bool BLURRING = false;
 	mat4 LP, LV, LS;
 	float EDGE = 500;
 	float EDGE_BOT = -1.5f * EDGE;
 	float EDGE_TOP = 0.5f * EDGE;
 	float TOP_EDGE = -30.0f;
+	vec3 lightLA;
+	vec3 lightUp;
 
 
 	//GAME MANAGING
 	bool GAME_OVER = false;
+	bool WIN = false;
 	float MAX_HEALTH = 250.0;
 	float HEALTH = 250.0;
 	bool CAUGHT = false;
 	int FREE_FRAMES = 10;
+	float startBlurTime = 0;
+	float alpha = 0.95;
+	vec3 CAM_OFFSET = vec3(0, 50, 10);
+	vec3 EAGLE_OFFSET = vec3(0, 1000, 0);
+	float MAX_EAGLE_SEPARATION = 50.f;
+	float EAGLE_SEPARATION = MAX_EAGLE_SEPARATION;
+	float LAST_SCREECH = 0;
+	float WIN_HEIGHT = 2410;
+	float WIN_TIME = 0.f;
+
 
 	WindowManager * windowManager = nullptr;
 	GLFWwindow *window = nullptr;
@@ -106,6 +126,9 @@ public:
 	shared_ptr<Program> psky;
 
 	ParticleSystem * particleSystem;
+
+	GuiRenderer* guiSystem;
+	vector<GuiTexture*> guiTextures;
 
 	// Contains vertex information for OpenGL
 	GLuint VertexArrayID;
@@ -148,6 +171,16 @@ public:
 	float SPHERE_RADIUS = 1.0;
 	float EYE_RADIUS = 2.0;
 	const string branch = "branch1";
+	const string confettis[8] = {
+		"confetti1",
+		"confetti2",
+		"confetti3",
+		"confetti4",
+		"confetti5",
+		"confetti6",
+		"confetti7",
+		"confetti8",
+	};
 	const string feathers[9] = {
 		"feather1",
 		"feather2",
@@ -177,7 +210,8 @@ public:
 
 	// Deferred stuff 
 	std::shared_ptr<Program> mergeProg;
-	std::shared_ptr<Program> blur_prog;
+	std::shared_ptr<Program> gaussblur_prog;
+	std::shared_ptr<Program> motion_prog;
 
 	//reference to texture FBO
 	GLuint gBuffer;
@@ -186,6 +220,18 @@ public:
 
 	GLuint LframeBuf;
 	GLuint LtexBuf;
+
+	GLuint motionBuf;
+	GLuint motionTex;
+
+	GLuint genericBuf;
+	GLuint genericTex;
+
+	GLuint prevBuf;
+	GLuint prevTex;
+
+	GLuint prevprevBuf;
+	GLuint prevprevTex;
 
 	GLuint frameBuf[2];
 	GLuint texBuf[2];
@@ -204,31 +250,11 @@ public:
 	}
 
 	void updateLookAtPoint(shared_ptr<Entity> entity) {
-		if (phi > 1.5) {
-			phi = 1.6;
-		}
-		else if (phi < -1.5) {
-			phi = -1.6;
-		}
-
-		lookAtPoint.x = cos(phi) * cos(pheta) + entity->position.x;
-		lookAtPoint.y = sin(phi) + entity->position.y;
-		lookAtPoint.z = cos(phi) * cos(1.5708 - pheta) + entity->position.z;
+		vec3 target = entity->position;
+		lookAtPoint += ((target - lookAtPoint) * deltaTime * 4.f);
 	}
 
 	void updateCamera(shared_ptr<Entity> entity) {
-		//vec3 difference = entity->position - lastPosition;
-		//eye += difference;
-		//lastPosition = entity->position;
-		//double newX, newY;
-		//glfwGetCursorPos(window, &newX, &newY);
-		//if (cursorX >= 0 && cursorY >= 0) {
-		//	//phi += (cursorY - newY) / 100.0;
-		//	//pheta -= (cursorX - newX) / 100.0;
-		//	//updateLookAtPoint(entity);
-		//}		
-		//cursorX = newX;
-		//cursorY = newY;
 
 		updateLookAtPoint(entity);
 		if (movingForward) {
@@ -265,7 +291,7 @@ public:
 			entity->velocity += deltaTime * (up * vec3(40));
 		}
 
-		vec3 target = lookAtPoint + vec3(0, 25, 0);
+		vec3 target = lookAtPoint + CAM_OFFSET;
 		eye += ((target - eye) * deltaTime * 3.f);
 	} 
 	void checkIfBranchCollision(shared_ptr<Entity> entity) {
@@ -404,6 +430,78 @@ public:
 		glGenBuffers(1, &quad_vertexbuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+	}
+
+	void initGUI(const std::string& resourceDirectory) {
+
+		string fileName = "/gui/red_health.png";
+		GuiTexture* red_health = new GuiTexture();
+		red_health->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		red_health->setScale(vec2(10.0f, 1.0f));
+		red_health->setPosition(vec2(0.0f, 12.0f));	
+		guiTextures.push_back(red_health);
+
+		fileName = "/gui/green_health.png";
+		GuiTexture* green_health = new GuiTexture();
+		green_health->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		green_health->setScale(vec2(10.0f, 1.0f));
+		green_health->setPosition(vec2(0.0f, 12.0f));		
+		guiTextures.push_back(green_health);
+
+		fileName = "/gui/rainbow_speed.png";
+		GuiTexture* rainbow_speed = new GuiTexture();
+		rainbow_speed->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		rainbow_speed->setScale(vec2(10.0f, 0.5f));
+		rainbow_speed->setPosition(vec2(0.0f, 15.0f));		
+		guiTextures.push_back(rainbow_speed);
+
+		fileName = "/gui/slow.png";
+		GuiTexture* slow_speed = new GuiTexture();
+		slow_speed->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		slow_speed->setScale(vec2(2, 2));
+		slow_speed->setPosition(vec2(10.0f, 15.0f));
+		guiTextures.push_back(slow_speed);
+
+		fileName = "/gui/fast.png";
+		GuiTexture* fast_speed = new GuiTexture();
+		fast_speed->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		fast_speed->setScale(vec2(3, 3));
+		fast_speed->setPosition(vec2(10.0f, 15.0f));
+		guiTextures.push_back(fast_speed);
+
+		fileName = "/gui/dead.png";
+		GuiTexture* dead_face = new GuiTexture();
+		dead_face->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		dead_face->setScale(vec2(3, 3));
+		dead_face->setPosition(vec2(10.0f, 15.0f));
+		dead_face->setActive(false);
+		guiTextures.push_back(dead_face);
+	}
+
+	void confettiParticle() {
+		//return;
+		int limit = rand() % 50 + 15;
+		for (int i = 0; i < limit; i++) {
+			float rrotx = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 360;
+			float rroty = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 360;
+			mat4 rotx = glm::rotate(mat4(1), glm::radians(rrotx), vec3(1, 0, 0));
+			mat4 roty = glm::rotate(mat4(1), glm::radians(rroty), vec3(0, 1, 0));
+
+			string confetti_name = confettis[rand() % confettis->size()];
+			vec3 particle_pos = bird->position + vec3(0, 2, 0) + vec3(rand() % 6 - 2.5, rand() %6 - 2.5, rand() % 6 - 2.5);
+			float random_rotation = (rand() % 360);
+			vec3 velocity = vec4(bird->velocity, 1) * rotx * roty;
+			float gravity_effect = 1;
+			float life_length = 2.0f;
+			float scale = 0.20f;
+			particleSystem->addNewParticle(confetti_name, "Confetti", particle_pos, random_rotation, velocity, gravity_effect, life_length, scale);
+		}
 	}
 
 	void featherParticle() {
@@ -739,6 +837,14 @@ public:
 		branchCrackSound = soundEngine->addSoundSourceFromFile(branchCrackFile.c_str());
 		branchCrackSound->setDefaultVolume(2.0);
 
+		std::string eagleFile = (resourceDirectory + EAGLE_SOUND_FILE).c_str();
+		eagleSound = soundEngine->addSoundSourceFromFile(eagleFile.c_str());
+		eagleSound->setDefaultVolume(2.0);
+
+		std::string gameoverFile = (resourceDirectory + GAMEOVER_SOUND_FILE).c_str();
+		gameoverSound = soundEngine->addSoundSourceFromFile(gameoverFile.c_str());
+		gameoverSound->setDefaultVolume(2.0);
+
 		std::string backgroundMusic = (resourceDirectory + BACKGROUND_MUSIC_FILE).c_str();
 		music = soundEngine->addSoundSourceFromFile(backgroundMusic.c_str());
 		music->setDefaultVolume(0.1);
@@ -767,6 +873,8 @@ public:
 	void resetGame() {
 		GAME_OVER = false;
 		CAUGHT = false;
+		WIN = false;
+		WIN_TIME = 0.f;
 		HEALTH = MAX_HEALTH;
 		ragdoll->setPosition(startPosition);
 		ragdoll->setVelocity(vec3(0, 0, 0));
@@ -780,11 +888,12 @@ public:
 			branch->material = ProgramManager::BRASS;
 		}
 
-		eagle->position = startPosition + vec3(0, 1000, 0);
+		eagle->position = startPosition + EAGLE_OFFSET;
 
-		eye = startPosition + vec3(0, 10, 0);
+		eye = startPosition + CAM_OFFSET;
 		lookAtPoint = startPosition;
 		FREE_FRAMES = 10;
+		EAGLE_SEPARATION = MAX_EAGLE_SEPARATION;
 	}
 
 	void init(const std::string& resourceDirectory)
@@ -797,7 +906,7 @@ public:
 		
 		ragdoll = make_shared<Ragdoll>(mPhysics, mScene, mMaterial);
 		bird = Ragdoll::createBirdRagdoll(startPosition, entities, ragdoll, resourceDirectory);
-		eye = bird->position + vec3(0, 10, 0);
+		eye = bird->position + CAM_OFFSET;
 		lookAtPoint = bird->position;
 
 
@@ -805,7 +914,7 @@ public:
 		initRockEntities(resourceDirectory);
 		//initBranchEntities(resourceDirectory);
 
-		eagle = make_shared<Entity>(ProgramManager::EAGLE_MESH, bird->position + vec3(0, 600, 0), vec3(4.0f, 4.0f, 4.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::EAGLE);
+		eagle = make_shared<Entity>(ProgramManager::EAGLE_MESH, bird->position + EAGLE_OFFSET, vec3(4.0f, 4.0f, 4.0f), vec3(1, 0, 0), false, ProgramManager::LIGHT_BLUE, 0.0f, ProgramManager::EAGLE);
 		entities.push_back(eagle);
 
 		physx::PxRigidDynamic* placeholder = NULL;
@@ -935,6 +1044,12 @@ public:
 
 		srand(time(NULL));
 		particleSystem = new ParticleSystem(resourceDirectory, "/particle_vert.glsl", "/particle_frag.glsl");
+
+		// GUI Stuff
+		guiSystem = new GuiRenderer(resourceDirectory, "/gui_vert.glsl", "/gui_frag.glsl");
+		guiSystem->init();
+		initGUI(resourceDirectory);
+
 		initShadow();
 
 
@@ -960,15 +1075,23 @@ public:
 
 		//set up the shaders to blur the FBO decomposed just a placeholder pass thru now
 		//TODO - modify and possibly add other shaders to complete blur
-		blur_prog = make_shared<Program>();
-		blur_prog->setVerbose(true);
-		blur_prog->setShaderNames(resourceDirectory + "/blur_vert.glsl", resourceDirectory + "/blur_frag.glsl");
-		blur_prog->init();
-		blur_prog->addUniform("texBuf");
-		blur_prog->addUniform("unblurredRadius");
-		blur_prog->addUniform("fTime");
-		blur_prog->addAttribute("vertPos");
+		gaussblur_prog = make_shared<Program>();
+		gaussblur_prog->setVerbose(true);
+		gaussblur_prog->setShaderNames(resourceDirectory + "/gaussblur_vert.glsl", resourceDirectory + "/gaussblur_frag.glsl");
+		gaussblur_prog->init();
+		gaussblur_prog->addUniform("texBuf");
+		gaussblur_prog->addUniform("unblurredRadius");
+		gaussblur_prog->addAttribute("vertPos");
 
+		motion_prog = make_shared<Program>();
+		motion_prog->setVerbose(true);
+		motion_prog->setShaderNames(resourceDirectory + "/motion_vert.glsl", resourceDirectory + "/motion_frag.glsl");
+		motion_prog->init();
+		motion_prog->addUniform("prevTex");
+		motion_prog->addUniform("genericTex");
+		motion_prog->addUniform("alpha");
+		motion_prog->addUniform("pushback");
+		motion_prog->addAttribute("vertPos");
 
 		initBuffers();
 
@@ -989,6 +1112,22 @@ public:
 		GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
 		glDrawBuffers(1, DrawBuffers);
 
+		glGenFramebuffers(1, &motionBuf);
+		glGenTextures(1, &motionTex);
+		createFBO(motionBuf, motionTex);
+
+		glGenFramebuffers(1, &genericBuf);
+		glGenTextures(1, &genericTex);
+		createFBO(genericBuf, genericTex);
+
+		glGenFramebuffers(1, &prevBuf);
+		glGenTextures(1, &prevTex);
+		createFBO(prevBuf, prevTex);
+
+		glGenFramebuffers(1, &prevprevBuf);
+		glGenTextures(1, &prevprevTex);
+		createFBO(prevprevBuf, prevprevTex);
+
 		//Initialize the geometry to render a quad to the screen
 		initQuad();
 
@@ -1002,6 +1141,8 @@ public:
 		createFBO(frameBuf[0], texBuf[0]);
 		createFBO(frameBuf[1], texBuf[1]);
 		initSound(resourceDirectory);
+		featherParticle();
+		confettiParticle();
 	}
 
 	mat4 SetOrthoMatrix(shared_ptr<Program> curShade) {
@@ -1061,7 +1202,6 @@ public:
 		//more FBO set up
 		GLenum DrawBuffers[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 		glDrawBuffers(3, DrawBuffers);
-
 	}
 
 	void createFBO(GLuint& fb, GLuint& tex) {
@@ -1134,37 +1274,79 @@ public:
 		CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, inTex));
 		//example applying of 'drawing' the FBO texture
 		//this shader just draws right now
-		blur_prog->bind();
-		CHECKED_GL_CALL(glUniform1i(blur_prog->getUniform("texBuf"), 0));
-		CHECKED_GL_CALL(glUniform1f(blur_prog->getUniform("unblurredRadius"), unblurredRadius));
-		CHECKED_GL_CALL(glUniform1f(blur_prog->getUniform("fTime"), glfwGetTime()));
+		gaussblur_prog->bind();
+		CHECKED_GL_CALL(glUniform1i(gaussblur_prog->getUniform("texBuf"), 0));
+		CHECKED_GL_CALL(glUniform1f(gaussblur_prog->getUniform("unblurredRadius"), unblurredRadius));
+		CHECKED_GL_CALL(glUniform1f(gaussblur_prog->getUniform("fTime"), glfwGetTime()));
 		CHECKED_GL_CALL(glEnableVertexAttribArray(0));
 		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer));
 		CHECKED_GL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0));
 		CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
 		CHECKED_GL_CALL(glDisableVertexAttribArray(0));
-		blur_prog->unbind();
+		gaussblur_prog->unbind();
 
 	}
 
 	void updateEntities() {
+		if (GAME_OVER) {
+			guiTextures[1]->setActive(false);		// hide the green health bar
+			guiTextures[2]->setActive(false);		// hide the speed bar
+
+			if (CAUGHT) {
+				//ragdoll->setPosition(bird->position + vec3(0, 5.0f, 25.0f) * deltaTime);
+				eagle->position += vec3(0, 5.0f, 25.0f) * deltaTime;
+				for (shared_ptr<Entity> entity : entities) {
+					if (entity->body) {
+						entity->position += vec3(0, 5.0f, 25.0f) * deltaTime;
+						//Ragdoll::updateOrientation(entity);
+					}
+				}
+				guiTextures[3]->setActive(false);		// use dead face
+				guiTextures[4]->setActive(false);		// use dead face
+				guiTextures[5]->setActive(true);		// use dead face
+			}
+			else if (WIN) {
+				guiTextures[3]->setActive(true);		// use happy face
+				guiTextures[3]->setScale(vec2(4,4));		// bigger happy face
+				guiTextures[4]->setActive(false);		// use happy face
+				guiTextures[0]->setActive(false);		// hide the health bar
+				guiTextures[1]->setActive(false);		// hide the health bar
+
+				eagle->position += vec3(0, 5.0f, 25.0f) * deltaTime;
+				confettiParticle();
+			}
+			else {
+				guiTextures[3]->setActive(false);		// use dead face
+				guiTextures[4]->setActive(false);		// use dead face
+				guiTextures[5]->setActive(true);		// use dead face
+
+			}
+			return;
+		}
+		if (bird->position.y <= WIN_HEIGHT) {
+			if (WIN_TIME > 0.3f) {
+				WIN = true;
+				GAME_OVER = true;
+				return;
+			}
+			WIN_TIME += deltaTime;
+		}
+
 		for (shared_ptr<Entity> entity : entities) {
 			if (entity->body) {
 				Ragdoll::updateOrientation(entity);
 			}
 		}
-		if (GAME_OVER) {
-			if (CAUGHT) {
-				//ragdoll->setPosition(bird->position + vec3(0, 5.0f, 25.0f) * deltaTime);
-				eagle->position += vec3(0, 5.0f, 25.0f) * deltaTime;
-				//for (shared_ptr<Entity> entity : entities) {
-				//	if (entity->body) {
-				//		Ragdoll::updateOrientation(entity);
-				//	}
-				//}
-			}
-			return;
+
+		if (bird->body->getLinearVelocity().y < -50.0f) {
+			guiTextures[4]->setActive(true);		// fast face
+			guiTextures[3]->setActive(false);		// fast face
 		}
+		else {
+			guiTextures[3]->setActive(true);		// slow face
+			guiTextures[4]->setActive(false);		// fast face
+		}
+		
 
 		physx::PxVec3 velocity = bird->body->getLinearVelocity();
 		float speed = velocity.magnitude();
@@ -1178,20 +1360,26 @@ public:
 			if (length(bird->position - eagle->position) < 5) {
 				CAUGHT = true;
 			}
+			soundEngine->play2D(gameoverSound);
 			GAME_OVER = true;
 		}
 		FREE_FRAMES--;
 		lastSpeed = speed;
-		
+
 		float EAGLE_MIN_SPEED = 30.0f;
 		float EAGLE_MAX_SPEED = 75.0f;
 		vec3 direction = bird->position - eagle->position;
-		if (length(direction) > 15) {
-			direction = bird->position + vec3(0, 0, 15) - eagle->position;
+		if (speed > 70.f || length(direction) > 75.0f) {
+			direction = bird->position + vec3(50,50,25) - eagle->position;
 		}
+		if (LAST_SCREECH > 5) {
+			soundEngine->play2D(eagleSound);
+			LAST_SCREECH = 0.f;
+		}
+		LAST_SCREECH += deltaTime;
 		float alternative = 0.5f * length(direction);
 		eagle->position += normalize(direction) * fmin(fmax(EAGLE_MIN_SPEED, alternative), EAGLE_MAX_SPEED) * deltaTime;
-		
+		eagleSound->setDefaultVolume(fmax(1.0f-(length(direction)/200.0f), 0.0f));
 	}
 
 	/* Actual cull on planes */
@@ -1203,6 +1391,11 @@ public:
 		return (lowestYVal > eye.y || eye.y - highestYVal > 1500);
 	}
 
+	float lerp(float a, float b, float f)
+	{
+		return (a * (1.0 - f)) + (b * f);
+	}
+
 	void render() {
 		TimeManager::Instance()->Update();
 		deltaTime = TimeManager::Instance()->DeltaTime();
@@ -1212,6 +1405,8 @@ public:
 		}
 		if (!GAME_OVER) {
 			mScene->simulate(deltaTime);
+			lightLA = bird->position;
+			lightUp = vec3(0, 1, 0);
 		}
 
 		// Get current frame buffer size.
@@ -1223,8 +1418,7 @@ public:
 		mat4 View = glm::lookAt(eye, lookAtPoint, vec3(0, 0, 1));
 		auto Model = make_shared<MatrixStack>();
 
-		vec3 lightLA = bird->position;
-		vec3 lightUp = vec3(0, 1, 0);
+		
 		
 		if (SHADOW) {
 			//set up light's depth map
@@ -1279,6 +1473,32 @@ public:
 		//glDepthMask(GL_TRUE);
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		psky->bind();
+			float sangle = 3.1415926 / 2.;
+			glm::mat4 RotateXSky = glm::rotate(glm::mat4(1.0f), sangle, glm::vec3(-1.0f, 0.0f, 0.0f));
+			glm::mat4 V, M, P;
+			V = glm::mat4(1);
+			M = glm::translate(glm::mat4(1.0f), eye + vec3(0, -1, 0)) * RotateXSky;
+			P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f);
+			vec3 campos = eye;
+			glm::mat4 sc = scale(glm::mat4(1.0), glm::vec3(50, 50, 50));
+			glm::mat4 rotX = glm::rotate(glm::mat4(1.0), 9.0f, vec3(1, 0, 0));
+
+			M = M * rotX * sc;
+
+			//send the matrices to the shaders
+			glUniformMatrix4fv(psky->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+			glUniformMatrix4fv(psky->getUniform("V"), 1, GL_FALSE, value_ptr(View));
+			glUniformMatrix4fv(psky->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+			glUniform3fv(psky->getUniform("campos"), 1, &campos[0]);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, Texture);
+
+			meshSkybox->draw(psky);
+		psky->unbind();
+
 		//glEnable(GL_DEPTH_TEST);
 		//glDisable(GL_BLEND);
 		float damage = (MAX_HEALTH - HEALTH) / MAX_HEALTH;
@@ -1300,8 +1520,8 @@ public:
 			}
 		}
 
-		Model->popMatrix();
-		ProgramManager::Instance()->progMat->unbind();
+		//Model->popMatrix();
+		//ProgramManager::Instance()->progMat->unbind();
 		
 		//glDepthMask(GL_FALSE);
 		//glDisable(GL_DEPTH_TEST);
@@ -1314,22 +1534,10 @@ public:
 
 
 		if (Defer) {
-			float blurVelocityRequirement = 75;
-
-			physx::PxVec3 velocity = bird->body->getLinearVelocity();
-			
-			float unblurredRadius = abs(blurVelocityRequirement / velocity.y);
-
-			// This facilitates a very smooth transition to showing the blur without making the blur show too early.
-			if (unblurredRadius > 1)
-			{
-				unblurredRadius = pow(unblurredRadius, 16);
-			}
-
 			//cout << "unblurredRadius: " << "(" << unblurredRadius << ")" << endl;
 
 			// The blur starts to show when the velocity.y > 125, but 150 is when it's really honed in on the bird
-			motionBlur(gColorSpec, 0, 6, unblurredRadius);
+			// motionBlur(gColorSpec, 0, 6, unblurredRadius);
 
 		
 
@@ -1337,6 +1545,10 @@ public:
 			//glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, genericBuf); 
+			
+			glClear(GL_COLOR_BUFFER_BIT);
 
 			// example applying of 'drawing' the FBO texture - change shaders
 			mergeProg->bind();
@@ -1345,7 +1557,7 @@ public:
 				glActiveTexture(GL_TEXTURE0 + 1);
 				glBindTexture(GL_TEXTURE_2D, gNormal);
 				glActiveTexture(GL_TEXTURE0 + 2);
-				glBindTexture(GL_TEXTURE_2D, texBuf[1]);
+				glBindTexture(GL_TEXTURE_2D, gColorSpec);
 				glActiveTexture(GL_TEXTURE0 + 3);
 				glBindTexture(GL_TEXTURE_2D, LtexBuf);
 
@@ -1361,6 +1573,105 @@ public:
 				glDisableVertexAttribArray(0);
 			mergeProg->unbind();
 
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, motionBuf);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, motionBuf);
+
+			float blurVelocityRequirement = 75;
+
+			physx::PxVec3 velocity = bird->body->getLinearVelocity();
+
+			float unblurredRadius = abs(blurVelocityRequirement / velocity.y);
+
+			// This facilitates a very smooth transition to showing the blur without making the blur show too early.
+			if (alpha > 0.55 && abs(velocity.y) > blurVelocityRequirement)
+			{
+				if (!BLURRING)
+				{
+					BLURRING = true;
+					startBlurTime = glfwGetTime();
+				}
+				alpha = lerp(0.95, 0.55, glfwGetTime() - startBlurTime);
+				cout << "Blurring... alpha: " << alpha << endl;
+				if (glfwGetTime() - startBlurTime > 1)
+				{
+					BLURRING = false;
+				}
+			}
+			else if (abs(velocity.y) < blurVelocityRequirement) {
+				BLURRING = false;
+				alpha = 0.95;
+			}
+
+			motion_prog->bind();
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, genericTex);
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(GL_TEXTURE_2D, prevTex);
+
+				glUniform1i(motion_prog->getUniform("prevTex"), 0);
+				glUniform1i(motion_prog->getUniform("genericTex"), 1);
+				glUniform1f(motion_prog->getUniform("alpha"), alpha);
+				glUniform1f(motion_prog->getUniform("pushback"), 0);
+
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+				glDisableVertexAttribArray(0);
+			motion_prog->unbind();
+
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+			motion_prog->bind();
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, motionTex);
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(GL_TEXTURE_2D, prevprevTex);
+
+				glUniform1i(motion_prog->getUniform("prevTex"), 0);
+				glUniform1i(motion_prog->getUniform("genericTex"), 1);
+				glUniform1f(motion_prog->getUniform("alpha"), alpha);
+				glUniform1f(motion_prog->getUniform("pushback"), 0);
+
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+				glDisableVertexAttribArray(0);
+			motion_prog->unbind();
+
+			//motion_prog->bind();
+			//	glActiveTexture(GL_TEXTURE0);
+			//	glBindTexture(GL_TEXTURE_2D, prevTex);
+
+			//	glUniform1i(motion_prog->getUniform("texBuf"), 0);
+			//	glUniform1f(motion_prog->getUniform("alpha"), 0.75);
+			//	glUniform1f(motion_prog->getUniform("pushback"), -5);
+
+			//	glEnableVertexAttribArray(0);
+			//	glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+			//	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+			//	glDrawArrays(GL_TRIANGLES, 0, 6);
+			//	glDisableVertexAttribArray(0);
+			//motion_prog->unbind();
+
+			//glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, prevBuf);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prevprevBuf);
+
+			glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, genericBuf);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prevBuf);
+
+			glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			/*motionBlur(genericTex, 0, 6, unblurredRadius);*/
+
 			if (FirstTime)
 			{
 				assert(GLTextureWriter::WriteImage(texBuf[0], "blur1.png"));
@@ -1373,47 +1684,32 @@ public:
 			}
 		}
 
-
-		// ----------------------
-		// draw skybox
-		// ----------------------
 		glEnable(GL_DEPTH_TEST);
 
 		// Blitting lets us draw the stuff in the gbuffer, as well as the skybox
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
 		glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		//Draw skybox
-		psky->bind();
-			float sangle = 3.1415926 / 2.;
-			glm::mat4 RotateXSky = glm::rotate(glm::mat4(1.0f), sangle, glm::vec3(-1.0f, 0.0f, 0.0f));
-			glm::mat4 V, M, P;
-			V = glm::mat4(1);
-			M = glm::translate(glm::mat4(1.0f), eye + vec3(0, -1, 0)) * RotateXSky;
-			P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f);
-			vec3 campos = eye;
-			glm::mat4 sc = scale(glm::mat4(1.0), glm::vec3(50, 50, 50));			
-			glm::mat4 rotX = glm::rotate(glm::mat4(1.0), 9.0f, vec3(1, 0, 0));
-			
-			M = M * rotX * sc;
-
-			//send the matrices to the shaders
-			glUniformMatrix4fv(psky->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-			glUniformMatrix4fv(psky->getUniform("V"), 1, GL_FALSE, value_ptr(View));
-			glUniformMatrix4fv(psky->getUniform("M"), 1, GL_FALSE, &M[0][0]);
-			glUniform3fv(psky->getUniform("campos"), 1, &campos[0]);
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, Texture);
-
-			meshSkybox->draw(psky);
-		psky->unbind();
 
 		particleSystem->setProjection(Projection->topMatrix());
 		particleSystem->updateParticles(deltaTime);
 		particleSystem->render(deltaTime, View, eye);
+
+		vec3 gui_pos = vec3(bird->position.x, eye.y, bird->position.z);
+		float health_frac = HEALTH / MAX_HEALTH;
+		vec2  scale_frac = guiTextures[0]->getScale() - guiTextures[1]->getScale();
+		guiTextures[1]->setScale(vec2(10.0f * health_frac, 1.0f));		// scale the green health bar
+		static vec2 orig_position = guiTextures[1]->getPosition();	
+		guiTextures[1]->setPosition(orig_position + scale_frac);		// resposition bar so its right aligned
+		cout << "bird_velocity: " << bird->body->getLinearVelocity().y << endl;
+		static vec2 speed_orig_pos = guiTextures[3]->getPosition();
+		float max_speed_gui = std::max(bird->body->getLinearVelocity().y, -100.0f);
+		guiTextures[3]->setPosition(speed_orig_pos + vec2(max_speed_gui /5.0f, 0));		// resposition bar so its right aligned
+		guiTextures[4]->setPosition(speed_orig_pos + vec2(max_speed_gui / 5.0f, 0));		// resposition bar so its right aligned
+
+		guiSystem->render(guiTextures, deltaTime, View, Projection->topMatrix(), bird->position);
 
 		
 		//animation update example
@@ -1424,11 +1720,11 @@ public:
 		//View->popMatrix();
 		if (!GAME_OVER) {
 			mScene->fetchResults();
-			updateEntities();
 			updateCamera(bird);
-			light = bird->position + vec3(50, 50, 50);
+			light = bird->position + vec3(75, 75, 75);
+			checkIfBranchCollision(bird);
 		}
-		checkIfBranchCollision(bird);
+		updateEntities();
 	}
 };
 
@@ -1471,3 +1767,4 @@ int main(int argc, char *argv[])
 	windowManager->shutdown();
 	return 0;
 }
+
