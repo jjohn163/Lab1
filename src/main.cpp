@@ -512,11 +512,11 @@ public:
 		dead_face->setActive(false);
 		guiTextures.push_back(dead_face);
 
-		fileName = "/gui/StartScreen.png";
+		fileName = "/gui/FeatherFall.png";
 		GuiTexture* start = new GuiTexture();
 		start->loadTexture(resourceDirectory + fileName);
 		//tex->setScale(vec2(0.01f, 0.01f));
-		start->setScale(vec2(40, 40));
+		start->setScale(vec2(52, 52));
 		start->setPosition(vec2(10.0f, 15.0f));
 		//start->setActive(false);
 		guiStart.push_back(start);
@@ -1643,7 +1643,7 @@ public:
 					startBlurTime = glfwGetTime();
 				}
 				alpha = lerp(0.95, 0.55, glfwGetTime() - startBlurTime);
-				cout << "Blurring... alpha: " << alpha << endl;
+				//cout << "Blurring... alpha: " << alpha << endl;
 				if (glfwGetTime() - startBlurTime > 1)
 				{
 					BLURRING = false;
@@ -1755,13 +1755,13 @@ public:
 		guiTextures[1]->setScale(vec2(10.0f * health_frac, 1.0f));		// scale the green health bar
 		static vec2 orig_position = guiTextures[1]->getPosition();	
 		guiTextures[1]->setPosition(orig_position + scale_frac);		// resposition bar so its right aligned
-		cout << "bird_velocity: " << bird->body->getLinearVelocity().y << endl;
+		//cout << "bird_velocity: " << bird->body->getLinearVelocity().y << endl;
 		static vec2 speed_orig_pos = guiTextures[3]->getPosition();
 		float max_speed_gui = std::max(bird->body->getLinearVelocity().y, -100.0f);
 		guiTextures[3]->setPosition(speed_orig_pos + vec2(max_speed_gui /5.0f, 0));		// resposition bar so its right aligned
 		guiTextures[4]->setPosition(speed_orig_pos + vec2(max_speed_gui / 5.0f, 0));		// resposition bar so its right aligned
 
-		guiStart[0]->setPosition(orig_position + vec2(0, -10));
+		guiStart[0]->setPosition(orig_position + vec2(0, -13));
 		if (START) {
 			guiSystem->render(guiTextures, deltaTime, View, Projection->topMatrix(), bird->position);
 		}
