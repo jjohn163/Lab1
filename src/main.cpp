@@ -53,7 +53,7 @@ public:
 	physx::PxScene* mScene;
 	physx::PxMaterial* mMaterial;
 	float lastSpeed = 0.f;
-	const float MIN_SPEED_CHANGE = 7.f;
+	const float MIN_SPEED_CHANGE = 25.f;
 	vec3 startPosition;
 	shared_ptr<Ragdoll> ragdoll;
 
@@ -95,8 +95,8 @@ public:
 	//GAME MANAGING
 	bool GAME_OVER = false;
 	bool WIN = false;
-	float MAX_HEALTH = 250.0;
-	float HEALTH = 250.0;
+	float MAX_HEALTH = 1000.0;
+	float HEALTH = MAX_HEALTH;
 	bool CAUGHT = false;
 	int FREE_FRAMES = 10;
 	float startBlurTime = 0;
@@ -313,7 +313,7 @@ public:
 
 			physx::PxVec3 velocity = bird->body->getLinearVelocity();
 			vec3 velocityGlm = vec3(velocity.x, velocity.y, velocity.z);
-			ragdoll->setVelocity(velocityGlm * 0.3f);
+			ragdoll->setVelocity(velocityGlm * 0.6f);
 			//branches.erase(branches.begin() + i);
 			branch->material = ProgramManager::BLUE_PLASTIC;
 			branchParticle();
@@ -1354,7 +1354,7 @@ public:
 			featherParticle();
 			soundEngine->play2D(impactSound);
 			FREE_FRAMES = 3;
-			HEALTH -= fabs(lastSpeed - speed);
+			HEALTH -= pow(fabs(lastSpeed - speed), 1.5f);
 		}
 		if (HEALTH <= 0 || length(bird->position - eagle->position) < 5) {
 			if (length(bird->position - eagle->position) < 5) {
