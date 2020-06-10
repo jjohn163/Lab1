@@ -1,5 +1,6 @@
 #include "ParticleSystem.h"
 #include "FeatherParticle.h"
+#include "ConfettiParticle.h"
 #include <stdlib.h>
 
 vector<Particle*> ParticleSystem::particles;
@@ -71,7 +72,12 @@ Particle* ParticleSystem::addNewParticle(string particle_name, string particle_t
 		CHECKED_GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
 	}
 
-	if (particle_type == "Feather") {
+	if (particle_type == "Confetti") {
+		Particle* p = new ConfettiParticle(particle_name, position, rotation, velocity, gravityEffect, lifeLength, scale);
+		particles.push_back(p);
+		return p;
+	}
+	else if (particle_type == "Feather") {
 		Particle* p = new FeatherParticle(particle_name, position, rotation, velocity, gravityEffect, lifeLength, scale);
 		particles.push_back(p);
 		return p;
@@ -147,7 +153,6 @@ void ParticleSystem::render(float delta_frame, mat4 V, vec3 camera) {
 		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(V)));
 		CHECKED_GL_CALL(glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(trans_M)));
 		CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
-
 	}
 
 	// cleanup

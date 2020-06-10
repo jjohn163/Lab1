@@ -171,6 +171,16 @@ public:
 	float SPHERE_RADIUS = 1.0;
 	float EYE_RADIUS = 2.0;
 	const string branch = "branch1";
+	const string confettis[8] = {
+		"confetti1",
+		"confetti2",
+		"confetti3",
+		"confetti4",
+		"confetti5",
+		"confetti6",
+		"confetti7",
+		"confetti8",
+	};
 	const string feathers[9] = {
 		"feather1",
 		"feather2",
@@ -472,6 +482,26 @@ public:
 		dead_face->setPosition(vec2(10.0f, 15.0f));
 		dead_face->setActive(false);
 		guiTextures.push_back(dead_face);
+	}
+
+	void confettiParticle() {
+		//return;
+		int limit = rand() % 50 + 15;
+		for (int i = 0; i < limit; i++) {
+			float rrotx = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 360;
+			float rroty = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) * 360;
+			mat4 rotx = glm::rotate(mat4(1), glm::radians(rrotx), vec3(1, 0, 0));
+			mat4 roty = glm::rotate(mat4(1), glm::radians(rroty), vec3(0, 1, 0));
+
+			string confetti_name = confettis[rand() % confettis->size()];
+			vec3 particle_pos = bird->position + vec3(0, 2, 0) + vec3(rand() % 6 - 2.5, rand() %6 - 2.5, rand() % 6 - 2.5);
+			float random_rotation = (rand() % 360);
+			vec3 velocity = vec4(bird->velocity, 1) * rotx * roty;
+			float gravity_effect = 1;
+			float life_length = 2.0f;
+			float scale = 0.20f;
+			particleSystem->addNewParticle(confetti_name, "Confetti", particle_pos, random_rotation, velocity, gravity_effect, life_length, scale);
+		}
 	}
 
 	void featherParticle() {
@@ -1112,6 +1142,7 @@ public:
 		createFBO(frameBuf[1], texBuf[1]);
 		initSound(resourceDirectory);
 		featherParticle();
+		confettiParticle();
 	}
 
 	mat4 SetOrthoMatrix(shared_ptr<Program> curShade) {
@@ -1282,7 +1313,7 @@ public:
 				guiTextures[1]->setActive(false);		// hide the health bar
 
 				eagle->position += vec3(0, 5.0f, 25.0f) * deltaTime;
-				featherParticle();
+				confettiParticle();
 			}
 			else {
 				guiTextures[3]->setActive(false);		// use dead face
