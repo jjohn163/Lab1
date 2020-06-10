@@ -23,6 +23,18 @@ uniform mat3 G[9] = mat3[](
 	1.0/3.0 * mat3( 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 )
 );
 
+void make_kernel(inout vec4 n[9], sampler2D tex, ivec2 coord) {
+  n[0] = texelFetch(tex, coord + ivec2(-1, -1), 0);
+  n[1] = texelFetch(tex, coord + ivec2( 0, -1), 0);
+  n[2] = texelFetch(tex, coord + ivec2( 1, -1), 0);
+  n[3] = texelFetch(tex, coord + ivec2(-1,  0), 0);
+  n[4] = texelFetch(tex, coord, 0);
+  n[5] = texelFetch(tex, coord + ivec2( 1,  0), 0);
+  n[6] = texelFetch(tex, coord + ivec2(-1,  1), 0);
+  n[7] = texelFetch(tex, coord + ivec2( 0,  1), 0);
+  n[8] = texelFetch(tex, coord + ivec2( 1,  1), 0);
+}
+
 void main(){
 	mat3 I;
 	mat3 C;
@@ -32,42 +44,31 @@ void main(){
 
 	vec3 texColor = texture( texBuf, texCoord ).rgb;	
 	texColor = texColor - mod(texColor, 0.2);
-	color = vec4(0);
 
 	
-			/* fetch the 3x3 neighbourhood and use the RGB vector's length as intensity value */
-	for (int i=0; i<3; i++)
-	for (int j=0; j<3; j++) {
-		sample = texelFetch( texBuf, ivec2(gl_FragCoord) + ivec2(i-1,j-1), 0 ).rgb;
-		I[i][j] = length(sample);
-		avg = sample+avg;
-	}
-	
-	/* calculate the convolution values for all the masks */
-	for (int i=0; i<9; i++) {
-		float dp3 = dot(G[i][0], I[0]) + dot(G[i][1], I[1]) + dot(G[i][2], I[2]);
-		cnv[i] = dp3 * dp3; 
-	}
+	vec4 n[9];
+  ivec2 px = ivec2(gl_FragCoord.xy);
+  make_kernel(n, texBuf, px);
 
-	float M = (cnv[0] + cnv[1]) + (cnv[2] + cnv[3]);
-	float S = (cnv[4] + cnv[5]) + (cnv[6] + cnv[7]) + (cnv[8] + M); 
+  vec4 sobel_edge_h = n[2] + (2.0*n[5]) + n[8] - (n[0] + (2.0*n[3]) + n[6]);
+  vec4 sobel_edge_v = n[0] + (2.0*n[1]) + n[2] - (n[6] + (2.0*n[7]) + n[8]);
+  vec4 sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
+  if(sobel.r + sobel.g + sobel.b > 3.6) {
+	color = vec4(vec3(.4, .25, .12), 1.0);
+  } else {
 
-	//Fiddle with the .001 and multiplier (.02) on color
-	if(sqrt(M/S) > .001) {
-		color += -.02*(vec4(vec3(sqrt(M/S)), 1));
-	}
+		float unblurred = abs(unblurredRadius);
 
-	float unblurred = abs(unblurredRadius);
+		float middleness = clamp(pow(8*texCoord.x - 4, 2) + pow(8 * texCoord.y - 4, 2) - unblurred, 0, 1);
 
-	float middleness = clamp(pow(8*texCoord.x - 4, 2) + pow(8 * texCoord.y - 4, 2) - unblurred, 0, 1);
+		color += vec4(texColor, 1) * (1 - middleness);
 
-	color += vec4(texColor, 1) * (1 - middleness);
+		color += vec4(texColor*weight[0], 1) * middleness;
 
-	color += vec4(texColor*weight[0], 1) * middleness;
-
-	for (int i=1; i <5; i ++) 
-	{
-		color += vec4(texture( texBuf, texCoord + vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
-		color += vec4(texture( texBuf, texCoord - vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
+		for (int i=1; i <5; i ++) 
+		{
+			color += vec4(texture( texBuf, texCoord + vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
+			color += vec4(texture( texBuf, texCoord - vec2(offset[i], 0.0)/512.0 ).rgb, 1) * weight[i] * middleness;
+		}
 	}
 }
