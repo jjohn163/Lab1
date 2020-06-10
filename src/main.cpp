@@ -755,7 +755,7 @@ public:
 
 		//Starting rock
 		addRock(make_shared<Entity>(ProgramManager::ROCK_MESH, ROCK_POS, ROCK_SCALE, ROT_AXIS, false, ROCK_MAT, 0, ProgramManager::ROCK));
-
+		entities.push_back(make_shared<Entity>(ProgramManager::CUBE_MESH, ROCK_POS + vec3(0, 0, -52), vec3(200, 10, 100), ROT_AXIS, false, ROCK_MAT, 0, ProgramManager::GROUND));
 		for (int i = START_HEIGHT + GRID_SCALE; i <= 0; i += GRID_SCALE) {
 			curPos = lineEquation(i) - vec3(OFFSET_X, 0, OFFSET_Z);
 			random_shuffle(widths.begin(), widths.end());

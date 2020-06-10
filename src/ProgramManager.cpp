@@ -133,6 +133,12 @@ void ProgramManager::init() {
 	tex_branch->setUnit(0);
 	tex_branch->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
+	tex_ground = new Texture();
+	tex_ground->setFilename(resourceDirectory + "/ground.jpg");
+	tex_ground->init();
+	tex_ground->setUnit(0);
+	tex_ground->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
 	initMesh("/cube.obj", mesh_cube);
 	initMesh("/spheresmooth.obj", mesh_sphere);
 	initMesh("/squareRock.obj", mesh_rock);
@@ -220,6 +226,9 @@ void ProgramManager::setTexture(CustomTextures i) {
 		break;
 	case BRANCH:
 		tex_branch->bind(progMat->getUniform("Texture0"));
+		break;
+	case GROUND:
+		tex_ground->bind(progMat->getUniform("Texture0"));
 		break;
 	case DEFAULT:
 		tex_sample->bind(progMat->getUniform("Texture0"));
