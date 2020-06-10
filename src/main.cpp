@@ -1014,7 +1014,7 @@ public:
 		int width, height, channels;
 		char filepath[1000];
 
-		string str = resourceDirectory + "/kiara_1_dawn_1k.jpg";
+		string str = resourceDirectory + "/snowy_park_01.jpg";
 		strcpy(filepath, str.c_str());
 		unsigned char* data = stbi_load(filepath, &width, &height, &channels, 4);
 
