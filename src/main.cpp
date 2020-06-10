@@ -69,6 +69,7 @@ public:
 	const std::string BRANCH_CRACK_SOUND_FILE = "/branch_crack.wav";
 	const std::string EAGLE_SOUND_FILE = "/hawk_screeching.wav";
 	const std::string GAMEOVER_SOUND_FILE = "/gameover.mp3";
+	bool SOUND = true;
 
 
 	//SHADOWS
@@ -268,7 +269,7 @@ public:
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
 			entity->velocity += delta;
-			bird->body->addForce(physx::PxVec3(0, 0, 100), physx::PxForceMode::eACCELERATION);
+			bird->body->addForce(physx::PxVec3(0, 0, 200), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingBackward) {
 			vec3 direction = lookAtPoint - entity->position;
@@ -276,21 +277,21 @@ public:
 			vec3 delta = PLAYER_SPEED * deltaTime * w;
 			delta.y = 0;
 			entity->velocity -= delta;
-			bird->body->addForce(physx::PxVec3(0, 0, -100), physx::PxForceMode::eACCELERATION);
+			bird->body->addForce(physx::PxVec3(0, 0, -200), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingLeft) {
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
 			entity->velocity += PLAYER_SPEED * deltaTime * u;
-			bird->body->addForce(physx::PxVec3(100, 0, 0), physx::PxForceMode::eACCELERATION);
+			bird->body->addForce(physx::PxVec3(200, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingRight) {
 			vec3 direction = lookAtPoint - entity->position;
 			vec3 w = normalize(direction);
 			vec3 u = normalize(cross(up, w));
 			entity->velocity -= PLAYER_SPEED * deltaTime * u;
-			bird->body->addForce(physx::PxVec3(-100, 0, 0), physx::PxForceMode::eACCELERATION);
+			bird->body->addForce(physx::PxVec3(-200, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (movingUp) {
 			entity->velocity += deltaTime * (up * vec3(40));
@@ -339,11 +340,22 @@ public:
 			glfwSetWindowShouldClose(window, GL_TRUE);
 		}
 		if (key == GLFW_KEY_W && action == GLFW_PRESS) {
+			physx::PxVec3 velocity = bird->body->getLinearVelocity();
+			if (velocity.z < 0) {
+				vec3 velocityGlm = vec3(velocity.x, velocity.y, velocity.z * 0.7f);
+				ragdoll->setVelocity(velocityGlm);
+			}
 			bird->body->addForce(physx::PxVec3(0, 0, 100), physx::PxForceMode::eACCELERATION);
 			movingForward = true;
 		}
-		if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
-			bird->body->addForce(physx::PxVec3(0, 500, 0), physx::PxForceMode::eACCELERATION);
+		if (key == GLFW_KEY_M && action == GLFW_PRESS) {
+			SOUND = !SOUND;
+			if (SOUND) {
+				soundEngine->setSoundVolume(1.0);
+			}
+			else {
+				soundEngine->setSoundVolume(0.0);
+			}
 		}
 		if (key == GLFW_KEY_W && action == GLFW_RELEASE) {
 			movingForward = false;
@@ -356,6 +368,11 @@ public:
 			}
 		}
 		if (key == GLFW_KEY_S && action == GLFW_PRESS) {
+			physx::PxVec3 velocity = bird->body->getLinearVelocity();
+			if (velocity.z > 0) {
+				vec3 velocityGlm = vec3(velocity.x, velocity.y, velocity.z * 0.7f);
+				ragdoll->setVelocity(velocityGlm);
+			}
 			bird->body->addForce(physx::PxVec3(0, 0, -100), physx::PxForceMode::eACCELERATION);
 			movingBackward = true;
 		}
@@ -364,6 +381,11 @@ public:
 		}
 		if (key == GLFW_KEY_A && action == GLFW_PRESS) {
 			movingLeft = true;
+			physx::PxVec3 velocity = bird->body->getLinearVelocity();
+			if (velocity.x < 0) {
+				vec3 velocityGlm = vec3(velocity.x * 0.7f, velocity.y, velocity.z);
+				ragdoll->setVelocity(velocityGlm);
+			}
 			bird->body->addForce(physx::PxVec3(100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (key == GLFW_KEY_A && action == GLFW_RELEASE) {
@@ -371,16 +393,15 @@ public:
 		}
 		if (key == GLFW_KEY_D && action == GLFW_PRESS) {
 			movingRight = true;
+			physx::PxVec3 velocity = bird->body->getLinearVelocity();
+			if (velocity.x > 0) {
+				vec3 velocityGlm = vec3(velocity.x * 0.7f, velocity.y, velocity.z);
+				ragdoll->setVelocity(velocityGlm);
+			}
 			bird->body->addForce(physx::PxVec3(-100, 0, 0), physx::PxForceMode::eACCELERATION);
 		}
 		if (key == GLFW_KEY_D && action == GLFW_RELEASE) {
 			movingRight = false;
-		}
-		if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
-			soundEngine->setSoundVolume(1.0);
-		}
-		if (key == GLFW_KEY_E && action == GLFW_PRESS) {
-			soundEngine->setSoundVolume(0);
 		}
 		if (key == GLFW_KEY_F && action == GLFW_PRESS) {
 			cout << "Framerate: " << TimeManager::Instance()->FrameRate() << endl;
@@ -747,7 +768,7 @@ public:
 					rotation = randOffset(1.f / 7.f)*PI;
 					rotAxis[rand() % 3] = 1; //Set a random axis to rotate
 					addRock(make_shared<Entity>(
-						ProgramManager::ROCK_MESH, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1), 
+						ProgramManager::ROCK_MESH, curPos, ROCK_SCALE*vec3(widths[widthNdx], 1, 1),
 						rotAxis, false, ROCK_MAT, rotation, ProgramManager::ROCK));
 					rotAxis = vec3(0, 0, 0);
 				}
