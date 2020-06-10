@@ -105,6 +105,8 @@ public:
 	vec3 EAGLE_OFFSET = vec3(0, 1000, 0);
 	float MAX_EAGLE_SEPARATION = 50.f;
 	float EAGLE_SEPARATION = MAX_EAGLE_SEPARATION;
+	float EAGLE_MIN_SPEED = 40.0f;
+	float EAGLE_MAX_SPEED = 75.0f;
 	float LAST_SCREECH = 0;
 	float WIN_HEIGHT = 2410;
 	float WIN_TIME = 0.f;
@@ -321,7 +323,7 @@ public:
 			}
 			branch->material = ProgramManager::BLUE_PLASTIC;
 			branchParticle();
-			FREE_FRAMES = 3;
+			FREE_FRAMES = 1;
 			soundEngine->play2D(branchCrackSound);
 			break;
 		}
@@ -1370,13 +1372,12 @@ public:
 		FREE_FRAMES--;
 		lastSpeed = speed;
 
-		float EAGLE_MIN_SPEED = 30.0f;
-		float EAGLE_MAX_SPEED = 75.0f;
+		
 		vec3 direction = bird->position - eagle->position;
 		if (speed > 70.f || length(direction) > 75.0f) {
 			direction = bird->position + vec3(50,50,25) - eagle->position;
 		}
-		if (LAST_SCREECH > 5) {
+		if (LAST_SCREECH > 15) {
 			soundEngine->play2D(eagleSound);
 			LAST_SCREECH = 0.f;
 		}
@@ -1580,7 +1581,7 @@ public:
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, motionBuf);
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, motionBuf);
 
-			float blurVelocityRequirement = 75;
+			float blurVelocityRequirement = 50;
 
 			physx::PxVec3 velocity = bird->body->getLinearVelocity();
 

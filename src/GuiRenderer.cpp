@@ -65,7 +65,7 @@ void GuiRenderer::render(vector<GuiTexture*> guis, float delta_frame, mat4 V, ma
 	//gui_pos.y -= 24.0f;
 
 	
-	cout << "gui_pos: " << gui_pos.x << ", " << gui_pos.y << ", " << gui_pos.z << endl;
+	//cout << "gui_pos: " << gui_pos.x << ", " << gui_pos.y << ", " << gui_pos.z << endl;
 
 
 
