@@ -105,11 +105,13 @@ public:
 	vec3 EAGLE_OFFSET = vec3(0, 1000, 0);
 	float MAX_EAGLE_SEPARATION = 50.f;
 	float EAGLE_SEPARATION = MAX_EAGLE_SEPARATION;
-	float EAGLE_MIN_SPEED = 40.0f;
+	float EAGLE_MIN_SPEED = 30.0f;
 	float EAGLE_MAX_SPEED = 75.0f;
 	float LAST_SCREECH = 0;
 	float WIN_HEIGHT = 2410;
 	float WIN_TIME = 0.f;
+	bool START = false;
+	int FRAME_COUNTER = 0;
 
 
 	WindowManager * windowManager = nullptr;
@@ -131,6 +133,7 @@ public:
 
 	GuiRenderer* guiSystem;
 	vector<GuiTexture*> guiTextures;
+	vector<GuiTexture*> guiStart;
 
 	// Contains vertex information for OpenGL
 	GLuint VertexArrayID;
@@ -345,12 +348,12 @@ public:
 		if (key == GLFW_KEY_W && action == GLFW_RELEASE) {
 			movingForward = false;
 		}
-		if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
-			ragdoll->setPosition(startPosition);
-			movingUp = true;
-		}
 		if (key == GLFW_KEY_SPACE && action == GLFW_RELEASE) {
-			movingUp = false;
+			if (!START) {
+				soundEngine->setSoundVolume(1.0);
+				START = true;
+				resetGame();
+			}
 		}
 		if (key == GLFW_KEY_S && action == GLFW_PRESS) {
 			bird->body->addForce(physx::PxVec3(0, 0, -100), physx::PxForceMode::eACCELERATION);
@@ -374,11 +377,10 @@ public:
 			movingRight = false;
 		}
 		if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
-			soundEngine->setAllSoundsPaused();
-			eye.y -= 0.5;
+			soundEngine->setSoundVolume(1.0);
 		}
 		if (key == GLFW_KEY_E && action == GLFW_PRESS) {
-			eye.y += 0.5;
+			soundEngine->setSoundVolume(0);
 		}
 		if (key == GLFW_KEY_F && action == GLFW_PRESS) {
 			cout << "Framerate: " << TimeManager::Instance()->FrameRate() << endl;
@@ -488,6 +490,15 @@ public:
 		dead_face->setPosition(vec2(10.0f, 15.0f));
 		dead_face->setActive(false);
 		guiTextures.push_back(dead_face);
+
+		fileName = "/gui/StartScreen.png";
+		GuiTexture* start = new GuiTexture();
+		start->loadTexture(resourceDirectory + fileName);
+		//tex->setScale(vec2(0.01f, 0.01f));
+		start->setScale(vec2(40, 40));
+		start->setPosition(vec2(10.0f, 15.0f));
+		//start->setActive(false);
+		guiStart.push_back(start);
 	}
 
 	void confettiParticle() {
@@ -854,6 +865,8 @@ public:
 		std::string backgroundMusic = (resourceDirectory + BACKGROUND_MUSIC_FILE).c_str();
 		music = soundEngine->addSoundSourceFromFile(backgroundMusic.c_str());
 		music->setDefaultVolume(0.1);
+
+		soundEngine->setSoundVolume(0);
 		
 	}
 
@@ -880,6 +893,7 @@ public:
 		GAME_OVER = false;
 		CAUGHT = false;
 		WIN = false;
+		FRAME_COUNTER = 0;
 		WIN_TIME = 0.f;
 		HEALTH = MAX_HEALTH;
 		ragdoll->setPosition(startPosition);
@@ -912,7 +926,7 @@ public:
 		
 		ragdoll = make_shared<Ragdoll>(mPhysics, mScene, mMaterial);
 		bird = Ragdoll::createBirdRagdoll(startPosition, entities, ragdoll, resourceDirectory);
-		eye = bird->position + CAM_OFFSET;
+		eye = bird->position + vec3(0,50,0);
 		lookAtPoint = bird->position;
 
 
@@ -1337,7 +1351,14 @@ public:
 			}
 			WIN_TIME += deltaTime;
 		}
+		//trying to limit how much the bird flies away at the start
+		if (FRAME_COUNTER < 10) {
+			physx::PxVec3 velocity = bird->body->getLinearVelocity();
+			vec3 velocityGlm = vec3(velocity.x, velocity.y, velocity.z);
+			ragdoll->setVelocity(velocityGlm * 0.1f);
 
+		}
+		FRAME_COUNTER++;
 		for (shared_ptr<Entity> entity : entities) {
 			if (entity->body) {
 				Ragdoll::updateOrientation(entity);
@@ -1408,12 +1429,11 @@ public:
 			FIRST = false;
 			soundEngine->play2D(music, true);
 		}
-		if (!GAME_OVER) {
+		if (!GAME_OVER && START) {
 			mScene->simulate(deltaTime);
-			lightLA = bird->position;
-			lightUp = vec3(0, 1, 0);
+			lightLA = bird->position;	
 		}
-
+		lightUp = vec3(0, 1, 0);
 		// Get current frame buffer size.
 		int width, height;
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
@@ -1445,7 +1465,7 @@ public:
 			Model->loadIdentity();
 			//Model->rotate(rotate, vec3(0, 1, 0));
 			for (shared_ptr<Entity> entity : entities) {
-				if (!entity->isPlane && !shouldCull(entity->position, entity->cullRadius)) {
+				if (!entity->isPlane && !shouldCull(entity->position, entity->cullRadius) && START) {
 					entity->draw(Model, DepthProg);
 				}
 			}
@@ -1519,11 +1539,17 @@ public:
 		Model->pushMatrix();
 		Model->loadIdentity();
 		//Model->rotate(rotate, vec3(0, 1, 0));
-		for (shared_ptr<Entity> entity : entities) {
-			if (!shouldCull(entity->position, entity->cullRadius)) {
-				entity->draw(Model);
+		if (START) {
+			for (shared_ptr<Entity> entity : entities) {
+				if (!shouldCull(entity->position, entity->cullRadius)) {
+					entity->draw(Model);
+				}
 			}
 		}
+		/*
+		else {
+			startScreen->draw(Model);
+		}*/
 
 		//Model->popMatrix();
 		//ProgramManager::Instance()->progMat->unbind();
@@ -1714,8 +1740,15 @@ public:
 		guiTextures[3]->setPosition(speed_orig_pos + vec2(max_speed_gui /5.0f, 0));		// resposition bar so its right aligned
 		guiTextures[4]->setPosition(speed_orig_pos + vec2(max_speed_gui / 5.0f, 0));		// resposition bar so its right aligned
 
-		guiSystem->render(guiTextures, deltaTime, View, Projection->topMatrix(), bird->position);
-
+		guiStart[0]->setPosition(orig_position + vec2(0, -10));
+		if (START) {
+			guiSystem->render(guiTextures, deltaTime, View, Projection->topMatrix(), bird->position);
+		}
+		else {
+			guiStart[0]->setActive(true);
+			guiSystem->render(guiStart, deltaTime, View, Projection->topMatrix(), bird->position);
+		}
+		
 		
 		//animation update example
 		sTheta = sin(glfwGetTime());
@@ -1723,13 +1756,16 @@ public:
 		// Pop matrix stacks.
 		Projection->popMatrix();
 		//View->popMatrix();
-		if (!GAME_OVER) {
+		if (!GAME_OVER && START) {
 			mScene->fetchResults();
 			updateCamera(bird);
 			light = bird->position + vec3(75, 75, 75);
 			checkIfBranchCollision(bird);
+			updateEntities();
 		}
-		updateEntities();
+		if (START) {
+			updateEntities();
+		}
 	}
 };
 
