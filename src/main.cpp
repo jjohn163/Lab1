@@ -313,8 +313,12 @@ public:
 
 			physx::PxVec3 velocity = bird->body->getLinearVelocity();
 			vec3 velocityGlm = vec3(velocity.x, velocity.y, velocity.z);
-			ragdoll->setVelocity(velocityGlm * 0.6f);
-			//branches.erase(branches.begin() + i);
+			if (velocity.y < -50) {
+				ragdoll->setVelocity(velocityGlm + vec3(0, 20, 0));
+			}
+			else {
+				ragdoll->setVelocity(velocityGlm*0.5f);
+			}
 			branch->material = ProgramManager::BLUE_PLASTIC;
 			branchParticle();
 			FREE_FRAMES = 3;
