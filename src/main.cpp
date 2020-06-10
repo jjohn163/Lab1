@@ -911,6 +911,7 @@ public:
 		}
 	}
 
+
 	void resetGame() {
 		GAME_OVER = false;
 		CAUGHT = false;
@@ -936,6 +937,37 @@ public:
 		lookAtPoint = startPosition;
 		FREE_FRAMES = 10;
 		EAGLE_SEPARATION = MAX_EAGLE_SEPARATION;
+
+		// GUI
+		GuiTexture* red_health = guiTextures[0];
+		red_health->setScale(vec2(10.0f, 1.0f));
+		red_health->setPosition(vec2(0.0f, 12.0f));
+		red_health->setActive(true);
+
+		GuiTexture* green_health = guiTextures[1];
+		green_health->setScale(vec2(10.0f, 1.0f));
+		green_health->setPosition(vec2(0.0f, 12.0f));
+		green_health->setActive(true);
+
+		GuiTexture* rainbow_speed = guiTextures[2];
+		rainbow_speed->setScale(vec2(10.0f, 0.5f));
+		rainbow_speed->setPosition(vec2(0.0f, 15.0f));
+		rainbow_speed->setActive(true);
+
+		GuiTexture* slow_speed = guiTextures[3];
+		slow_speed->setScale(vec2(2, 2));
+		slow_speed->setPosition(vec2(10.0f, 15.0f));
+		slow_speed->setActive(true);
+
+		GuiTexture* fast_speed = guiTextures[4];
+		fast_speed->setScale(vec2(3, 3));
+		fast_speed->setPosition(vec2(10.0f, 15.0f));
+		fast_speed->setActive(true);
+
+		GuiTexture* dead_face = guiTextures[5];
+		dead_face->setScale(vec2(3, 3));
+		dead_face->setPosition(vec2(10.0f, 15.0f));
+		dead_face->setActive(false);
 	}
 
 	void init(const std::string& resourceDirectory)
