@@ -99,7 +99,7 @@ public:
 	//GAME MANAGING
 	bool GAME_OVER = false;
 	bool WIN = false;
-	float MAX_HEALTH = 1000.0;
+	float MAX_HEALTH = 1500.0;
 	float HEALTH = MAX_HEALTH;
 	bool CAUGHT = false;
 	int FREE_FRAMES = 10;
@@ -355,7 +355,7 @@ public:
 		if (key == GLFW_KEY_M && action == GLFW_PRESS) {
 			SOUND = !SOUND;
 			if (SOUND) {
-				soundEngine->setSoundVolume(1.0);
+				soundEngine->setSoundVolume(0.5);
 			}
 			else {
 				soundEngine->setSoundVolume(0.0);
