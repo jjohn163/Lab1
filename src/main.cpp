@@ -106,13 +106,14 @@ public:
 	vec3 EAGLE_OFFSET = vec3(0, 1000, 0);
 	float MAX_EAGLE_SEPARATION = 50.f;
 	float EAGLE_SEPARATION = MAX_EAGLE_SEPARATION;
-	float EAGLE_MIN_SPEED = 30.0f;
+	float EAGLE_MIN_SPEED = 25.0f;
 	float EAGLE_MAX_SPEED = 75.0f;
 	float LAST_SCREECH = 0;
 	float WIN_HEIGHT = 2410;
 	float WIN_TIME = 0.f;
 	bool START = false;
 	int FRAME_COUNTER = 0;
+	float PLAYER_CONTROL = 0.85f;
 
 
 	WindowManager * windowManager = nullptr;
@@ -342,7 +343,7 @@ public:
 		if (key == GLFW_KEY_W && action == GLFW_PRESS) {
 			physx::PxVec3 velocity = bird->body->getLinearVelocity();
 			if (velocity.z < 0) {
-				vec3 velocityGlm = vec3(velocity.x, velocity.y, velocity.z * 0.7f);
+				vec3 velocityGlm = vec3(velocity.x, velocity.y, velocity.z * PLAYER_CONTROL);
 				ragdoll->setVelocity(velocityGlm);
 			}
 			bird->body->addForce(physx::PxVec3(0, 0, 100), physx::PxForceMode::eACCELERATION);
@@ -370,7 +371,7 @@ public:
 		if (key == GLFW_KEY_S && action == GLFW_PRESS) {
 			physx::PxVec3 velocity = bird->body->getLinearVelocity();
 			if (velocity.z > 0) {
-				vec3 velocityGlm = vec3(velocity.x, velocity.y, velocity.z * 0.7f);
+				vec3 velocityGlm = vec3(velocity.x, velocity.y, velocity.z * PLAYER_CONTROL);
 				ragdoll->setVelocity(velocityGlm);
 			}
 			bird->body->addForce(physx::PxVec3(0, 0, -100), physx::PxForceMode::eACCELERATION);
@@ -383,7 +384,7 @@ public:
 			movingLeft = true;
 			physx::PxVec3 velocity = bird->body->getLinearVelocity();
 			if (velocity.x < 0) {
-				vec3 velocityGlm = vec3(velocity.x * 0.7f, velocity.y, velocity.z);
+				vec3 velocityGlm = vec3(velocity.x * PLAYER_CONTROL, velocity.y, velocity.z);
 				ragdoll->setVelocity(velocityGlm);
 			}
 			bird->body->addForce(physx::PxVec3(100, 0, 0), physx::PxForceMode::eACCELERATION);
@@ -395,7 +396,7 @@ public:
 			movingRight = true;
 			physx::PxVec3 velocity = bird->body->getLinearVelocity();
 			if (velocity.x > 0) {
-				vec3 velocityGlm = vec3(velocity.x * 0.7f, velocity.y, velocity.z);
+				vec3 velocityGlm = vec3(velocity.x * PLAYER_CONTROL, velocity.y, velocity.z);
 				ragdoll->setVelocity(velocityGlm);
 			}
 			bird->body->addForce(physx::PxVec3(-100, 0, 0), physx::PxForceMode::eACCELERATION);
