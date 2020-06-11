@@ -1,3 +1,12 @@
-Joseph Johnson (jjohn163), Kevin Krein (kkrein)
+Joseph Johnson, Kevin Krein, Chanelle Mosquera, Rafael Dolfe
 
-Use the "WASD" keys to move around the scene and use the mouse(not scroll) to look around the screen.
+External Dependencies: Physx and Irrklang
+
+Platform: Windows
+
+Controls:
+"WASD" for movement
+"ENTER" restarts the game
+"SPACE" starts the game
+"M" toggles the sound
+

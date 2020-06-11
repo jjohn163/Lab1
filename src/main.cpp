@@ -64,11 +64,14 @@ public:
 	irrklang::ISoundSource* branchCrackSound;
 	irrklang::ISoundSource* eagleSound;
 	irrklang::ISoundSource* gameoverSound;
+	irrklang::ISoundSource* fireworkSound;
 	const std::string IMPACT_SOUND_FILE = "/impact.wav";
 	const std::string BACKGROUND_MUSIC_FILE = "/bensound-buddy.mp3";
 	const std::string BRANCH_CRACK_SOUND_FILE = "/branch_crack.wav";
 	const std::string EAGLE_SOUND_FILE = "/hawk_screeching.wav";
 	const std::string GAMEOVER_SOUND_FILE = "/gameover.mp3";
+	const std::string FIREWORKS_SOUND_FILE = "/fireworks.wav";
+	
 	bool SOUND = true;
 
 
@@ -96,7 +99,7 @@ public:
 	//GAME MANAGING
 	bool GAME_OVER = false;
 	bool WIN = false;
-	float MAX_HEALTH = 1000.0;
+	float MAX_HEALTH = 1500.0;
 	float HEALTH = MAX_HEALTH;
 	bool CAUGHT = false;
 	int FREE_FRAMES = 10;
@@ -352,7 +355,7 @@ public:
 		if (key == GLFW_KEY_M && action == GLFW_PRESS) {
 			SOUND = !SOUND;
 			if (SOUND) {
-				soundEngine->setSoundVolume(1.0);
+				soundEngine->setSoundVolume(0.5);
 			}
 			else {
 				soundEngine->setSoundVolume(0.0);
@@ -884,6 +887,10 @@ public:
 		gameoverSound = soundEngine->addSoundSourceFromFile(gameoverFile.c_str());
 		gameoverSound->setDefaultVolume(2.0);
 
+		std::string fireworksFile = (resourceDirectory + FIREWORKS_SOUND_FILE).c_str();
+		fireworkSound = soundEngine->addSoundSourceFromFile(fireworksFile.c_str());
+		fireworkSound->setDefaultVolume(2.0);
+
 		std::string backgroundMusic = (resourceDirectory + BACKGROUND_MUSIC_FILE).c_str();
 		music = soundEngine->addSoundSourceFromFile(backgroundMusic.c_str());
 		music->setDefaultVolume(0.1);
@@ -1401,6 +1408,7 @@ public:
 			if (WIN_TIME > 0.3f) {
 				WIN = true;
 				GAME_OVER = true;
+				soundEngine->play2D(fireworkSound);
 				return;
 			}
 			WIN_TIME += deltaTime;
