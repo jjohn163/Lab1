@@ -1,0 +1,32 @@
+@import "~@fortawesome/fontawesome-free/scss/fontawesome"; 
+
+* {
+        margin-left: 20px;
+        margin-right: 20px;
+        padding: 0;
+        border: 0;
+        outline: 0;
+        font-size: 100%;
+        vertical-align: baseline;
+		background: transparent;
+		text-align: center;
+		overflow: hidden;
+		line-height: 1.42857143;
+}
+
+html, body{
+	overflow:initial !important;
+  }
+
+/* .aboutmew-desc {
+	display: flex;
+	padding: 20px;
+	font-family: Helvetica, Arial, sans-serif;
+	font-size: 14px;
+	line-height: 1.42857143;
+	color: #333;
+	
+	background-color: #062F4F;
+	text-align: center;
+	overflow: hidden;
+} */

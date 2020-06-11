@@ -1,0 +1,257 @@
+<head>
+    <title>Webpage Title</title>
+  
+    <link href="http://fonts.googleapis.com/css?family=Source+Sans+Pro:200,400,700,400italic,700italic" rel="stylesheet" type="text/css">
+  
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+  
+      body {
+        background: white;
+        color: #333333;
+        -webkit-font-smoothing: antialiased;
+        font-size: 16px;
+        font-family: "Source Sans Pro", Helvetica;
+      }
+  
+      img {
+        display: block;
+      }
+  
+      em {
+        font-size: 12px;
+      }
+  
+      #signature {
+        margin-left: 30px;
+        font-style: oblique;
+      }
+  
+      a:link,
+      a:visited {
+        color: #165788;
+        text-decoration: none;
+      }
+  
+      a:hover,
+      a:focus,
+      a:active {
+        text-decoration: underline;
+      }
+  
+      .wrapper {
+        width: 660px;
+        margin: auto;
+      }
+  
+      .container {
+        width: 660px;
+        margin: auto;
+      }
+  
+      #content {
+        width: 650px;
+        margin: 70px auto 0px auto;
+      }
+  
+      #content article {
+        margin-bottom: 150px;
+      }
+  
+      #content h1,
+      #content h2 {
+        color: black;
+        margin-bottom: 30px;
+        font-weight: 200;
+        font-size: 48px;
+      }
+  
+      #content h3 {
+        color: black;
+        border-bottom: 1px solid black;
+        text-transform: uppercase;
+        margin: 30px 0px 30px 0px;
+        font-size: 28px;
+        font-weight: 200;
+      }
+  
+      #content p {
+        width: 100%;
+        line-height: 150%;
+        margin-bottom: 20px;
+      }
+  
+      #content p:first-child {
+        font-size: 18px;
+        font-style: italic;
+        letter-spacing: 2px;
+      }
+  
+      #content p:first-child:first-line {
+          font-weight: bold;
+      }
+    
+      #content ul {
+          padding-left:25px
+      }
+  
+      pre {
+        font-size: 10px;
+        padding: 15px;
+        border-radius: 10px;
+        background: #ddd;
+      }
+
+      .imgContainer{
+        float:left;
+      } 
+    </style>
+  </head>
+<body><div class="wrapper"><section id="content">
+
+    <h1>FeatherFall</h1>
+    
+    <h4>Joey, Kevin Krein, Chanelle, Rafael Dolfe</h4>
+    
+    <article> <!-- This adds padding at the top and bottom -->
+    
+    
+      Controls
+      “WASD” - movement
+      “M” - toggle sound
+      “RETURN” - restart level
+      “SPACE” - start game
+      
+      Gameplay
+      Place video here.
+      Technologies
+      
+      Development Timeline
+      
+      Resources
+      External Libraries
+      PhysX
+      Irrklang
+      
+      Links
+      Edge detection: https://observablehq.com/@ondras/glsl-edge-detection
+      Physx Articulations: https://gameworksdocs.nvidia.com/PhysX/4.0/documentation/PhysXGuide/Manual/Articulations.html
+      
+    
+    <h3>Project Description</h3>
+    
+    <p>A baby goose. A dangerous cliff. And a hungry eagle. Help guide the chick as it falls down the cliff. Go too fast and the chick is harmed on impact with the ground. Go too slow and the eagle catches up to its delicious dinner. Bump into the rocks and branches to keep control of the speed. (Go for the branches, they won't hurt as much.) And get the chick safely to the ground.</i></p>
+    
+    <h3>Inspiration</h3>
+
+    <p><a href="https://www.youtube.com/watch?v=H1S6UCX4RAA">Arctic Geese Chicks Jump Off Cliff to Survive | Hostile Planet</a></p>
+
+    <h3>Controls</h3>
+    <p>
+      “WASD” - movement
+      “M” - toggle sound
+      “RETURN” - restart level
+      “SPACE” - start game
+      </p>
+
+    <h3>Gameplay Place video here.</h3>
+
+    <h3>Technologies</h3>
+
+    <p>
+      Camera
+      The game camera is set in third-person and follows the player using “tweening” to adjust the time of the transition to the target position behind the player.
+      
+      Collision Detection
+      Feather Fall uses PhysX to handle collisions.  Each entity in the game has a corresponding collider that is managed by the physics engine.
+      
+      Deferred Rendering
+      
+      
+      HUD
+      
+      
+      Motion Blur
+      FeatherFall uses motion blur to give a bit more flavor to falling and to indicate speed better. It works by storing the two previous frames and blending those together with the current frame. It also only activates at a certain speed threshold.
+      
+      NPR Rendering
+      The art style of Feather Fall comes from its contouring and binning. The binning rounds all colors to certain thresholds to give it a more cartoony look.  The contouring uses Sobel edge detection to determine where the edges are and then colors those edges brown to give everything a clean outline.
+      
+      Particle System
+      
+      
+      Procedural Generation
+      Feather Fall uses procedural generation to create a random map for the player to traverse down. The procedural generation works by choosing from a set of 5 differently scaled rocks on each level and removing one of them, and then on each subsequent row of rocks, another of the 5 rocks is taken out, only within 1 unit left and right of the missing rock in the previous row. This way there is a defined path all the way down.
+      
+      Ragdoll
+      The main character in Feather Fall is a ragdoll goose chick which was implemented using the Physx Articulation System.  The head and limbs were connected to the torso using spherical joints which allowed the head and limbs to move freely around a point while still being connected to the torso.
+      
+      Shadows
+      Feather Fall uses shadow mapping to render shadows from the perspective of the single light source.
+      
+      View Frustum Culling
+      Feather Fall originally went with standard view frustum culling, based on the camera angle, but we found that since our camera only travels vertically facing the same direction always, we decided to use a more computationally efficient method of culling based on simple calculations regarding height. Cull if an object is behind the camera of its own radius, or below the camera based on a certain radius, provided by the entity being culled.
+      </p>
+
+    <h3>Development Timeline</h3>
+
+
+    <center>
+    <div class="image123">
+      <div class="imgContainer">
+          <img src="/images/concept" height="110" width="110"/>
+          <p>Concept</p>
+      </div>
+      <div class="imgContainer">
+          <img src="/images/25"/ height="110" width="110"/>
+          <p>25%</p>
+      </div>
+      <div class="imgContainer">
+          <img src="/images/50"/ height="110" width="110"/>
+          <p>50%</p>
+      </div>
+      <div class="imgContainer">
+        <img src="/images/75"/ height="110" width="110"/>
+        <p>75%</p>
+      </div>
+      <div class="imgContainer">
+        <img src="/images/100"/ height="110" width="110"/>
+        <p>100%</p>
+      </div>
+    </div>
+    </center>
+
+    <h3>Resources</h3>
+
+    <h5>External Libraries</h5>
+    <b>PhysX
+      Irrklang</b>
+    
+    <h5>Links</h5>
+    Edge detection: <a href="https://observablehq.com/@ondras/glsl-edge-detection">link</a>
+    Physx Articulations: <a href="https://gameworksdocs.nvidia.com/PhysX/4.0/documentation/PhysXGuide/Manual/Articulations.html">link</a>
+
+    <img src="game screenshot.png" width="50%">
+    
+    <!-- A Centered image -->
+    <center>
+      <a>
+        <img src="game screenshot.png" width="50%">
+      </a>
+      <em>Screenshot of a moment in the game</em>
+    </center>
+    <p></p>
+    <p>The game employs rectangles scaled and positioned differently, with a color attached to each game object as appropriate. Using the fact that objects in the game are rectangular, the collision detection system is possible to make in an uncomplicated fashion. Furthermore, the win screen encountered when you reach the final win zone features a full screen texture, created by putting a texture on a rectangle that is positioned right on top of the view camera. There is also a skybox for extra immersion. Lastly, many supporting systems have been put in place, such as checkpoints, losing by falling, losing by having the camera run away from you, losing by stepping on the green goo, camera speed increasing with time, etc.</p>
+
+    
+    <h3>Resources</h3>
+    <ul>
+        <li><a href="2D-sidescroller.mp4">Video</a></li>
+        <li><a href="2D-sidescroller.zip">Project Download</a></li>
+    </ul>
+    
+    </article></section></div>
+    </body>
