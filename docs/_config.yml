@@ -22,8 +22,8 @@ title: Feather Fall
 email: your-email@example.com
 description: >- # this means to ignore newlines until "baseurl:"
       A baby goose. A dangerous cliff. And a hungry eagle. Help guide the chick as it falls down the cliff. Go too fast and the chick is harmed on impact with the ground. Go too slow and the eagle catches up to its delicious dinner. Bump into the rocks and branches to keep control of the speed. (Go for the branches, they won't hurt as much.) And get the chick safely to the ground. 
-baseurl: "" # the subpath of your site, e.g. /blog
-url: "" # the base hostname & protocol for your site, e.g. http://example.com
+baseurl: "/Lab1" # the subpath of your site, e.g. /blog
+url: "https://jjohn163.github.io/" # the base hostname & protocol for your site, e.g. http://example.com
 twitter_username: jekyllrb
 github_username:  jekyll
 
