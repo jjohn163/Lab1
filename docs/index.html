@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <title>Feather Fall</title>
+
+  <!-- Bootstrap core CSS -->
+  <link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Custom fonts for this template -->
+  <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+  <link href='https://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+  <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+  <!-- Custom styles for this template -->
+  <link href="css/clean-blog.min.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+    <div class="container">
+      <div class="collapse navbar-collapse" id="navbarResponsive">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="index.html">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="about.html">About</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page Header -->
+  <header class="masthead" style="background-image: url('img/header.png')">
+    <div class="overlay"></div>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+          <div class="site-heading">
+            <h1>Feather Fall</h1>
+            <span class="subheading"><b>A baby goose. A dangerous cliff. And a hungry eagle.</b></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        <div class="silly-goose">
+          <p>Help guide the chick as it falls down the cliff. Go too fast and the chick is harmed on impact with the ground. Go too slow and the eagle catches up to its delicious dinner. Bump into the rocks and branches to keep control of the speed. (Go for the branches, they won't hurt as much.) And get the chick safely to the ground.</p>
+          <h1>Game Description</h1>
+          <h2>Inspiration</h2>
+          <p>Arctic Geese Chicks Jump Off Cliff to Survive | Hostile Planet</p>
+          <h2>Controls</h2>
+          <p>
+            “WASD” - movement
+            “M” - toggle sound
+            “RETURN” - restart level
+            “SPACE” - start game
+          </p>
+          <h1>Game Play</h1>
+          <video width="640" controls>
+            <source src="img\FeatherFallGameplay.mp4" type="video/mp4">            
+          Your browser does not support the video tag.
+          </video>
+          <h1>Technologies</h1>
+          <h2>Camera</h2>
+          <p><b>Rafael</b></p>
+          <p>The game camera is set in third-person and follows the player using “tweening” to adjust the time of the transition to the target position behind the player.</p>
+
+          <h2>Collision Detection</h2>
+          <p><b>Joey</b></p>
+          <p>Feather Fall uses PhysX to handle collisions.  Each entity in the game has a corresponding collider that is managed by the physics engine.</p>
+
+          <h2>Deferred Rendering</h2>
+          <p><b>Chanelle</b></p>
+          <p>A deferred rendering system is a technique used to separate the scene’s geometry from post-processing effects such as lighting and motion blur. In feather fall, all of the objects’ geometry is rendered into a buffer. Information from that buffer is then passed through lighting, motion blur, and a final post-processing shader. By sending the geometry through a single render pass, the system also benefits from an improvement in computational memory and efficiency. </p>
+          
+          <h2>HUD</h2>
+          <p><b>Chanelle</b></p>
+          <p>The speed and health of the chick is indicated by a HUD. This was developed by rendering a quad on the screen and managed using a HUD system that keeps track of all of the elements and updates them as needed. </p>
+          
+          <h2>Motion Blur</h2>
+          <p><b>Rafael</b></p>
+          <p>FeatherFall uses motion blur to give a bit more flavor to falling and to indicate speed better. It works by storing the two previous frames and blending those together with the current frame. It also only activates at a certain speed threshold.</p>
+          <a href="#">
+            <img class="img-fluid" src="img/motionblur.png" alt="">
+          </a>        
+          <span class="caption text-muted">Motion Blur</span>
+          
+          <h2>NPR Rendering</h2>
+          <p><b>Kevin</b></p>
+          <p>The art style of Feather Fall comes from its contouring and binning. The binning rounds all colors to certain thresholds to give it a more cartoony look.  The contouring uses Sobel edge detection to determine where the edges are and then colors those edges brown to give everything a clean outline.</p>
+          
+          <h2>Particle System</h2>
+          <p><b>Chanelle</b></p>
+          <p>The particle system handles the several particle effects throughout the game. Particles are rendered as quads with images with a specific life span and randomization for variation in the particles. </p>
+          <h2>Procedural Generation</h2>
+          
+          <span class="caption text-muted">Feather Particles</span>
+          <a href="#">
+            <img class="img-fluid" src="img/feathers.png" alt="">
+          </a>        
+
+          <h2>Procedural Generation</h2>
+          <p><b>Kevin</b></p>
+          <p>Feather Fall uses procedural generation to create a random map for the player to traverse down. The procedural generation works by choosing from a set of 5 differently scaled rocks on each level and removing one of them, and then on each subsequent row of rocks, another of the 5 rocks is taken out, only within 1 unit left and right of the missing rock in the previous row. This way there is a defined path all the way down.</p>
+          
+          <h2>Ragdoll</h2>
+          <p><b>Joey</b></p>
+          <p>The main character in Feather Fall is a ragdoll goose chick which was implemented using the Physx Articulation System.  The head and limbs were connected to the torso using spherical joints which allowed the head and limbs to move freely around a point while still being connected to the torso.</p>
+          
+          <h2>Shadows</h2>
+          <p><b>Joey</b></p>
+          <p>Feather Fall uses shadow mapping to render shadows from the perspective of the single light source.</p>
+          
+          <h2>View Frustum Culling</h2>
+          <p><b>Kevin</b></p>
+          <p>Feather Fall originally went with standard view frustum culling, based on the camera angle, but we found that since our camera only travels vertically facing the same direction always, we decided to use a more computationally efficient method of culling based on simple calculations regarding height. Cull if an object is behind the camera of its own radius, or below the camera based on a certain radius, provided by the entity being culled.</p>
+
+
+          
+          <h1>Resources</h1>
+          <ul>
+            <li>PhysX | <a href='https://gameworksdocs.nvidia.com/PhysX/4.0/documentation/PhysXGuide/Manual/Articulations.html'>Physx Articulation</a></li>
+            <li>Irrklang | <a href='https://www.ambiera.com/irrklang/'>src</a></li>
+            <li><a href='https://observablehq.com/@ondras/glsl-edge-detection'>Edge Detection</a></li>
+          </ul>
+
+          <h1>Development Timeline</h1>
+          
+          <h2>Game Proposal</h2>
+          <a href="#">
+            <img class="img-fluid" src="img/proposal.png" alt="">
+          </a>          
+
+          <h2>25% Milestone</h2>
+          <a href="#">
+            <img class="img-fluid" src="img/25.png" alt="">
+          </a>          
+          
+          <h2>50% Milestone</h2>
+          <a href="#">
+            <img class="img-fluid" src="img/50.png" alt="">
+          </a>
+          
+          <h2>100% Milestone</h2>
+          <a href="#">
+            <img class="img-fluid" src="img/100.png" alt="">
+          </a>        
+
+          <h2>Losing State: Captured by eagle!</h2>          
+          <a href="#">
+            <img class="img-fluid" src="img/enemybird.png" alt="">
+          </a>        
+
+          <h2>Winning State</h2>
+          <a href="#">
+            <img class="img-fluid" src="img/win.png" alt="">
+          </a>     
+          
+
+        </div>
+        <hr>
+        <!-- Pager -->
+
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+          <ul class="list-inline text-center">
+            <li class="list-inline-item">
+              <a href="#">
+                <span class="fa-stack fa-lg">
+                  <i class="fas fa-circle fa-stack-2x"></i>
+                  <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                </span>
+              </a>
+            </li>
+            <li class="list-inline-item">
+              <a href="#">
+                <span class="fa-stack fa-lg">
+                  <i class="fas fa-circle fa-stack-2x"></i>
+                  <i class="fab fa-facebook-f fa-stack-1x fa-inverse"></i>
+                </span>
+              </a>
+            </li>
+            <li class="list-inline-item">
+              <a href="#">
+                <span class="fa-stack fa-lg">
+                  <i class="fas fa-circle fa-stack-2x"></i>
+                  <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                </span>
+              </a>
+            </li>
+          </ul>
+          <p class="copyright text-muted">Copyright &copy; Your Website 2019</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Bootstrap core JavaScript -->
+  <script src="vendor/jquery/jquery.min.js"></script>
+  <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Custom scripts for this template -->
+  <script src="js/clean-blog.min.js"></script>
+
+</body>
+
+</html>
